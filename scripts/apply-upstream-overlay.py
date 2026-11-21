@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -508,6 +509,110 @@ func spawnX11Locker() error {
     replace_once(p, old, new)
 
 
+def _ternary_counts(expr: str) -> tuple[int, int, int]:
+    parens = expr.count("(") - expr.count(")")
+    questions = len(re.findall(r"\?(?![?.])", expr))
+    colons = len(re.findall(r"(?<!:):(?!:)", expr))
+    return parens, questions, colons
+
+
+def _convert_x11_layer(expr: str) -> str:
+    expr = expr.strip()
+    placeholders = {}
+    for token, replacement in (
+        ("shownLayer", "(shownLayer === WlrLayer.Top || shownLayer === WlrLayer.Overlay)"),
+        ("root.surfaceLayer", "(root.surfaceLayer === WlrLayer.Top || root.surfaceLayer === WlrLayer.Overlay)"),
+    ):
+        if token in expr:
+            placeholder = f"__RXB_LAYER_{len(placeholders)}__"
+            expr = expr.replace(token, placeholder)
+            placeholders[placeholder] = replacement
+    expr = re.sub(r"\bWlrLayer\.(?:Top|Overlay)\b", "true", expr)
+    expr = re.sub(r"\bWlrLayer\.(?:Bottom|Background)\b", "false", expr)
+    if "WlrLayer." in expr:
+        raise RuntimeError(f"unhandled WlrLayer expression in X11 overlay: {expr}")
+    for placeholder, replacement in placeholders.items():
+        expr = expr.replace(placeholder, replacement)
+    return expr
+
+
+def _convert_x11_focus(expr: str) -> str:
+    expr = expr.strip()
+    if "shownKeyboardFocus" in expr:
+        expr = expr.replace("shownKeyboardFocus", "(shownKeyboardFocus !== WlrKeyboardFocus.None)")
+    expr = re.sub(r"\bWlrKeyboardFocus\.(?:Exclusive|OnDemand)\b", "true", expr)
+    expr = re.sub(r"\bWlrKeyboardFocus\.None\b", "false", expr)
+    if "WlrKeyboardFocus." in expr:
+        raise RuntimeError(f"unhandled WlrKeyboardFocus expression in X11 overlay: {expr}")
+    return expr
+
+
+def patch_x11_panel_properties(root: pathlib.Path) -> None:
+    # PanelWindow's aboveWindows/focusable properties are portable to X11.
+    # WlrLayershell's attached object is null on X11, so static attached
+    # property assignments must not be evaluated by the shell.
+    for p in root.rglob("*.qml"):
+        text = p.read_text()
+        if "WlrLayershell." not in text:
+            continue
+        if p.name == "VariantRoot.qml":
+            text = text.replace("WlrLayershell.focusable:", "focusable:")
+            text = text.replace("WlrLayershell.keyboardFocus: dismissLayer.visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None\n", "")
+        if p.name == "LyricsPicker.qml":
+            text = text.replace("WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand\n", "")
+        if p.name == "GithubFace.qml":
+            text = text.replace('''                    let focusVal = enable ? 1 : 0;
+                    if (typeof WlrKeyboardFocus !== "undefined") {
+                        focusVal = enable ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None;
+                    } else if (typeof WlrLayershell !== "undefined" && WlrLayershell.KeyboardFocus) {
+                        focusVal = enable ? WlrLayershell.KeyboardFocus.OnDemand : WlrLayershell.KeyboardFocus.None;
+                    }
+                    t.WlrLayershell.keyboardFocus = focusVal;''', '''                    t.focusable = !!enable;''')
+
+        lines = text.splitlines()
+        out = []
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            match = re.match(r"^(\s*)WlrLayershell\.(layer|keyboardFocus):\s*(.*)$", line)
+            if match:
+                indent, prop, expr = match.groups()
+                parts = [expr.strip()]
+                j = i + 1
+                while j < len(lines):
+                    candidate = lines[j].strip()
+                    if not candidate:
+                        break
+                    parens, questions, colons = _ternary_counts(" ".join(parts))
+                    if parens <= 0 and questions <= colons and not candidate.startswith(("?", ":")):
+                        break
+                    parts.append(candidate)
+                    j += 1
+                expression = " ".join(parts).strip()
+                if prop == "layer":
+                    converted = _convert_x11_layer(expression)
+                    out.append(f"{indent}aboveWindows: {converted}")
+                else:
+                    converted = _convert_x11_focus(expression)
+                    out.append(f"{indent}focusable: {converted}")
+                i = j
+                continue
+            if re.match(r"^\s*WlrLayershell\.namespace\s*:", line):
+                i += 1
+                continue
+            if re.match(r"^(\s*)WlrLayershell\.focusable:", line):
+                line = re.sub(r"WlrLayershell\.focusable:", "focusable:", line, count=1)
+            out.append(line)
+            i += 1
+        patched = "\n".join(out) + ("\n" if text.endswith("\n") else "")
+        if "WlrLayershell.layer:" in patched or "WlrLayershell.keyboardFocus:" in patched or "WlrLayershell.namespace:" in patched or "WlrLayershell.focusable:" in patched:
+            raise RuntimeError(f"{p}: X11 PanelWindow property conversion incomplete")
+        if "t.WlrLayershell.keyboardFocus" in patched:
+            raise RuntimeError(f"{p}: dynamic Wayland keyboard-focus assignment remains")
+        if patched != text:
+            p.write_text(patched)
+
+
 def patch_wayland_consumers(root: pathlib.Path) -> None:
     # The original taskbar/dock paths used Wayland foreign-toplevel objects.
     # RXB's Wm singleton now supplies provider-backed wrappers with activate/close.
@@ -643,6 +748,7 @@ def main() -> int:
     patch_detect(root)
     patch_session_detection(root)
     patch_wm_qml(root)
+    patch_x11_panel_properties(root)
     patch_compositor_service(root)
     patch_wayland_consumers(root)
     patch_x11_capture(root)
@@ -651,7 +757,7 @@ def main() -> int:
     patch_lock_dispatch(root)
     patch_x11_package_safety(root)
     print(f"RXB overlay applied to pinned Ryoku {PIN}")
-    print("Changed: provider/session discovery, QML i3 bridge, taskbar/capture/region adapters, X11 clipboard, lock, and non-destructive package policy")
+    print("Changed: provider/session discovery, QML i3 bridge, X11 panel/taskbar/capture/clipboard/lock adapters, and non-destructive package policy")
     print("Note: this is a source overlay, not a completed/validated desktop build.")
     return 0
 
