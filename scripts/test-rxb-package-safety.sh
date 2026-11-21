@@ -33,6 +33,11 @@ if ! grep -Fq 'ryoku-session.target.wants/ryogami.service' "$root/release/packag
   echo "Ryogami must be linked only to the RXB session target." >&2
   exit 1
 fi
+if ! grep -Fq 'EnvironmentFile=%t/ryoku-x11-session.env' "$root/payload/systemd/ryogami.service.d/10-rxb-x11.conf" ||
+   ! grep -Fq 'ConditionPathExists=%t/ryoku-x11-session.env' "$root/payload/systemd/ryogami.service.d/10-rxb-x11.conf"; then
+  echo "Ryogami must use the same session-scoped X11 environment." >&2
+  exit 1
+fi
 shopt -s nullglob
 packages=("$dist"/*.pkg.tar.*)
 (("${#packages[@]}" > 0)) || { echo "No Arch package artifacts found in $dist" >&2; exit 1; }
