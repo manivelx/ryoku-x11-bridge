@@ -14,8 +14,18 @@
 Status: documentation baseline committed; audit is not yet exhaustive.
 
 ## Phase 1 — i3 provider foundation
-Implement upstream provider contract, i3 IPC framing, request/event clients, normalized outputs/workspaces/windows, semantic actions, conservative capabilities, watch resync, config preview/apply, defaults, schema and keybinds.
-Acceptance: Go build, vet, unit tests, upstream JSON fixture compatibility and Xephyr i3 tests. No host configuration changes.
+[~] Provider CLI and conservative capability manifest
+[~] i3 IPC framing, state queries, normalized outputs/workspaces/windows
+[~] Semantic window/workspace actions
+[~] Watch: full initial state + ready, 40 ms event coalescing, changed-frame emission, reconnect/resync
+[x] Sway socket fallback removed; only I3SOCK or sanitized i3 socket discovery is accepted
+[x] Settings apply remains fail-closed; no placeholder generated config is written
+[x] Bind legend returns empty until the upstream catalogue/rebind resolver is ported (no fabricated chords)
+[ ] Provider CI at Go 1.22: gofmt, vet, race tests, build
+[ ] Xvfb Quickshell.I3 + X11 PanelWindow smoke test
+[ ] Full upstream shell daemon runtime test in isolated i3 session
+
+Acceptance: Go build, vet, unit tests, upstream JSON fixture compatibility and Xephyr/Xvfb i3 tests. No host configuration changes.
 
 ## Phase 2 — Go daemon integration
 Integrate with original Ryoku consumers; verify provider discovery, session detection, caps, state frames, actions, settings and error handling.
@@ -42,7 +52,9 @@ QtQuick, NVIDIA 470, Picom, animations, transparency, effects, resource use and 
 Acceptance: repeatable frame/resource measurements on target hardware.
 
 ## Phase 8 — Packaging and installer
-Isolated session entry, dependencies, installer, uninstaller, backups and rollback.
+[~] Non-installing package build pipeline and X11 session payload
+[~] Package safety checks protect SDDM, Orbital, Quickshell lockscreen, boot and GPU integration
+[ ] Disposable-root install/uninstall tests, backups and rollback
 Acceptance: disposable-root tests prove protected host files remain unchanged.
 
 ## Phase 9 — Release validation
@@ -51,3 +63,18 @@ Acceptance: all evidence recorded separately; hardware and user confirmation can
 
 ## Validation discipline
 On every failure: capture logs, diagnose root cause, fix, rerun failing test and regressions, document result. Do not call build success runtime success. Hardware tests require user-run collection scripts. No host install without explicit approval.
+
+## Evidence ledger
+
+Evidence is deliberately separate. A checked implementation item does not imply a successful build or runtime test.
+
+| Work item | Source inspected | Implemented | Build passed | Unit passed | Xvfb/Xephyr passed | Target hardware passed | Owner confirmed |
+|---|---|---|---|---|---|---|---|
+| i3 IPC provider | Yes | Yes, initial | Pending current branch CI | Pending current branch CI | Pending | No | No |
+| Watch debounce/incremental frames | Yes, upstream frame contract | Yes | Pending current branch CI | Pending current branch CI | Pending | No | No |
+| Quickshell I3/PanelWindow smoke | Quickshell 0.3.2 API reviewed | Smoke harness only | Pending | N/A | Pending | No | No |
+| X11 lock wrapper | XSecureLock/i3lock command paths | Yes, wrapper only | Pending package CI | Wrapper test pending | No | No | No |
+| Settings/keybind translation | Upstream schema inspected | No; fail-closed/empty | N/A | N/A | No | No | No |
+| Ryogami wallpaper service | Not fully audited | Intentionally not started in X11 | Package safety pending | N/A | No | No | No |
+| NVIDIA GT 740 / 470 | Hardware constraints recorded | No hardware changes | N/A | N/A | No | No | No |
+
