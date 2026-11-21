@@ -26,11 +26,8 @@ func socketPath() string {
 	}
 	// Do not let an inherited SWAYSOCK redirect an i3 provider into Sway.
 	// The i3 binary is queried only when I3SOCK is absent.
-	if os.Getenv("I3SOCK") != "" {
-		return ""
-	}
 	cmd := exec.Command("i3", "--get-socketpath")
-	cmd.Env = withoutEnv(os.Environ(), "SWAYSOCK")
+	cmd.Env = withoutEnv(withoutEnv(os.Environ(), "SWAYSOCK"), "I3SOCK")
 	if raw, err := cmd.Output(); err == nil {
 		socket := strings.TrimSpace(string(raw))
 		if alive(socket) {
