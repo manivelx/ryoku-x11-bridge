@@ -46,14 +46,13 @@ func runWatch(args []string) error {
 	for {
 		sock:=socketPath(); if sock=="" { time.Sleep(500*time.Millisecond); continue }
 		c,e:=dial(sock); if e!=nil {time.Sleep(500*time.Millisecond);continue}
-		_,e=c.request(msgSubscribe,[]string{"workspace","output","window","mode"}); if e!=nil {c.close();time.Sleep(500*time.Millisecond);continue}
-		var ack map[string]bool
-		// i3 SUBSCRIBE response is a normal JSON reply.
-		if e=json.NewDecoder(c.reader).Decode(&ack); e!=nil || !ack["success"] {c.close();time.Sleep(500*time.Millisecond);continue}
+		raw,e:=c.request(msgSubscribe,[]string{"workspace","output","window","mode"}); if e!=nil {c.close();time.Sleep(500*time.Millisecond);continue}
+		var ack struct{Success bool `json:"success"`}
+		if e=json.Unmarshal(raw,&ack); e!=nil || !ack.Success {c.close();time.Sleep(500*time.Millisecond);continue}
 		emitState:=func() bool {
 			s,e:=readState(); if e!=nil{return false}
 			frames:=[]Frame{{Kind:"outputs",Outputs:s.Outputs},{Kind:"workspaces",Workspaces:s.Workspaces},{Kind:"windows",Windows:s.Windows},{Kind:"focus",FocusedOutput:s.FocusedOutput},{Kind:"keyboard",KeyboardLayout:s.KeyboardLayout,KeyboardLayouts:s.KeyboardLayouts}}
-			for _,f:=range frames { if len(want)==0 || want[string(f.Kind)] {if json.NewEncoder(out).Encode(f)!=nil || out.Flush()!=nil{return false}} }
+			for _,f:=range frames { if len(want)==0 || want[f.Kind] {if json.NewEncoder(out).Encode(f)!=nil || out.Flush()!=nil{return false}} }
 			return true
 		}
 		if !emitState(){c.close();return nil}
@@ -80,7 +79,7 @@ func runAct(a []string) error {
 		if len(rest)<1{return errors.New("act workspace.focus: missing workspace id")}
 		return runCommand("workspace "+quoteWorkspace(rest[0]))
 	case "workspace.cycle":
-		d:=1; if len(rest)>0 {v,e:=strconv.Atoi(rest[0]);if e!=nil{return fmt.Errorf("invalid delta %q",rest[0])};d=v}; dir:="next";if d<0{dir="prev";d=-d};for i:=0;i<d;i++{if e:=runCommand("workspace "+dir);e!=nil{return e}};return nil
+		d:=1; if len(rest)>0 {v,e:=strconv.Atoi(rest[0]);if e!=nil{return fmt.Errorf("invalid delta %q",rest[0])};d=v};dir:="next";if d<0{dir="prev";d=-d};for i:=0;i<d;i++{if e:=runCommand("workspace "+dir);e!=nil{return e}};return nil
 	case "workspace.moveToOutput":
 		if len(rest)<2{return errors.New("act workspace.moveToOutput: expected workspace id and output")}
 		return runCommand("workspace "+quoteWorkspace(rest[0])+"; move workspace to output "+quoteToken(rest[1]))
@@ -99,7 +98,6 @@ func runAct(a []string) error {
 		if len(rest)<1{return errors.New("direction required")};d:=strings.ToLower(rest[0]);if !validDirection(d){return fmt.Errorf("invalid direction %q",d)};return runCommand("focus output "+d)
 	case "window.center": return runCommand("move position center")
 	case "window.maximize": return runCommand("fullscreen toggle")
-	case "cursor.reassert","config.reload": return errors.New("i3 provider does not implement this action")
 	default:return fmt.Errorf("unsupported or unknown action %q",id)
 	}
 }
