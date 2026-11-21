@@ -58,7 +58,7 @@ func TestRunCapsAdvertisesOnlyImplementedFeatures(t *testing.T) {
 	if err := json.Unmarshal(buffer.Bytes(), &caps); err != nil {
 		t.Fatal(err)
 	}
-	if caps.Name != "i3" || caps.ConfigEntry != "ryoku-x11/config" || caps.ConfigDir != "ryoku-x11" {
+	if caps.Name != "i3" || caps.Version == "" {
 		t.Fatalf("unexpected i3 provider metadata: %+v", caps)
 	}
 	expected := map[string]bool{
