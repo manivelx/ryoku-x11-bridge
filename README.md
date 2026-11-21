@@ -45,14 +45,14 @@ The package build script uses a detached worktree of the pinned upstream source.
 | Area | Current evidence/status |
 |---|---|
 | Upstream pin and compatibility overlay | Implemented; pinned by `UPSTREAM_PIN` |
-| RXB i3 provider | IPC state, semantic actions, capability report and session metadata implemented |
-| i3 watch | Initial full sync + ready frame; debounced incremental changed frames; unit tests |
+| RXB i3 provider | IPC state, semantic actions and conservative capability report implemented; Go 1.22 CI build/vet/race tests passed |
+| i3 watch | Initial full sync + ready frame; debounced incremental changed frames; Go race/unit tests passed |
 | Provider settings apply | Deliberately fail-closed; no generated file is written yet |
 | Effective bind legend | Deliberately empty until the upstream catalogue/rebind resolver is ported |
 | X11 session config | RXB-owned seed under `ryoku-x11`; no existing i3/BSPWM config overwritten |
 | X11 lock command | Prefers XSecureLock; falls back to i3lock; not yet security-audited |
 | Quickshell X11 adapters | Source overlay in progress; full original shell runtime is not proven |
-| Quickshell 0.3.2 / i3 smoke test | CI smoke test planned/run in Xvfb; target machine remains untested |
+| Quickshell 0.3.2 / i3 smoke test | Xvfb smoke harness added; current package/runtime CI result pending; target machine remains untested |
 | GT 740 / NVIDIA 470 | No RXB hardware validation yet |
 | Install/uninstall/rollback | Not release-ready; disposable-root validation remains open |
 
@@ -96,6 +96,6 @@ The pinned upstream Ryoku source declares GNU GPL version 3. RXB contains origin
 
 ## Roadmap and evidence
 
-See [docs/roadmap.md](docs/roadmap.md), [docs/compatibility-matrix.md](docs/compatibility-matrix.md), and [docs/risk-register.md](docs/risk-register.md). Track these separately for every feature: source inspected, implemented, build passed, unit tests passed, Xephyr/Xvfb passed, target hardware passed, and user confirmed.
+See [docs/roadmap.md](docs/roadmap.md), [docs/compatibility-matrix.md](docs/compatibility-matrix.md), [docs/qml-x11-audit.md](docs/qml-x11-audit.md), and [docs/risk-register.md](docs/risk-register.md). Track these separately for every feature: source inspected, implemented, build passed, unit tests passed, Xephyr/Xvfb passed, target hardware passed, and user confirmed.
 
 No host installation or hardware validation is claimed until the corresponding evidence exists.
