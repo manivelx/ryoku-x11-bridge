@@ -109,10 +109,10 @@ func sessionDirsFor(name string) []string {
     replace_once(p, old, new)
     replace_once(p, "for _, dir := range dirs {\\n\\t\\tentries, err := os.ReadDir(dir)",
                  "wanted := sessionEntryNames[name]\\n\\tfor _, dir := range sessionDirsFor(name) {\\n\\t\\tentries, err := os.ReadDir(dir)")
-    replace_once(p, "if entry.IsDir() || filepath.Ext(entry.Name()) != \\".desktop\\" {",
-                 "if entry.IsDir() || filepath.Ext(entry.Name()) != \\".desktop\\" || (wanted != \\"\\" && entry.Name() != wanted) {")
-    replace_once(p, "entry := name + \\".desktop\\"\\n\\tfor _, d := range sessionEntryDirs() {",
-                 "entry := name + \\".desktop\\"\\n\\tif custom := sessionEntryNames[name]; custom != \\"\\" { entry = custom }\\n\\tfor _, d := range sessionDirsFor(name) {")
+    replace_once(p, 'if entry.IsDir() || filepath.Ext(entry.Name()) != ".desktop" {',
+                 'if entry.IsDir() || filepath.Ext(entry.Name()) != ".desktop" || (wanted != "" && entry.Name() != wanted) {')
+    replace_once(p, 'entry := name + ".desktop"\n\tfor _, d := range sessionEntryDirs() {',
+                 'entry := name + ".desktop"\n\tif custom := sessionEntryNames[name]; custom != "" { entry = custom }\n\tfor _, d := range sessionDirsFor(name) {')
 
 
 def patch_session_detection(root: pathlib.Path) -> None:
