@@ -34,4 +34,15 @@ for cmd in i3 ryoku-wm-i3 qs ryoku-shell; do
   }
 done
 
-exec i3 -c "$config_dir/config"
+runtime_dir=${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required for a systemd user session}
+env_file="$runtime_dir/ryoku-x11-session.env"
+cleanup() {
+  local status=$?
+  trap - EXIT
+  systemctl --user stop ryoku-session.target >/dev/null 2>&1 || true
+  rm -f "$env_file"
+  exit "$status"
+}
+trap cleanup EXIT
+
+i3 -c "$config_dir/config"
