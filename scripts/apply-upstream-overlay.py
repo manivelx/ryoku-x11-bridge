@@ -238,6 +238,37 @@ fi
     replace_once(p, 'Quickshell.env("NIRI_SOCKET"))',
                  'Quickshell.env("NIRI_SOCKET"), Quickshell.env("DISPLAY"), Quickshell.env("WAYLAND_DISPLAY"))')
 
+    p = root / "ryoku/shell/quickshell/shell/modules/launcher/variants/hero/LocalFrost.qml"
+    text = p.read_text()
+    if "import Ryoku.Ui.Singletons" not in text:
+        replace_once(p, "import Quickshell.Wayland\\n", "import Quickshell.Wayland\\nimport Ryoku.Ui.Singletons\\n")
+    replace_once(p, "(root.captureStarted && root.captureWanted)",
+                 "(root.captureStarted && root.captureWanted && Wm.caps.persistentScreenCapture === true)")
+
+    p = root / "ryoku/shell/quickshell/shell/modules/bar/popouts/DockPreviewPopout.qml"
+    replace_once(p, "readonly property bool hasCapture: !!(tile.win && tile.win.toplevel)",
+                 "readonly property bool hasCapture: Wm.caps.persistentScreenCapture === true && !!(tile.win && tile.win.toplevel)")
+
+    for p in (
+        root / "ryoku/shell/quickshell/shell/modules/bar/barstyles/python/launcher/Launcher.qml",
+        root / "ryoku/shell/quickshell/shell/modules/launcher/variants/python/LauncherSurface.qml",
+    ):
+        old = '''    readonly property bool isToplevelFullscreen: {
+        try {
+            if (typeof ToplevelManager !== "undefined" && ToplevelManager.activeToplevel && ToplevelManager.activeToplevel.fullscreen) {
+                let atl = ToplevelManager.activeToplevel;
+                if (atl.screens && atl.screens.length > 0) {
+                    return atl.screens.indexOf(launcherWindow.screen) !== -1;
+                }
+                return true;
+            }
+        } catch (e) {}
+        return false;
+    }'''
+        new = '''    readonly property bool isToplevelFullscreen:
+        launcherWindow.screen ? Wm.outputHasFullscreen(launcherWindow.screen.name) : false'''
+        replace_once(p, old, new)
+
     p = root / "ryoku/shell/quickshell/shell/modules/overview/WorkspaceCell.qml"
     replace_once(p, 'captureSource: (!!cell.ov && cell.ov.active && tile.modelData.tl) ? tile.modelData.tl : null',
                  'captureSource: (Wm.caps.persistentScreenCapture === true && !!cell.ov && cell.ov.active && tile.modelData.tl) ? tile.modelData.tl : null')
