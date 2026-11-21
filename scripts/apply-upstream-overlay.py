@@ -669,7 +669,7 @@ def patch_wayland_consumers(root: pathlib.Path) -> None:
     p = root / "ryoku/shell/quickshell/inir/services/TrayService.qml"
     text = p.read_text()
     if "import Ryoku.Ui.Singletons" not in text:
-        replace_once(p, "import Quickshell.Wayland\n", "import Quickshell.Wayland\nimport Ryoku.Ui.Singletons\n")
+        replace_once(p, "import QtQuick\n", "import QtQuick\nimport Ryoku.Ui.Singletons\n")
     text = p.read_text()
     if "ToplevelManager.toplevels.values" not in text:
         raise RuntimeError(f"{p}: expected foreign-toplevel iteration")
