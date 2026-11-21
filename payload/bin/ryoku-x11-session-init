@@ -37,12 +37,11 @@ runtime_dir=${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required for a systemd user se
 env_file="$runtime_dir/ryoku-x11-session.env"
 write_env() {
   local key="$1" value="$2"
-  if [[ "$value" == *
-\\n'* || "$value" == *'"'* || "$value" == *'\\\\'* ]]; then
+  if [[ "$value" == *$'\n'* || "$value" == *'"'* || "$value" == *\\* ]]; then
     echo "ryoku-x11-session-init: unsafe value for $key in systemd EnvironmentFile" >&2
     exit 1
   fi
-  printf '%s="%s"\\n' "$key" "$value"
+  printf '%s="%s"\n' "$key" "$value"
 }
 umask 077
 {
