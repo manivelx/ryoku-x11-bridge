@@ -27,10 +27,10 @@ jobs:
       - name: Format provider Go sources once
         run: |
           gofmt -w *.go
-          if ! git diff --quiet -- cmd/ryoku-wm-i3; then
+          if ! git diff --quiet -- *.go; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add -- cmd/ryoku-wm-i3/*.go
+            git add -- *.go
             git commit -m "style: format updated i3 provider Go sources"
             git push origin "HEAD:$GITHUB_REF_NAME"
           fi
