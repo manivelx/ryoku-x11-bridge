@@ -14,6 +14,43 @@ on:
 permissions:
   contents: read
 jobs:
+  arch-package-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout RXB
+        uses: actions/checkout@v4
+      - name: Checkout pinned Ryoku upstream
+        uses: actions/checkout@v4
+        with:
+          repository: Ryoku-dev/ryoku
+          ref: 0bf11741b22f69f22ad2733025671c7d0a5e1a47
+          path: upstream
+      - name: Build all RXB packages in a disposable Arch container
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -w /workspace \
+            archlinux:base-devel \
+            bash -lc '
+              set -euo pipefail
+              pacman -Syu --noconfirm --needed \
+                git curl go cmake ninja pkgconf \
+                wayland wayland-protocols ffmpeg \
+                qt6-base qt6-declarative qt6-multimedia \
+                qt6-shadertools qt6-quick3d qt6-svg qt6-5compat \
+                qt6-imageformats qt6-wayland vulkan-headers
+              useradd -m builder
+              chown -R builder:builder /workspace
+              su builder -c "/workspace/scripts/build-rxb-packages.sh /workspace/upstream /workspace/dist"
+            '
+      - name: Upload built Arch packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: rxb-arch-packages
+          path: dist/*.pkg.tar.*
+          if-no-files-found: error
+          retention-days: 14
+
   overlay-and-go-tests:
     runs-on: ubuntu-latest
     steps:
