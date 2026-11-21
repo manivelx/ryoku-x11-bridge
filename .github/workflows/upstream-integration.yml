@@ -1,4 +1,8 @@
 name: pinned upstream integration
+
+concurrency:
+  group: rxb-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     paths:
