@@ -8,6 +8,8 @@ type Caps struct {
 	WorkspaceModel string `json:"workspaceModel"`
 	ForeignAPIs []any `json:"foreignApis"`
 	SettingDomains []string `json:"settingDomains"`
+	ConfigDir string `json:"configDir,omitempty"`
+	ConfigEntry string `json:"configEntry,omitempty"`
 	ConfigFiles []string `json:"configFiles,omitempty"`
 	GeneratedFiles []string `json:"generatedFiles,omitempty"`
 	Packages []string `json:"packages,omitempty"`
