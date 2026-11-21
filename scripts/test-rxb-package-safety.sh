@@ -68,8 +68,7 @@ for forbidden in \
   'etc/modules-load.d/ryoku-i2c.conf' \
   'usr/bin/ryoku-qylock-activate' \
   'usr/bin/ryoku-qylock-lock' \
-  'usr/lib/systemd/user/ryoku-session.target.wants/ryogami.service' \
-  'usr/lib/systemd/user/ryogami.service.d/10-rxb-x11.conf'; do
+  'usr/lib/systemd/user/default.target.wants/ryogami.service'; do
   if grep -Fq "$forbidden" <<<"$base_list" || grep -Fq "$forbidden" <<<"$variant_list"; then
     echo "Forbidden host integration in RXB package set: $forbidden" >&2
     exit 1
