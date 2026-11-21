@@ -9,7 +9,8 @@ case "$mode" in
     mkdir -p "$RYOKU_BUILD_DIR"
     (
       cd "$RYOKU_SRC/cmd/ryoku-wm-i3"
-      go build -trimpath -o "$RYOKU_BUILD_DIR/ryoku-wm-i3" .
+      bridge_version="${RYOKU_BRIDGE_VERSION:-$(tr -d '[:space:]' < "$RYOKU_SRC/RXB_VERSION")}"
+      go build -trimpath -ldflags "-X main.version=$bridge_version" -o "$RYOKU_BUILD_DIR/ryoku-wm-i3" .
     )
     ;;
   install)
