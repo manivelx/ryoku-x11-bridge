@@ -559,17 +559,17 @@ def patch_x11_package_safety(root: pathlib.Path) -> None:
     # those host policies to the user's existing CachyOS/BSPWM/SDDM install.
     p = root / "release/packages/ryoku-desktop/payload.sh"
     text = p.read_text()
-    old_manifest = 'install -Dm644 "$_repo/system/services/manifest.tsv" ' + chr(92) + '\\n    "$pkgdir/usr/share/ryoku/services.tsv"'
-    new_manifest = ('if [[ ${RYOKU_X11_BRIDGE:-0} != 1 ]]; then\\n'
-                    '    install -Dm644 "$_repo/system/services/manifest.tsv" ' + chr(92) + '\\n'
-                    '      "$pkgdir/usr/share/ryoku/services.tsv"\\n'
+    old_manifest = 'install -Dm644 "$_repo/system/services/manifest.tsv" ' + chr(92) + '\n    "$pkgdir/usr/share/ryoku/services.tsv"'
+    new_manifest = ('if [[ ${RYOKU_X11_BRIDGE:-0} != 1 ]]; then\n'
+                    '    install -Dm644 "$_repo/system/services/manifest.tsv" ' + chr(92) + '\n'
+                    '      "$pkgdir/usr/share/ryoku/services.tsv"\n'
                     '  fi')
     if text.count(old_manifest) != 1:
         raise RuntimeError(f"{p}: system service manifest install anchor missing")
     text = text.replace(old_manifest, new_manifest, 1)
     start = text.index("# the qylock lockscreen bundle + its installer")
-    end = text.index("  if [[ $RYOKU_INIT_MODE == systemd ]]; then\\n    # Keep session-critical units", start)
-    text = text[:start] + '  if [[ ${RYOKU_X11_BRIDGE:-0} != 1 ]]; then\\n' + text[start:end] + '  fi\\n\\n' + text[end:]
+    end = text.index("  if [[ $RYOKU_INIT_MODE == systemd ]]; then\n    # Keep session-critical units", start)
+    text = text[:start] + '  if [[ ${RYOKU_X11_BRIDGE:-0} != 1 ]]; then\n' + text[start:end] + '  fi\n\n' + text[end:]
 
     old_hw_helpers = '''  for s in "$_repo"/system/hardware/*/ryoku-*; do
     [[ -f $s && -x $s ]] || continue
@@ -586,8 +586,8 @@ def patch_x11_package_safety(root: pathlib.Path) -> None:
     text = text.replace(old_hw_helpers, new_hw_helpers, 1)
 
     start = text.index("  # GPU primary-renderer udev rule")
-    end = text.rindex('\\n}\\ncase "${1:-}" in')
-    text = text[:start] + '  if [[ ${RYOKU_X11_BRIDGE:-0} != 1 ]]; then\\n' + text[start:end] + '\\n  fi' + text[end:]
+    end = text.rindex('\n}\ncase "${1:-}" in')
+    text = text[:start] + '  if [[ ${RYOKU_X11_BRIDGE:-0} != 1 ]]; then\n' + text[start:end] + '\n  fi' + text[end:]
     p.write_text(text)
 
     # Package hooks become metadata refresh only; no host service reconciliation,
@@ -617,12 +617,12 @@ post_remove() { _refresh; }
     for dep in ("'xorg-xwayland'", "'qt6-wayland'", "'qt5-wayland'", "'weston'",
                 "'wl-clipboard'", "'wl-clip-persist'", "'grim'", "'slurp'",
                 "'wtype'", "'hypridle'", "'hyprpicker'"):
-        text = text.replace("  " + dep + "\\n", "")
-    old = '  RYOKU_SRC="$_repo" ' + chr(92) + "\\n"
+        text = text.replace("  " + dep + "\n", "")
+    old = '  RYOKU_SRC="$_repo" ' + chr(92) + "\n"
     if text.count(old) != 2:
         raise RuntimeError(f"{p}: expected two payload environment blocks, found {text.count(old)}")
-    new = ('  RYOKU_X11_BRIDGE=1 ' + chr(92) + "\\n"
-           '  RYOKU_SRC="$_repo" ' + chr(92) + "\\n")
+    new = ('  RYOKU_X11_BRIDGE=1 ' + chr(92) + "\n"
+           '  RYOKU_SRC="$_repo" ' + chr(92) + "\n")
     text = text.replace(old, new)
     p.write_text(text)
 
