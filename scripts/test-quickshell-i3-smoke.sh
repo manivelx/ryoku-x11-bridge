@@ -55,9 +55,19 @@ import Quickshell
 import Quickshell.I3
 
 ShellRoot {
+    PanelWindow {
+        id: smokePanel
+        width: 12
+        height: 12
+        aboveWindows: true
+        focusable: false
+        visible: true
+    }
+
     Component.onCompleted: {
         console.log("RXB_I3_SMOKE socket=" + I3.socketPath
-                    + " workspaceCount=" + I3.workspaces.count);
+                    + " workspaceCount=" + I3.workspaces.count
+                    + " panelAbove=" + smokePanel.aboveWindows);
         Qt.quit();
     }
 }
