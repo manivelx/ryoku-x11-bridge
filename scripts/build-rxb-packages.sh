@@ -44,14 +44,17 @@ build_package() {
   local dir="$repo/release/packages/$name"
   [[ -f "$dir/PKGBUILD" ]] || { echo "Missing PKGBUILD: $dir" >&2; exit 1; }
   echo "Building $name..."
+  # makepkg may emit a separate -debug package after the main package.
+  # Remove stale artifacts first, then preserve every package from this build.
+  find "$dir" -maxdepth 1 -type f -name '*.pkg.tar.*' -delete
   (
     cd "$dir"
     makepkg --nodeps --clean --noconfirm --force
   )
-  local artifact
-  artifact="$(find "$dir" -maxdepth 1 -type f -name '*.pkg.tar.*' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
-  [[ -n "$artifact" && -f "$artifact" ]] || { echo "No package artifact produced for $name" >&2; exit 1; }
-  cp -f "$artifact" "$OUT/"
+  local -a artifacts
+  mapfile -t artifacts < <(find "$dir" -maxdepth 1 -type f -name '*.pkg.tar.*' -print | sort)
+  (("${#artifacts[@]}" > 0)) || { echo "No package artifacts produced for $name" >&2; exit 1; }
+  cp -f -- "${artifacts[@]}" "$OUT/"
 }
 
 echo "[2/3] Building the original Ryoku runtime and desktop payload..."
@@ -60,13 +63,15 @@ for package in gpk ryoku-keyring ryoku-blobs ryoku-palette-bridge ryoku-shell ry
 done
 
 echo "[3/3] Building the RXB i3 provider/session package..."
+i3_package_dir="$RXB_ROOT/release/packages/ryoku-desktop-i3"
+find "$i3_package_dir" -maxdepth 1 -type f -name '*.pkg.tar.*' -delete
 (
-  cd "$RXB_ROOT/release/packages/ryoku-desktop-i3"
+  cd "$i3_package_dir"
   RYOKU_PKGVER="$VERSION" RYOKU_BRIDGE_VERSION="$RXB_VERSION" makepkg --nodeps --clean --noconfirm --force
 )
-artifact="$(find "$RXB_ROOT/release/packages/ryoku-desktop-i3" -maxdepth 1 -type f -name '*.pkg.tar.*' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
-[[ -n "$artifact" && -f "$artifact" ]] || { echo "No ryoku-desktop-i3 package artifact produced." >&2; exit 1; }
-cp -f "$artifact" "$OUT/"
+mapfile -t i3_artifacts < <(find "$i3_package_dir" -maxdepth 1 -type f -name '*.pkg.tar.*' -print | sort)
+(("${#i3_artifacts[@]}" > 0)) || { echo "No ryoku-desktop-i3 package artifacts produced." >&2; exit 1; }
+cp -f -- "${i3_artifacts[@]}" "$OUT/"
 
 echo
 echo "Build complete. Packages are in: $OUT"
