@@ -23,7 +23,7 @@ printf i3lock > "$RXB_LOCK_TEST_MARKER"
 EOF
 chmod +x "$tmp/prefer/xsecurelock" "$tmp/prefer/i3lock"
 export RXB_LOCK_TEST_MARKER="$tmp/marker"
-PATH="$tmp/prefer" "$locker"
+PATH="$tmp/prefer" bash "$locker"
 [[ "$(cat "$RXB_LOCK_TEST_MARKER")" == xsecurelock ]] || {
   echo "XSecureLock was not preferred" >&2
   exit 1
@@ -37,7 +37,7 @@ printf i3lock > "$RXB_LOCK_TEST_MARKER"
 EOF
 chmod +x "$tmp/fallback/i3lock"
 rm -f "$RXB_LOCK_TEST_MARKER"
-PATH="$tmp/fallback" "$locker"
+PATH="$tmp/fallback" bash "$locker"
 [[ "$(cat "$RXB_LOCK_TEST_MARKER")" == i3lock ]] || {
   echo "i3lock fallback was not selected" >&2
   exit 1
