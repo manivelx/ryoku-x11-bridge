@@ -12,7 +12,6 @@ tmp="$(mktemp -d)"
 runtime="$tmp/runtime"
 mkdir -m 700 "$runtime"
 export XDG_RUNTIME_DIR="$runtime"
-export DISPLAY=:99
 export QT_QPA_PLATFORM=xcb
 export QT_QUICK_BACKEND=software
 export QT_OPENGL=software
@@ -26,13 +25,22 @@ cleanup() {
 }
 trap cleanup EXIT
 
-Xvfb "$DISPLAY" -screen 0 1280x720x24 -nolisten tcp -ac >"$tmp/xvfb.log" 2>&1 &
+Xvfb -displayfd 3 -screen 0 1280x720x24 -nolisten tcp -ac 3>"$tmp/display-number" >"$tmp/xvfb.log" 2>&1 &
 xvfb_pid=$!
 for _ in $(seq 1 50); do
-  if [[ -S /tmp/.X11-unix/X99 ]]; then break; fi
+  [[ -s "$tmp/display-number" ]] && break
+  kill -0 "$xvfb_pid" 2>/dev/null || { cat "$tmp/xvfb.log"; exit 1; }
   sleep 0.1
 done
-[[ -S /tmp/.X11-unix/X99 ]] || { cat "$tmp/xvfb.log"; exit 1; }
+[[ -s "$tmp/display-number" ]] || { cat "$tmp/xvfb.log"; exit 1; }
+display_number="$(tr -d '[:space:]' < "$tmp/display-number")"
+[[ "$display_number" =~ ^[0-9]+$ ]] || { echo "Xvfb returned an invalid display number: $display_number" >&2; exit 1; }
+export DISPLAY=":$display_number"
+for _ in $(seq 1 50); do
+  [[ -S "/tmp/.X11-unix/X$display_number" ]] && break
+  sleep 0.1
+done
+[[ -S "/tmp/.X11-unix/X$display_number" ]] || { cat "$tmp/xvfb.log"; exit 1; }
 
 cat >"$tmp/i3.conf" <<'EOF'
 font pango:monospace 8
