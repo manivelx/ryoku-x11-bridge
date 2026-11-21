@@ -94,6 +94,9 @@ jobs:
         run: |
           bash -n payload/bin/ryoku-x11-session
           bash -n payload/bin/ryoku-x11-session-init
+          bash -n payload/bin/ryoku-x11-lock
+          bash -n scripts/test-x11-lock-wrapper.sh
+          bash scripts/test-x11-lock-wrapper.sh
           bash -n release/packages/ryoku-desktop-i3/PKGBUILD
           bash -n release/packages/ryoku-desktop-i3/payload.sh
           bash -n scripts/build-rxb-packages.sh
