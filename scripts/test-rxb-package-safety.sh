@@ -36,7 +36,9 @@ for forbidden in \
   'usr/lib/sysusers.d/ryoku-i2c.conf' \
   'etc/modules-load.d/ryoku-i2c.conf' \
   'usr/bin/ryoku-qylock-activate' \
-  'usr/bin/ryoku-qylock-lock'; do
+  'usr/bin/ryoku-qylock-lock' \
+  'usr/lib/systemd/user/ryoku-session.target.wants/ryogami.service' \
+  'usr/lib/systemd/user/ryogami.service.d/10-rxb-x11.conf'; do
   if grep -Fq "$forbidden" <<<"$base_list"; then
     echo "Forbidden host integration in base package: $forbidden" >&2
     exit 1
@@ -57,6 +59,7 @@ for required in \
   'usr/lib/systemd/user/ryoku-shell.service.d/10-rxb-x11.conf' \
   'usr/bin/ryoku-x11-session' \
   'usr/bin/ryoku-x11-session-init' \
+  'usr/bin/ryoku-x11-lock' \
   'usr/bin/ryoku-wm-i3' \
   'usr/share/ryoku/config/ryoku-x11/config'; do
   grep -Fq "$required" <<<"$variant_list" || {
