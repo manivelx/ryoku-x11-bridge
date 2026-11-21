@@ -40,7 +40,7 @@ cleanup() {
   local status=$?
   trap - EXIT
   systemctl --user stop ryoku-session.target >/dev/null 2>&1 || true
-  rm -f "$env_file"
+  rm -f "$env_file" || true
   exit "$status"
 }
 trap cleanup EXIT
