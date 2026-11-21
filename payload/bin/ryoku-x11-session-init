@@ -29,7 +29,6 @@ ryoku materialize || {
   exit 1
 }
 systemctl --user unset-environment WAYLAND_DISPLAY
-systemctl --user daemon-reload
 systemctl --user import-environment "${env_names[@]}"
 systemctl --user daemon-reload
 systemctl --user enable ryoku-shell.service
