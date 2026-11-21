@@ -27,7 +27,7 @@ func readState()(Snapshot,error){
 	return s,nil
 }
 func workspaceHasFullscreen(n *node, workspace string) bool {
-\tif n.Type == "workspace" && n.Name == workspace { return nodeHasFullscreen(n) }; for i := range n.Nodes { if workspaceHasFullscreen(&n.Nodes[i], workspace) { return true } }; for i := range n.FloatingNodes { if workspaceHasFullscreen(&n.FloatingNodes[i], workspace) { return true } }; return false
+	if n.Type == "workspace" && n.Name == workspace { return nodeHasFullscreen(n) }; for i := range n.Nodes { if workspaceHasFullscreen(&n.Nodes[i], workspace) { return true } }; for i := range n.FloatingNodes { if workspaceHasFullscreen(&n.FloatingNodes[i], workspace) { return true } }; return false
 }
 func nodeHasFullscreen(n *node) bool { if n.FullscreenMode != 0 { return true }; for i := range n.Nodes { if nodeHasFullscreen(&n.Nodes[i]) { return true } }; for i := range n.FloatingNodes { if nodeHasFullscreen(&n.FloatingNodes[i]) { return true } }; return false }
 func walkWindows(n *node,ws,out string,wss []Workspace,windows *[]Window){
