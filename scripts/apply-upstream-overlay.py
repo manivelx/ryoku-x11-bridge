@@ -580,7 +580,7 @@ def _convert_x11_focus(expr: str) -> str:
     expr = re.sub(r"\bWlrKeyboardFocus\.None\b", "false", expr)
     if "WlrKeyboardFocus." in expr:
         raise RuntimeError(f"unhandled WlrKeyboardFocus expression in X11 overlay: {expr}")
-    return expr.replace(placeholder, "(shownKeyboardFocus !== WlrKeyboardFocus.None)")
+    return expr.replace(placeholder, "!!shownKeyboardFocus")
 
 
 def patch_x11_panel_properties(root: pathlib.Path) -> None:
