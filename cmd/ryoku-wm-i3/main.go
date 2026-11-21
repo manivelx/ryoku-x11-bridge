@@ -67,8 +67,6 @@ func runCaps() error {
 		Instance:       socketPath(),
 		Supports:       []string{"workspaces", "workspaceMoveToOutput", "windowWorkspaceMap", "workspaceFullscreenState", "windowGeometry", "windowFloat", "sessionExit", "configReload", "tiledLayout"},
 		SettingDomains: []string{},
-		ConfigDir:      "ryoku-x11",
-		ConfigEntry:    "ryoku-x11/config",
 		ConfigFiles:    []string{"ryoku-x11/config", "ryoku-x11/user.conf"},
 		GeneratedFiles: []string{"ryoku-x11/generated.conf"},
 		Packages:       []string{"ryoku-desktop-i3", "i3-wm"},
