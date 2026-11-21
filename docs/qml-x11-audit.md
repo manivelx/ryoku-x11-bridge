@@ -44,7 +44,7 @@ Representative files:
 - `ryoku/shell/quickshell/shell/modules/dock/ii/services/DockLivePreviewService.qml`
 - `ryoku/shell/quickshell/shell/modules/bar/barstyles/nomarchy/services/AppLibrary.qml`
 
-The overlay replaces the central Wayland window model with `Quickshell.I3` for workspaces/monitors and provider-backed i3 tree records for windows. Selected taskbar/app-library paths are adapted to `Wm.toplevels`. The i3 provider emits a focused-window sentinel but does not advertise authoritative focus history. X11 capture handles are explicitly null; a Wayland `Toplevel` is never fabricated.
+The overlay replaces the central Wayland window model with `Quickshell.I3` for workspaces/monitors and provider-backed i3 tree records for windows. Selected taskbar/app-library paths are adapted to `Wm.toplevels`. The i3 provider emits a focused-window sentinel but does not advertise authoritative focus history. X11 capture handles are explicitly null; a Wayland `Toplevel` is never fabricated. The QML adapter unwraps optional handles so the provider's wrapper objects cannot be mistaken for real Wayland capture objects. The provider sets `focusOrder=0` only for the focused window and `1` for other windows; it does not advertise focus history.
 
 Some optional style/launcher paths still contain direct Wayland imports or `ToplevelManager` assumptions and need separate path-by-path review before those styles are enabled.
 
