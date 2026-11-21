@@ -41,10 +41,13 @@ jobs:
                 wayland wayland-protocols ffmpeg \
                 qt6-base qt6-declarative qt6-multimedia \
                 qt6-shadertools qt6-quick3d qt6-svg qt6-5compat \
-                qt6-imageformats qt6-wayland vulkan-headers
+                qt6-imageformats qt6-wayland vulkan-headers \
+                imagemagick quickshell i3-wm i3lock xorg-server-xvfb \
+                xorg-xrandr maim xclip slop dbus
               useradd -m builder
               chown -R builder:builder /workspace
               su builder -c "/workspace/scripts/build-rxb-packages.sh /workspace/upstream /workspace/dist"
+              su builder -c "/workspace/scripts/test-quickshell-i3-smoke.sh"
             '
       - name: Upload built Arch packages
         uses: actions/upload-artifact@v4
@@ -83,6 +86,7 @@ jobs:
           bash -n release/packages/ryoku-desktop-i3/PKGBUILD
           bash -n release/packages/ryoku-desktop-i3/payload.sh
           bash -n scripts/build-rxb-packages.sh
+          bash -n scripts/test-quickshell-i3-smoke.sh
       - name: Apply RXB overlay
         run: python3 scripts/apply-upstream-overlay.py upstream
       - name: Validate patched helper scripts
