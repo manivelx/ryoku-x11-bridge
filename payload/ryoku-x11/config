@@ -11,6 +11,10 @@ focus_follows_mouse no
 workspace_auto_back_and_forth yes
 focus_on_window_activation urgent
 
+# Reuse an existing Picom configuration if Picom is installed. Never
+# overwrite or generate a compositor configuration.
+exec --no-startup-id sh -c 'command -v picom >/dev/null 2>&1 && ! pgrep -x picom >/dev/null 2>&1 && picom --daemon'
+
 # Start the user-session bridge after i3 has created its IPC socket.
 exec --no-startup-id ryoku-x11-session-init
 
