@@ -553,6 +553,8 @@ def patch_x11_panel_properties(root: pathlib.Path) -> None:
     # WlrLayershell's attached object is null on X11, so static attached
     # property assignments must not be evaluated by the shell.
     for p in root.rglob("*.qml"):
+        if not p.is_file():
+            continue
         text = p.read_text()
         if "WlrLayershell." not in text:
             continue
