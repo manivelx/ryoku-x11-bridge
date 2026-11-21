@@ -75,7 +75,7 @@ These remain compositor-specific and are not reused by the i3 session. They are 
 
 ### Ryogami picker / wallpaper daemon
 
-The Ryogami picker contains Wayland layer-shell usage. The X11 package deliberately does not link `ryogami.service` into `ryoku-session.target.wants` and does not install an X11 ConditionEnvironment override for it. Wallpaper service behavior must be audited and adapted before enabling it in X11.
+The Ryogami picker contains Wayland layer-shell usage. The X11 package links `ryogami.service` only into `ryoku-session.target.wants` and supplies a session-scoped EnvironmentFile/ConditionPathExists drop-in. The Go daemon is compositor-neutral; the picker QML's WlrLayershell properties are transformed by the common X11 panel adapter. The service/picker still require runtime validation under i3 before this feature is accepted.
 
 ## Still required for Phase 0/3 acceptance
 
