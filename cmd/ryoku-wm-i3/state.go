@@ -18,7 +18,14 @@ func readState()(Snapshot,error){
 	for _,q:=range []struct{k uint32;v any;dst any}{{msgOutputs,nil,&outs},{msgWorkspaces,nil,&wss},{msgTree,nil,&tree}}{raw,err:=c.request(q.k,q.v);if err!=nil{return Snapshot{},err};if err=json.Unmarshal(raw,q.dst);err!=nil{return Snapshot{},err}}
 	s:=Snapshot{Outputs:[]Output{},Workspaces:[]Workspace{},Windows:[]Window{}}
 	for _,o:=range outs{if !o.Active{continue};x:=Output{Name:o.Name,Width:o.Rect.Width,Height:o.Rect.Height,Scale:1,Focused:false,ActiveWorkspace:o.CurrentWorkspace,Make:o.Make,Model:o.Model,X:o.Rect.X,Y:o.Rect.Y,Mode:fmt.Sprintf("%dx%d@%.0f",o.CurrentMode.Width,o.CurrentMode.Height,o.CurrentMode.Refresh)};for _,m:=range o.Modes{x.Modes=append(x.Modes,fmt.Sprintf("%dx%d@%.0f",m.Width,m.Height,m.Refresh))};s.Outputs=append(s.Outputs,x)}
-	for _,w:=range wss{if w.Focused{s.FocusedOutput=w.Output};s.Workspaces=append(s.Workspaces,Workspace{ID:w.Name,Name:w.Name,Output:w.Output,Index:w.Num,Active:w.Focused,Windows:0})}
+	ranks:=map[string]int{}
+	for _,w:=range wss {
+		if w.Focused { s.FocusedOutput=w.Output }
+		ranks[w.Output]++
+		index:=w.Num
+		if index<=0 { index=ranks[w.Output] }
+		s.Workspaces=append(s.Workspaces,Workspace{ID:w.Name,Name:w.Name,Output:w.Output,Index:index,Active:w.Visible,Windows:0})
+	}
 	for i:=range s.Outputs{s.Outputs[i].Focused=s.Outputs[i].Name==s.FocusedOutput}
 	walkWindows(&tree,"","",s.Workspaces,&s.Windows)
 	sort.SliceStable(s.Windows, func(i,j int) bool { return s.Windows[i].Focused && !s.Windows[j].Focused })
@@ -34,7 +41,7 @@ func nodeHasFullscreen(n *node) bool { if n.FullscreenMode != 0 { return true };
 func walkWindows(n *node,ws,out string,wss []Workspace,windows *[]Window){
 	if n.Type=="workspace"{ws=n.Name}
 	if n.Type=="output"{out=n.Name}
-	if n.WindowProperties.Title!=""||n.AppID!=nil||n.PID>0{
+	if n.WindowProperties.Title!=""||n.WindowProperties.Class!=""||n.WindowProperties.Instance!=""||n.AppID!=nil||n.PID>0{
 		app:=n.WindowProperties.Class;if n.AppID!=nil&&*n.AppID!=""{app=*n.AppID}
 		title:=n.Name;if n.WindowProperties.Title!=""{title=n.WindowProperties.Title}
 		if title!=""{*windows=append(*windows,Window{ID:strconv.FormatInt(n.ID,10),AppID:app,Title:title,Workspace:ws,Output:out,Pid:n.PID,Focused:n.Focused,Floating:n.Floating=="user_on"||n.Floating=="auto_on",X:n.Rect.X,Y:n.Rect.Y,Width:n.Rect.Width,Height:n.Rect.Height})}
