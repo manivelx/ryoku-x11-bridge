@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ -z ${DISPLAY:-} ]]; then
+  echo "ryoku-x11-session: DISPLAY is not set; start this from an X11 display manager." >&2
+  exit 1
+fi
+if [[ -n ${WAYLAND_DISPLAY:-} ]]; then
+  echo "ryoku-x11-session: refusing to start i3 inside an existing Wayland session." >&2
+  exit 1
+fi
+
+export XDG_SESSION_TYPE=x11
+export XDG_CURRENT_DESKTOP=Ryoku
+export RYOKU_WM=i3
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+config_dir="$config_home/ryoku-x11"
+mkdir -p "$config_dir"
+chmod 700 "$config_dir"
+
+seed_dir=/usr/share/ryoku/config/ryoku-x11
+for name in config generated.conf user.conf; do
+  if [[ ! -e "$config_dir/$name" && -f "$seed_dir/$name" ]]; then
+    install -m 600 "$seed_dir/$name" "$config_dir/$name"
+  fi
+done
+
+for cmd in i3 ryoku-wm-i3 quickshell ryoku-shell; do
+  command -v "$cmd" >/dev/null 2>&1 || {
+    echo "ryoku-x11-session: required command not found: $cmd" >&2
+    exit 1
+  }
+done
+
+exec i3 -c "$config_dir/config"
