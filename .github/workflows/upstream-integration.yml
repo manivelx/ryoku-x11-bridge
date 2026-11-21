@@ -6,6 +6,8 @@ on:
       - "payload/**"
       - "release/packages/ryoku-desktop-i3/**"
       - "docs/**"
+      - "UPSTREAM_PIN"
+      - "RXB_VERSION"
       - "cmd/ryoku-wm-i3/**"
       - ".github/workflows/upstream-integration.yml"
   pull_request:
@@ -22,11 +24,14 @@ jobs:
     steps:
       - name: Checkout RXB
         uses: actions/checkout@v4
+      - name: Read the single upstream pin
+        id: upstream-pin
+        run: echo "sha=$(tr -d '[:space:]' < UPSTREAM_PIN)" >> "$GITHUB_OUTPUT"
       - name: Checkout pinned Ryoku upstream
         uses: actions/checkout@v4
         with:
           repository: Ryoku-dev/ryoku
-          ref: 0bf11741b22f69f22ad2733025671c7d0a5e1a47
+          ref: ${{ steps.upstream-pin.outputs.sha }}
           path: upstream
       - name: Build all RXB packages in a disposable Arch container
         run: |
@@ -63,11 +68,14 @@ jobs:
     steps:
       - name: Checkout RXB
         uses: actions/checkout@v4
+      - name: Read the single upstream pin
+        id: upstream-pin
+        run: echo "sha=$(tr -d '[:space:]' < UPSTREAM_PIN)" >> "$GITHUB_OUTPUT"
       - name: Checkout pinned Ryoku upstream
         uses: actions/checkout@v4
         with:
           repository: Ryoku-dev/ryoku
-          ref: 0bf11741b22f69f22ad2733025671c7d0a5e1a47
+          ref: ${{ steps.upstream-pin.outputs.sha }}
           path: upstream
       - name: Set up Go
         uses: actions/setup-go@v5
