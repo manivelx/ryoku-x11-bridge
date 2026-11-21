@@ -270,3 +270,21 @@ func TestIPCCommandPayloadIsRawText(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestFocusedWindowSentinelDoesNotClaimHistory(t *testing.T) {
+	windows := []Window{
+		{ID: "1", Focused: false},
+		{ID: "2", Focused: true},
+		{ID: "3", Focused: false},
+	}
+	setFocusedWindowSentinel(windows)
+	for index, window := range windows {
+		want := 1
+		if window.Focused {
+			want = 0
+		}
+		if window.FocusOrder != want {
+			t.Fatalf("window %s focusOrder = %d, want %d", window.ID, window.FocusOrder, want)
+		}
+	}
+}
