@@ -77,8 +77,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y imagemagick ffmpeg
-      - name: Validate RXB overlay script syntax
-        run: python3 -m py_compile scripts/apply-upstream-overlay.py
+      - name: Validate RXB overlay script and unit tests
+        run: |
+          python3 -m py_compile scripts/apply-upstream-overlay.py
+          python3 -m unittest discover -s tests
       - name: Validate RXB package scripts
         run: |
           bash -n payload/bin/ryoku-x11-session
@@ -96,6 +98,8 @@ jobs:
           bash -n upstream/ryoku/shell/scripts/ryoku-cmd-ocr
           bash -n upstream/ryoku/shell/scripts/ryoku-cmd-qr-scan
           bash -n upstream/ryoku/shell/scripts/ryoku-cmd-google-lens
+          ! grep -R -E 'WlrLayershell\\.(layer|keyboardFocus|namespace|focusable)' upstream/ryoku --include='*.qml'
+          ! grep -R -E '\\.WlrLayershell\\.keyboardFocus' upstream/ryoku --include='*.qml'
       - name: Format patched upstream Go
         run: gofmt -w upstream/ryoku/wm/detect.go upstream/ryoku/shell/ipc/actions.go
       - name: Test upstream WM contract
