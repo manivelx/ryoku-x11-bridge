@@ -34,3 +34,19 @@ Legend: Direct candidate = Quickshell/X11 API likely covers it; Adapter = implem
 | Suspend/lock handoff | logind + secure locker | Gated | Lock-before-suspend proven |
 
 For each row track: source inspected, adapter implemented, build passed, unit tests passed, Xephyr/Xvfb passed, real X11 hardware passed, user confirmed. Never infer hardware success from a virtual test or secure locking from fullscreen QML.
+
+## Evidence fields
+
+Use the following evidence states per feature; do not collapse them into a single "done" label.
+
+| Evidence field | Meaning |
+|---|---|
+| Source inspected | Relevant pinned upstream source/API has been read and the intended behavior identified |
+| Adapter implemented | RXB code exists; this alone does not imply it works at runtime |
+| Build passed | The exact current branch commit passed the relevant build |
+| Unit tests passed | The exact current branch commit passed its unit/regression tests |
+| Xephyr/Xvfb passed | The feature was exercised in an isolated X11 server |
+| Real X11 hardware passed | The feature was exercised on the target CachyOS + GT 740 / NVIDIA 470 machine |
+| User confirmed | The owner reviewed the behavior and accepted it |
+
+Current detailed evidence is tracked in [roadmap.md](roadmap.md).

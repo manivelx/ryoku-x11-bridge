@@ -1,7 +1,7 @@
 # RXB i3 compositor variant. Like the upstream Hyprland/niri variants, it
 # depends on the Ryoku base and provides the compositor virtual required by it.
 pkgname=ryoku-desktop-i3
-pkgver=${RYOKU_PKGVER:-0.1.0}
+pkgver=${RYOKU_PKGVER:?set RYOKU_PKGVER to the pinned upstream Ryoku VERSION}
 pkgrel=1
 epoch=1
 pkgdesc="Ryoku desktop X11/i3 session and RXB window-manager provider"

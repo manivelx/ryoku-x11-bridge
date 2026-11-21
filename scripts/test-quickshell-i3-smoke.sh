@@ -12,7 +12,8 @@ tmp="$(mktemp -d)"
 runtime="$tmp/runtime"
 mkdir -m 700 "$runtime"
 export XDG_RUNTIME_DIR="$runtime"
-export DISPLAY=:99
+# Prevent a runner-provided Sway socket from taking precedence over i3.
+unset SWAYSOCK I3SOCK
 export QT_QPA_PLATFORM=xcb
 export QT_QUICK_BACKEND=software
 export QT_OPENGL=software
@@ -26,13 +27,22 @@ cleanup() {
 }
 trap cleanup EXIT
 
-Xvfb "$DISPLAY" -screen 0 1280x720x24 -nolisten tcp -ac >"$tmp/xvfb.log" 2>&1 &
+Xvfb -displayfd 3 -screen 0 1280x720x24 -nolisten tcp -ac 3>"$tmp/display-number" >"$tmp/xvfb.log" 2>&1 &
 xvfb_pid=$!
 for _ in $(seq 1 50); do
-  if [[ -S /tmp/.X11-unix/X99 ]]; then break; fi
+  [[ -s "$tmp/display-number" ]] && break
+  kill -0 "$xvfb_pid" 2>/dev/null || { cat "$tmp/xvfb.log"; exit 1; }
   sleep 0.1
 done
-[[ -S /tmp/.X11-unix/X99 ]] || { cat "$tmp/xvfb.log"; exit 1; }
+[[ -s "$tmp/display-number" ]] || { cat "$tmp/xvfb.log"; exit 1; }
+display_number="$(tr -d '[:space:]' < "$tmp/display-number")"
+[[ "$display_number" =~ ^[0-9]+$ ]] || { echo "Xvfb returned an invalid display number: $display_number" >&2; exit 1; }
+export DISPLAY=":$display_number"
+for _ in $(seq 1 50); do
+  [[ -S "/tmp/.X11-unix/X$display_number" ]] && break
+  sleep 0.1
+done
+[[ -S "/tmp/.X11-unix/X$display_number" ]] || { cat "$tmp/xvfb.log"; exit 1; }
 
 cat >"$tmp/i3.conf" <<'EOF'
 font pango:monospace 8
@@ -42,7 +52,7 @@ i3 -c "$tmp/i3.conf" >"$tmp/i3.log" 2>&1 &
 i3_pid=$!
 socket=""
 for _ in $(seq 1 50); do
-  socket="$(i3 --get-socketpath 2>/dev/null || true)"
+  socket="$(env -u SWAYSOCK -u I3SOCK i3 --get-socketpath 2>/dev/null || true)"
   if [[ -n "$socket" && -S "$socket" ]]; then break; fi
   sleep 0.1
 done
@@ -53,6 +63,7 @@ mkdir -p "$tmp/qml"
 cat >"$tmp/qml/shell.qml" <<'EOF'
 import Quickshell
 import Quickshell.I3
+import QtQuick
 
 ShellRoot {
     PanelWindow {
@@ -64,11 +75,31 @@ ShellRoot {
         visible: true
     }
 
-    Component.onCompleted: {
-        console.log("RXB_I3_SMOKE socket=" + I3.socketPath
-                    + " workspaceCount=" + I3.workspaces.count
-                    + " panelAbove=" + smokePanel.aboveWindows);
-        Qt.quit();
+    // Poll the singleton state as well as relying on IPC signals: the
+    // initial connected() signal can fire before this QML Connections object
+    // is instantiated by the shell.
+    Timer {
+        interval: 50
+        repeat: true
+        running: true
+        onTriggered: {
+            if (I3.socketPath.length > 0) {
+                console.log("RXB_I3_SMOKE socket=" + I3.socketPath
+                            + " workspaceCount=" + I3.workspaces.count
+                            + " panelAbove=" + smokePanel.aboveWindows);
+                Qt.quit();
+            }
+        }
+    }
+
+    Timer {
+        interval: 10000
+        running: true
+        onTriggered: {
+            console.error("RXB_I3_SMOKE timed out waiting for Quickshell.I3; socketPath="
+                          + I3.socketPath);
+            Qt.exit(1);
+        }
     }
 }
 EOF

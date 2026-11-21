@@ -9,7 +9,8 @@ case "$mode" in
     mkdir -p "$RYOKU_BUILD_DIR"
     (
       cd "$RYOKU_SRC/cmd/ryoku-wm-i3"
-      go build -trimpath -o "$RYOKU_BUILD_DIR/ryoku-wm-i3" .
+      bridge_version="${RYOKU_BRIDGE_VERSION:-$(tr -d '[:space:]' < "$RYOKU_SRC/RXB_VERSION")}"
+      go build -trimpath -ldflags "-X main.version=$bridge_version" -o "$RYOKU_BUILD_DIR/ryoku-wm-i3" .
     )
     ;;
   install)
@@ -22,6 +23,7 @@ case "$mode" in
     install -Dm755 "$RYOKU_BUILD_DIR/ryoku-wm-i3" "$pkgdir/usr/bin/ryoku-wm-i3"
     install -Dm755 "$RYOKU_SRC/payload/bin/ryoku-x11-session" "$pkgdir/usr/bin/ryoku-x11-session"
     install -Dm755 "$RYOKU_SRC/payload/bin/ryoku-x11-session-init" "$pkgdir/usr/bin/ryoku-x11-session-init"
+    install -Dm755 "$RYOKU_SRC/payload/bin/ryoku-x11-lock" "$pkgdir/usr/bin/ryoku-x11-lock"
 
     install -d "$pkgdir/usr/share/ryoku/config/ryoku-x11"
     install -m644 "$RYOKU_SRC/payload/ryoku-x11/config" "$pkgdir/usr/share/ryoku/config/ryoku-x11/config"
@@ -33,7 +35,7 @@ case "$mode" in
     install -Dm644 "$RYOKU_SRC/payload/systemd/ryogami.service.d/10-rxb-x11.conf" \
       "$pkgdir/usr/lib/systemd/user/ryogami.service.d/10-rxb-x11.conf"
 
-    # Enable the shell only when the RXB session target is explicitly started.
+    # Link Ryoku session daemons only to the RXB session target, never a default user target.
     install -d "$pkgdir/usr/lib/systemd/user/ryoku-session.target.wants"
     ln -sfn ../ryoku-shell.service "$pkgdir/usr/lib/systemd/user/ryoku-session.target.wants/ryoku-shell.service"
     ln -sfn ../ryogami.service "$pkgdir/usr/lib/systemd/user/ryoku-session.target.wants/ryogami.service"

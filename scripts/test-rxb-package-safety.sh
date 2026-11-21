@@ -2,6 +2,42 @@
 set -euo pipefail
 
 dist="${1:-dist}"
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+
+if grep -Fq 'systemctl --user enable' "$root/payload/bin/ryoku-x11-session-init"; then
+  echo "X11 session init must not persistently enable the shell for non-RXB sessions." >&2
+  exit 1
+fi
+if ! grep -Fq 'env -u SWAYSOCK -u I3SOCK i3 --get-socketpath' "$root/payload/bin/ryoku-x11-session-init"; then
+  echo "X11 session init must sanitize Sway's IPC socket environment." >&2
+  exit 1
+fi
+if grep -Eq 'systemctl --user (import-environment|unset-environment)' "$root/payload/bin/ryoku-x11-session-init"; then
+  echo "X11 session init must not mutate the shared systemd user-manager environment." >&2
+  exit 1
+fi
+if ! grep -Fq 'EnvironmentFile=%t/ryoku-x11-session.env' "$root/payload/systemd/ryoku-shell.service.d/10-rxb-x11.conf" ||
+   ! grep -Fq 'ConditionPathExists=%t/ryoku-x11-session.env' "$root/payload/systemd/ryoku-shell.service.d/10-rxb-x11.conf"; then
+  echo "Ryoku shell must consume a session-scoped environment file." >&2
+  exit 1
+fi
+if grep -Fq 'ExecStartPre=-/usr/bin/ryoku-shell quit' "$root/payload/systemd/ryoku-shell.service.d/10-rxb-x11.conf"; then
+  echo "X11 unit must not terminate a shell daemon from another session." >&2
+  exit 1
+fi
+if ! grep -Fq 'systemctl --user stop ryoku-session.target' "$root/payload/bin/ryoku-x11-session"; then
+  echo "X11 session wrapper must stop its target on exit." >&2
+  exit 1
+fi
+if ! grep -Fq 'ryoku-session.target.wants/ryogami.service' "$root/release/packages/ryoku-desktop-i3/payload.sh"; then
+  echo "Ryogami must be linked only to the RXB session target." >&2
+  exit 1
+fi
+if ! grep -Fq 'EnvironmentFile=%t/ryoku-x11-session.env' "$root/payload/systemd/ryogami.service.d/10-rxb-x11.conf" ||
+   ! grep -Fq 'ConditionPathExists=%t/ryoku-x11-session.env' "$root/payload/systemd/ryogami.service.d/10-rxb-x11.conf"; then
+  echo "Ryogami must use the same session-scoped X11 environment." >&2
+  exit 1
+fi
 shopt -s nullglob
 packages=("$dist"/*.pkg.tar.*)
 (("${#packages[@]}" > 0)) || { echo "No Arch package artifacts found in $dist" >&2; exit 1; }
@@ -9,12 +45,14 @@ packages=("$dist"/*.pkg.tar.*)
 base_pkg=""
 variant_pkg=""
 for pkg in "${packages[@]}"; do
-  name="${pkg##*/}"
-  [[ "$name" == ryoku-desktop-i3-* ]] && variant_pkg="$pkg"
-  [[ "$name" == ryoku-desktop-[0-9]* ]] && base_pkg="$pkg"
+  pkg_name="$(bsdtar -xOf "$pkg" .PKGINFO 2>/dev/null | sed -n 's/^pkgname = //p' | head -n1)"
+  case "$pkg_name" in
+    ryoku-desktop) base_pkg="$pkg" ;;
+    ryoku-desktop-i3) variant_pkg="$pkg" ;;
+  esac
 done
-[[ -n "$base_pkg" ]] || { echo "Missing ryoku-desktop base package" >&2; exit 1; }
-[[ -n "$variant_pkg" ]] || { echo "Missing ryoku-desktop-i3 package" >&2; exit 1; }
+[[ -n "$base_pkg" ]] || { echo "Missing ryoku-desktop base package (PKGINFO metadata)" >&2; exit 1; }
+[[ -n "$variant_pkg" ]] || { echo "Missing ryoku-desktop-i3 package (PKGINFO metadata)" >&2; exit 1; }
 
 base_list="$(bsdtar -tf "$base_pkg")"
 variant_list="$(bsdtar -tf "$variant_pkg")"
@@ -36,9 +74,10 @@ for forbidden in \
   'usr/lib/sysusers.d/ryoku-i2c.conf' \
   'etc/modules-load.d/ryoku-i2c.conf' \
   'usr/bin/ryoku-qylock-activate' \
-  'usr/bin/ryoku-qylock-lock'; do
-  if grep -Fq "$forbidden" <<<"$base_list"; then
-    echo "Forbidden host integration in base package: $forbidden" >&2
+  'usr/bin/ryoku-qylock-lock' \
+  'usr/lib/systemd/user/default.target.wants/ryogami.service'; do
+  if grep -Fq "$forbidden" <<<"$base_list" || grep -Fq "$forbidden" <<<"$variant_list"; then
+    echo "Forbidden host integration in RXB package set: $forbidden" >&2
     exit 1
   fi
 done
@@ -55,8 +94,11 @@ done
 for required in \
   'usr/share/xsessions/ryoku-x11.desktop' \
   'usr/lib/systemd/user/ryoku-shell.service.d/10-rxb-x11.conf' \
+  'usr/lib/systemd/user/ryogami.service.d/10-rxb-x11.conf' \
+  'usr/lib/systemd/user/ryoku-session.target.wants/ryogami.service' \
   'usr/bin/ryoku-x11-session' \
   'usr/bin/ryoku-x11-session-init' \
+  'usr/bin/ryoku-x11-lock' \
   'usr/bin/ryoku-wm-i3' \
   'usr/share/ryoku/config/ryoku-x11/config'; do
   grep -Fq "$required" <<<"$variant_list" || {

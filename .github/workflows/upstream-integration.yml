@@ -1,16 +1,29 @@
 name: pinned upstream integration
+
+concurrency:
+  group: rxb-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     paths:
       - "scripts/**"
+      - "tests/**"
       - "payload/**"
       - "release/packages/ryoku-desktop-i3/**"
       - "docs/**"
+      - "UPSTREAM_PIN"
+      - "RXB_VERSION"
       - "cmd/ryoku-wm-i3/**"
       - ".github/workflows/upstream-integration.yml"
   pull_request:
     paths:
       - "scripts/**"
+      - "tests/**"
+      - "payload/**"
+      - "release/packages/ryoku-desktop-i3/**"
+      - "docs/**"
+      - "UPSTREAM_PIN"
+      - "RXB_VERSION"
       - "cmd/ryoku-wm-i3/**"
       - ".github/workflows/upstream-integration.yml"
   workflow_dispatch:
@@ -22,11 +35,14 @@ jobs:
     steps:
       - name: Checkout RXB
         uses: actions/checkout@v4
+      - name: Read the single upstream pin
+        id: upstream-pin
+        run: echo "sha=$(tr -d '[:space:]' < UPSTREAM_PIN)" >> "$GITHUB_OUTPUT"
       - name: Checkout pinned Ryoku upstream
         uses: actions/checkout@v4
         with:
           repository: Ryoku-dev/ryoku
-          ref: 0bf11741b22f69f22ad2733025671c7d0a5e1a47
+          ref: ${{ steps.upstream-pin.outputs.sha }}
           path: upstream
       - name: Build all RXB packages in a disposable Arch container
         run: |
@@ -50,11 +66,20 @@ jobs:
               su builder -c "bash /workspace/scripts/test-rxb-package-safety.sh /workspace/dist"
               su builder -c "bash /workspace/scripts/test-quickshell-i3-smoke.sh"
             '
+      - name: Bundle Arch packages for artifact upload
+        run: |
+          shopt -s nullglob
+          package_paths=(dist/*.pkg.tar.*)
+          (("${#package_paths[@]}" > 0)) || { echo "No built Arch packages to upload." >&2; exit 1; }
+          package_names=()
+          for package in "${package_paths[@]}"; do package_names+=("${package##*/}"); done
+          rm -f dist/rxb-arch-packages.tar.gz
+          tar -czf dist/rxb-arch-packages.tar.gz -C dist "${package_names[@]}"
       - name: Upload built Arch packages
         uses: actions/upload-artifact@v4
         with:
           name: rxb-arch-packages
-          path: dist/*.pkg.tar.*
+          path: dist/rxb-arch-packages.tar.gz
           if-no-files-found: error
           retention-days: 14
 
@@ -63,11 +88,14 @@ jobs:
     steps:
       - name: Checkout RXB
         uses: actions/checkout@v4
+      - name: Read the single upstream pin
+        id: upstream-pin
+        run: echo "sha=$(tr -d '[:space:]' < UPSTREAM_PIN)" >> "$GITHUB_OUTPUT"
       - name: Checkout pinned Ryoku upstream
         uses: actions/checkout@v4
         with:
           repository: Ryoku-dev/ryoku
-          ref: 0bf11741b22f69f22ad2733025671c7d0a5e1a47
+          ref: ${{ steps.upstream-pin.outputs.sha }}
           path: upstream
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -85,10 +113,15 @@ jobs:
       - name: Validate RXB package scripts
         run: |
           bash -n payload/bin/ryoku-x11-session
+          bash -n payload/bin/ryoku-x11-session
           bash -n payload/bin/ryoku-x11-session-init
+          bash -n payload/bin/ryoku-x11-lock
+          bash -n scripts/test-x11-lock-wrapper.sh
+          bash scripts/test-x11-lock-wrapper.sh
           bash -n release/packages/ryoku-desktop-i3/PKGBUILD
           bash -n release/packages/ryoku-desktop-i3/payload.sh
           bash -n scripts/build-rxb-packages.sh
+          bash -n scripts/test-rxb-package-safety.sh
           bash -n scripts/test-quickshell-i3-smoke.sh
       - name: Apply RXB overlay
         run: python3 scripts/apply-upstream-overlay.py upstream

@@ -8,7 +8,7 @@ import re
 import subprocess
 import sys
 
-PIN = "0bf11741b22f69f22ad2733025671c7d0a5e1a47"
+PIN = (pathlib.Path(__file__).resolve().parents[1] / "UPSTREAM_PIN").read_text().strip()
 
 
 def replace_once(path: pathlib.Path, old: str, new: str) -> None:
@@ -151,6 +151,7 @@ def patch_wm_qml(root: pathlib.Path) -> None:
                 id: String(w.id || ""),
                 appId: String(w.appId || ""),
                 title: String(w.title || ""),
+                toplevel: null,
                 activated: Number(w.focusOrder) === 0,
                 fullscreen: w.fullscreen === true,
                 screens: screen ? [screen] : [],
@@ -161,6 +162,9 @@ def patch_wm_qml(root: pathlib.Path) -> None:
         return out;
     }'''
     replace_once(p, old, new)
+    replace_once(p, "const tl = (arr && at < arr.length) ? arr[at] : null;",
+                 "const entry = (arr && at < arr.length) ? arr[at] : null;\n"
+                 "            const tl = entry ? (entry.toplevel ?? entry) : null;")
     old = '''                id: s.name,
                 name: s.name,
                 active: s.active === true,
@@ -576,7 +580,7 @@ def _convert_x11_focus(expr: str) -> str:
     expr = re.sub(r"\bWlrKeyboardFocus\.None\b", "false", expr)
     if "WlrKeyboardFocus." in expr:
         raise RuntimeError(f"unhandled WlrKeyboardFocus expression in X11 overlay: {expr}")
-    return expr.replace(placeholder, "(shownKeyboardFocus !== WlrKeyboardFocus.None)")
+    return expr.replace(placeholder, "!!shownKeyboardFocus")
 
 
 def patch_x11_panel_properties(root: pathlib.Path) -> None:
