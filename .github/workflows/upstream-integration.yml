@@ -1,0 +1,51 @@
+name: pinned upstream integration
+on:
+  push:
+    paths:
+      - "scripts/**"
+      - "cmd/ryoku-wm-i3/**"
+      - ".github/workflows/upstream-integration.yml"
+  pull_request:
+    paths:
+      - "scripts/**"
+      - "cmd/ryoku-wm-i3/**"
+      - ".github/workflows/upstream-integration.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  overlay-and-go-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout RXB
+        uses: actions/checkout@v4
+      - name: Checkout pinned Ryoku upstream
+        uses: actions/checkout@v4
+        with:
+          repository: Ryoku-dev/ryoku
+          ref: 0bf11741b22f69f22ad2733025671c7d0a5e1a47
+          path: upstream
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.5"
+          cache: false
+      - name: Apply RXB overlay
+        run: python3 scripts/apply-upstream-overlay.py upstream
+      - name: Format patched upstream Go
+        run: gofmt -w upstream/ryoku/wm/detect.go upstream/ryoku/shell/ipc/actions.go
+      - name: Test upstream WM contract
+        working-directory: upstream/ryoku/wm
+        run: go test -mod=vendor ./...
+      - name: Test upstream shell daemon
+        working-directory: upstream/ryoku/shell/ipc
+        run: go test -mod=vendor ./...
+      - name: Test upstream CLI
+        working-directory: upstream/ryoku/cli
+        run: go test -mod=vendor ./...
+      - name: Test and build RXB i3 provider
+        working-directory: cmd/ryoku-wm-i3
+        run: |
+          go vet ./...
+          go test -race ./...
+          go build -trimpath -o dist/ryoku-wm-i3 .
