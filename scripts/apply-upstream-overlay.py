@@ -584,9 +584,17 @@ def patch_x11_panel_properties(root: pathlib.Path) -> None:
     # WlrLayershell's attached object is null on X11, so static attached
     # property assignments must not be evaluated by the shell.
     for p in root.rglob("*.qml"):
+        # The qylock package is a separate Wayland security boundary and is
+        # deliberately not modified by the desktop-shell X11 adapter.
+        if "ryoku/lockscreen/" in p.as_posix():
+            continue
         if not p.is_file():
             continue
-        text = p.read_text()
+        try:
+            text = p.read_text()
+        except FileNotFoundError:
+            # Some upstream optional bundles contain dangling asset symlinks.
+            continue
         if "WlrLayershell." not in text:
             continue
         if p.name == "VariantRoot.qml":
