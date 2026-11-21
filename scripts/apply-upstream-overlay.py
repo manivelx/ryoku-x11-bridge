@@ -186,7 +186,7 @@ def patch_compositor_service(root: pathlib.Path) -> None:
 def patch_x11_capture(root: pathlib.Path) -> None:
     p = root / "ryoku/shell/scripts/ryoku-cmd-grim"
     text = p.read_text()
-    anchor = "runtime=\${XDG_RUNTIME_DIR:-/tmp}"
+    anchor = "runtime=${XDG_RUNTIME_DIR:-/tmp}"
     if anchor not in text:
         raise RuntimeError(f"{p}: expected grim helper header")
     x11 = '''# X11 uses maim, not the Wayland-only grim protocol.
