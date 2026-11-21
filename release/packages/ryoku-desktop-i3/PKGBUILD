@@ -11,8 +11,10 @@ license=('GPL-3.0-or-later')
 makedepends=('go')
 depends=(
   "ryoku-desktop=$epoch:$pkgver"
+  "ryogami=$epoch:$pkgver"
   'i3-wm'
   'i3lock'
+  'xdotool'
   'xorg-server'
   'quickshell'
   'maim'
