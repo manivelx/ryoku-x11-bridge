@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -56,29 +58,133 @@ func runCaps() error {
 
 func runState() error { s,e:=readState(); if e!=nil{return e}; enc:=json.NewEncoder(out); enc.SetIndent("","  "); return enc.Encode(s) }
 func runWatch(args []string) error {
-	want:=map[string]bool{}; for _,a:=range args{want[a]=true}
+	want := map[string]bool{}
+	for _, arg := range args {
+		want[arg] = true
+	}
+
 	for {
-		sock:=socketPath(); if sock=="" { time.Sleep(500*time.Millisecond); continue }
-		c,e:=dial(sock); if e!=nil {time.Sleep(500*time.Millisecond);continue}
-		raw,e:=c.request(msgSubscribe,[]string{"workspace","output","window","mode"}); if e!=nil {c.close();time.Sleep(500*time.Millisecond);continue}
-		var ack struct{Success bool `json:"success"`}
-		if e=json.Unmarshal(raw,&ack); e!=nil || !ack.Success {c.close();time.Sleep(500*time.Millisecond);continue}
-		emitState:=func() bool {
-			s,e:=readState(); if e!=nil{return false}
-			frames:=[]Frame{{Kind:"outputs",Outputs:s.Outputs},{Kind:"workspaces",Workspaces:s.Workspaces},{Kind:"windows",Windows:s.Windows},{Kind:"focus",FocusedOutput:s.FocusedOutput}}
-			for _,f:=range frames { if len(want)==0 || want[f.Kind] {if json.NewEncoder(out).Encode(f)!=nil || out.Flush()!=nil{return false}} }
-			return true
+		socket := socketPath()
+		if socket == "" {
+			time.Sleep(500 * time.Millisecond)
+			continue
 		}
-		if !emitState(){c.close();return nil}
-		if json.NewEncoder(out).Encode(Frame{Kind:"ready"})!=nil || out.Flush()!=nil {c.close();return nil}
+		connection, err := dial(socket)
+		if err != nil {
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+
+		raw, err := connection.request(msgSubscribe, []string{"workspace", "output", "window", "mode"})
+		if err != nil {
+			connection.close()
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+		var acknowledgement struct {
+			Success bool `json:"success"`
+		}
+		if err := json.Unmarshal(raw, &acknowledgement); err != nil || !acknowledgement.Success {
+			connection.close()
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+
+		current, err := readState()
+		if err != nil {
+			connection.close()
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+		var previous Snapshot
+		if err := emitChangedFrames(current, &previous, true, want); err != nil {
+			connection.close()
+			return err
+		}
+		if err := json.NewEncoder(out).Encode(Frame{Kind: "ready"}); err != nil {
+			connection.close()
+			return err
+		}
+		if err := out.Flush(); err != nil {
+			connection.close()
+			return err
+		}
+
 		for {
-			_,_,e:=c.readMessage()
-			if e!=nil {break}
-			if !emitState(){c.close();return nil}
+			_, _, err := connection.readMessage()
+			if err != nil {
+				break
+			}
+			// i3 can send several events for one user action. Coalesce the burst
+			// before querying the tree, then emit only frame kinds that changed.
+			if err := coalesceEvents(connection, 40*time.Millisecond); err != nil {
+				break
+			}
+			next, err := readState()
+			if err != nil {
+				break
+			}
+			if err := emitChangedFrames(next, &previous, false, want); err != nil {
+				connection.close()
+				return err
+			}
 		}
-		c.close(); time.Sleep(500*time.Millisecond)
+
+		connection.close()
+		time.Sleep(250 * time.Millisecond)
 	}
 }
+
+func coalesceEvents(connection *ipcConn, window time.Duration) error {
+	if err := connection.c.SetReadDeadline(time.Now().Add(window)); err != nil {
+		return err
+	}
+	defer connection.c.SetReadDeadline(time.Time{})
+
+	for {
+		_, _, err := connection.readMessage()
+		if err == nil {
+			continue
+		}
+		var networkError net.Error
+		if errors.As(err, &networkError) && networkError.Timeout() {
+			return nil
+		}
+		return err
+	}
+}
+
+func emitChangedFrames(next Snapshot, previous *Snapshot, initial bool, want map[string]bool) error {
+	frames := []Frame{
+		{Kind: "outputs", Outputs: next.Outputs},
+		{Kind: "workspaces", Workspaces: next.Workspaces},
+		{Kind: "windows", Windows: next.Windows},
+		{Kind: "focus", FocusedOutput: next.FocusedOutput},
+	}
+	changed := []bool{
+		initial || !reflect.DeepEqual(next.Outputs, previous.Outputs),
+		initial || !reflect.DeepEqual(next.Workspaces, previous.Workspaces),
+		initial || !reflect.DeepEqual(next.Windows, previous.Windows),
+		initial || next.FocusedOutput != previous.FocusedOutput,
+	}
+	for index, frame := range frames {
+		if len(want) > 0 && !want[frame.Kind] {
+			continue
+		}
+		if !changed[index] {
+			continue
+		}
+		if err := json.NewEncoder(out).Encode(frame); err != nil {
+			return err
+		}
+	}
+	if err := out.Flush(); err != nil {
+		return err
+	}
+	*previous = next
+	return nil
+}
+
 func runAct(a []string) error {
 	return runAction(a)
 }
