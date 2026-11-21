@@ -95,6 +95,7 @@ func runApply(args []string) error {
 		if err := os.WriteFile(filepath.Join(dir, "generated.conf"), []byte(generated), 0o644); err != nil {
 			return fmt.Errorf("apply: write generated i3 config: %w", err)
 		}
+		report.Written = []string{"ryoku-x11/generated.conf"}
 	}
 	return json.NewEncoder(out).Encode(report)
 }
