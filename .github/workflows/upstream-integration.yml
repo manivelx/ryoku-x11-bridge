@@ -98,6 +98,7 @@ jobs:
       - name: Validate RXB package scripts
         run: |
           bash -n payload/bin/ryoku-x11-session
+          bash -n payload/bin/ryoku-x11-session
           bash -n payload/bin/ryoku-x11-session-init
           bash -n payload/bin/ryoku-x11-lock
           bash -n scripts/test-x11-lock-wrapper.sh
