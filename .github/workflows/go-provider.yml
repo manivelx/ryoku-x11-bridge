@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - "cmd/ryoku-wm-i3/**"
+      - "RXB_VERSION"
       - ".github/workflows/go-provider.yml"
   pull_request:
     paths:
@@ -23,8 +24,12 @@ jobs:
         with:
           go-version: "1.23.x"
           cache-dependency-path: cmd/ryoku-wm-i3/go.mod
-      - run: gofmt -w *.go
+      - name: Check Go formatting
+        run: test -z "$(gofmt -l .)"
       - run: go vet ./...
       - run: go test -race ./...
-      - run: go build -trimpath -o dist/ryoku-wm-i3 .
+      - name: Build versioned provider
+        run: |
+          bridge_version="$(tr -d '[:space:]' < ../../RXB_VERSION)"
+          go build -trimpath -ldflags "-X main.version=$bridge_version" -o dist/ryoku-wm-i3 .
       - run: ./dist/ryoku-wm-i3 --help
