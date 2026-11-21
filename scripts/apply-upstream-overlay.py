@@ -151,6 +151,7 @@ def patch_wm_qml(root: pathlib.Path) -> None:
                 id: String(w.id || ""),
                 appId: String(w.appId || ""),
                 title: String(w.title || ""),
+                toplevel: null,
                 activated: Number(w.focusOrder) === 0,
                 fullscreen: w.fullscreen === true,
                 screens: screen ? [screen] : [],
