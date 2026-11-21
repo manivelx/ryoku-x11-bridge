@@ -13,6 +13,7 @@ makedepends=('go')
 depends=(
   "ryoku-shell=$epoch:$pkgver"
   'i3-wm'
+  'i3lock'
   'xorg-server'
   'quickshell'
 )
