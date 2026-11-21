@@ -559,8 +559,8 @@ def patch_x11_package_safety(root: pathlib.Path) -> None:
     # those host policies to the user's existing CachyOS/BSPWM/SDDM install.
     p = root / "release/packages/ryoku-desktop/payload.sh"
     text = p.read_text()
-    old_manifest = 'install -Dm644 "$_repo/system/services/manifest.tsv" ' + chr(92) + '\n    "$pkgdir/usr/share/ryoku/services.tsv"'
-    new_manifest = ('if [[ ${RYOKU_X11_BRIDGE:-0} != 1 ]]; then\n'
+    old_manifest = '  install -Dm644 "$_repo/system/services/manifest.tsv" ' + chr(92) + '\n    "$pkgdir/usr/share/ryoku/services.tsv"'
+    new_manifest = ('  if [[ ${RYOKU_X11_BRIDGE:-0} != 1 ]]; then\n'
                     '    install -Dm644 "$_repo/system/services/manifest.tsv" ' + chr(92) + '\n'
                     '      "$pkgdir/usr/share/ryoku/services.tsv"\n'
                     '  fi')
