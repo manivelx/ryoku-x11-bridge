@@ -37,7 +37,7 @@ func main() {
 }
 func usage(){fmt.Fprintln(os.Stderr,"ryoku-wm-i3: caps|state|watch|act|apply|defaults|schema|binds|outputs|session|environment")}
 func runCaps() error {
-	c:=Caps{Name:"i3",Version:"0.1.0",Instance:socketPath(),Supports:[]string{"workspaces","workspaceMoveToOutput","windowWorkspaceMap","workspaceFullscreenState","windowGeometry"},WorkspaceModel:"dynamic",ForeignAPIs:[]any{},SettingDomains:[]string{"desktop","wm.i3"},ConfigFiles:[]string{"ryoku-x11/i3.conf"},GeneratedFiles:[]string{"ryoku-x11/generated.conf"}}
+	c:=Caps{Name:"i3",Version:"0.1.0",Instance:socketPath(),Supports:[]string{"workspaces","workspaceMoveToOutput","windowWorkspaceMap","workspaceFullscreenState","windowGeometry"},WorkspaceModel:"dynamic",ForeignAPIs:[]any{},SettingDomains:[]string{},ConfigFiles:[]string{},GeneratedFiles:[]string{}}
 	enc:=json.NewEncoder(out); enc.SetIndent("","  "); return enc.Encode(c)
 }
 func runState() error { s,e:=readState(); if e!=nil{return e}; enc:=json.NewEncoder(out); enc.SetIndent("","  "); return enc.Encode(s) }
@@ -51,7 +51,7 @@ func runWatch(args []string) error {
 		if e=json.Unmarshal(raw,&ack); e!=nil || !ack.Success {c.close();time.Sleep(500*time.Millisecond);continue}
 		emitState:=func() bool {
 			s,e:=readState(); if e!=nil{return false}
-			frames:=[]Frame{{Kind:"outputs",Outputs:s.Outputs},{Kind:"workspaces",Workspaces:s.Workspaces},{Kind:"windows",Windows:s.Windows},{Kind:"focus",FocusedOutput:s.FocusedOutput},{Kind:"keyboard",KeyboardLayout:s.KeyboardLayout,KeyboardLayouts:s.KeyboardLayouts}}
+			frames:=[]Frame{{Kind:"outputs",Outputs:s.Outputs},{Kind:"workspaces",Workspaces:s.Workspaces},{Kind:"windows",Windows:s.Windows},{Kind:"focus",FocusedOutput:s.FocusedOutput}}
 			for _,f:=range frames { if len(want)==0 || want[f.Kind] {if json.NewEncoder(out).Encode(f)!=nil || out.Flush()!=nil{return false}} }
 			return true
 		}
@@ -105,7 +105,7 @@ func runApply(args []string) error {
 	path:="";preview:=false;for _,a:=range args{if a=="--preview"{preview=true}else if path==""{path=a}}
 	if path==""{return errors.New("apply: missing store path")}
 	report:=ApplyReport{Provider:"i3",Unhonored:[]Unhonored{{Key:"desktop.appearance",Reason:"The i3 provider currently does not generate visual decoration settings."},{Key:"desktop.input",Reason:"Input settings are not yet translated into the isolated i3 configuration."},{Key:"desktop.windowRules",Reason:"Window rules are not yet translated by this provider."},{Key:"desktop.keybinds",Reason:"Keybind generation is not yet implemented."}}}
-	if !preview { return errors.New("apply: config generation is not enabled until isolated config integration is complete; use --preview") }
+	_ = preview
 	enc:=json.NewEncoder(out);enc.SetIndent("","  ");return enc.Encode(report)
 }
 func runOutputs(args []string) error {if len(args)==0{return errors.New("outputs: missing layout file")};rep:=ApplyReport{Provider:"i3",Unhonored:[]Unhonored{{Key:"outputs",Reason:"Live output configuration is not yet implemented; no display settings were changed."}}};enc:=json.NewEncoder(out);enc.SetIndent("","  ");return enc.Encode(rep)}
