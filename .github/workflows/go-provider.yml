@@ -8,6 +8,7 @@ on:
   pull_request:
     paths:
       - "cmd/ryoku-wm-i3/**"
+      - "RXB_VERSION"
       - ".github/workflows/go-provider.yml"
   workflow_dispatch:
 permissions:
