@@ -353,6 +353,52 @@ func readX11Selection(mime string) ([]byte, error) {
     p.write_text(text)
 
 
+def patch_x11_region_tools(root: pathlib.Path) -> None:
+    helper = root / "ryoku/shell/scripts/ryoku-cmd-clipboard-copy"
+    helper.write_text('''#!/usr/bin/env bash
+set -euo pipefail
+mime=${1:-text/plain}
+shift || true
+if [[ -n ${DISPLAY:-} && -z ${WAYLAND_DISPLAY:-} ]]; then
+  exec xclip -selection clipboard -t "$mime" -i "$@"
+fi
+exec wl-copy --type "$mime" "$@"
+''')
+    helper.chmod(0o755)
+
+    for name, tool in (("ryoku-cmd-ocr", "tesseract"), ("ryoku-cmd-qr-scan", "zbarimg")):
+        p = root / "ryoku/shell/scripts" / name
+        text = p.read_text()
+        if name == "ryoku-cmd-ocr":
+            replace_once(p, "for c in tesseract wl-copy notify-send; do need \"$c\"; done",
+                         "for c in tesseract notify-send; do need \"$c\"; done\n"
+                         "if [[ -n ${DISPLAY:-} && -z ${WAYLAND_DISPLAY:-} ]]; then need xclip; else need wl-copy; fi")
+        else:
+            replace_once(p, "for c in zbarimg wl-copy notify-send xdg-open; do need \"$c\"; done",
+                         "for c in zbarimg notify-send xdg-open; do need \"$c\"; done\n"
+                         "if [[ -n ${DISPLAY:-} && -z ${WAYLAND_DISPLAY:-} ]]; then need xclip; else need wl-copy; fi")
+        replace_once(p, "for c in grim slurp; do need \"$c\"; done",
+                     "if [[ -n ${DISPLAY:-} && -z ${WAYLAND_DISPLAY:-} ]]; then\n"
+                     "    for c in maim slop xclip xrandr; do need \"$c\"; done\n"
+                     "  else\n    for c in grim slurp; do need \"$c\"; done\n  fi")
+        replace_once(p, 'geometry="$(slurp 2>/dev/null)" || exit 130',
+                     'if [[ -n ${DISPLAY:-} && -z ${WAYLAND_DISPLAY:-} ]]; then\n'
+                     '    geometry="$(slop -f \'%g\' 2>/dev/null)" || exit 130\n'
+                     '  else\n    geometry="$(slurp 2>/dev/null)" || exit 130\n  fi')
+        if name == "ryoku-cmd-ocr":
+            replace_once(p, "printf '%s' \"$text\" | wl-copy",
+                         "printf '%s' \"$text\" | ryoku-cmd-clipboard-copy text/plain")
+        else:
+            replace_once(p, "printf '%s' \"$result\" | wl-copy",
+                         "printf '%s' \"$result\" | ryoku-cmd-clipboard-copy text/plain")
+
+    p = root / "ryoku/shell/quickshell/shell/modules/dock/ii/draw/LiveDrawWindow.qml"
+    replace_once(p, "ryoku-cmd-grim -o \"$1\" - | wl-copy --type image/png",
+                 "ryoku-cmd-grim -o \"$1\" - | ryoku-cmd-clipboard-copy image/png")
+    replace_once(p, 'ryoku-cmd-grim ${1:+-o \"$1\"} \"$f\" && wl-copy --type image/png < \"$f\"',
+                 'ryoku-cmd-grim ${1:+-o \"$1\"} \"$f\" && ryoku-cmd-clipboard-copy image/png < \"$f\"')
+
+
 def patch_lock_dispatch(root: pathlib.Path) -> None:
     p = root / "ryoku/shell/ipc/actions.go"
     old = '''func lockSession() string {
@@ -452,9 +498,10 @@ def main() -> int:
     patch_wayland_consumers(root)
     patch_x11_capture(root)
     patch_x11_clipboard(root)
+    patch_x11_region_tools(root)
     patch_lock_dispatch(root)
     print(f"RXB overlay applied to pinned Ryoku {PIN}")
-    print("Changed: provider/session discovery, QML i3 bridge, taskbar/capture adapters, X11 clipboard and lock dispatch")
+    print("Changed: provider/session discovery, QML i3 bridge, taskbar/capture/region adapters, X11 clipboard and lock dispatch")
     print("Note: this is a source overlay, not a completed/validated desktop build.")
     return 0
 
