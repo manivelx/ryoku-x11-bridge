@@ -16,8 +16,9 @@ export RYOKU_WM=i3
 
 config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
 config_dir="$config_home/ryoku-x11"
-mkdir -p "$config_dir"
-chmod 700 "$config_dir"
+if [[ ! -d "$config_dir" ]]; then
+  install -d -m 700 "$config_dir"
+fi
 
 seed_dir=/usr/share/ryoku/config/ryoku-x11
 for name in config generated.conf user.conf; do
@@ -26,7 +27,7 @@ for name in config generated.conf user.conf; do
   fi
 done
 
-for cmd in i3 ryoku-wm-i3 quickshell ryoku-shell; do
+for cmd in i3 ryoku-wm-i3 qs ryoku-shell; do
   command -v "$cmd" >/dev/null 2>&1 || {
     echo "ryoku-x11-session: required command not found: $cmd" >&2
     exit 1
