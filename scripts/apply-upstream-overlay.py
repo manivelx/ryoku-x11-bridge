@@ -728,6 +728,21 @@ def patch_x11_package_safety(root: pathlib.Path) -> None:
     end = text.index("  if [[ $RYOKU_INIT_MODE == systemd ]]; then\n    # Keep session-critical units", start)
     text = text[:start] + '  if [[ ${RYOKU_X11_BRIDGE:-0} != 1 ]]; then\n' + text[start:end] + '  fi\n\n' + text[end:]
 
+    # Do not install environment.d or session environment generators globally:
+    # they would change the user's existing BSPWM/SDDM session as well.
+    start = text.index("# The AI-usage collectors behind the qsbar AI pill ship with ryoku-rashin.")
+    end = text.index("  # the decor art", start)
+    text = text[:start] + '  if [[ ${RYOKU_X11_BRIDGE:-0} != 1 ]]; then\n' + text[start:end] + '  fi\n\n' + text[end:]
+
+    old_nautilus = '  install -Dm644 "$_repo/ryoku/apps/nautilus/ryoku-stash-menu.py" ' + chr(92) + '\n    "$pkgdir/usr/share/nautilus-python/extensions/ryoku-stash-menu.py"'
+    new_nautilus = ('  if [[ ${RYOKU_X11_BRIDGE:-0} != 1 ]]; then\n'
+                    '    install -Dm644 "$_repo/ryoku/apps/nautilus/ryoku-stash-menu.py" ' + chr(92) + '\n'
+                    '      "$pkgdir/usr/share/nautilus-python/extensions/ryoku-stash-menu.py"\n'
+                    '  fi')
+    if text.count(old_nautilus) != 1:
+        raise RuntimeError(f"{p}: Nautilus extension install anchor missing")
+    text = text.replace(old_nautilus, new_nautilus, 1)
+
     old_hw_helpers = '''  for s in "$_repo"/system/hardware/*/ryoku-*; do
     [[ -f $s && -x $s ]] || continue
     install -Dm755 "$s" "$pkgdir/usr/bin/${s##*/}"
