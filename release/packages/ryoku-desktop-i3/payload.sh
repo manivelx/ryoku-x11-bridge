@@ -23,6 +23,7 @@ case "$mode" in
     install -Dm755 "$RYOKU_BUILD_DIR/ryoku-wm-i3" "$pkgdir/usr/bin/ryoku-wm-i3"
     install -Dm755 "$RYOKU_SRC/payload/bin/ryoku-x11-session" "$pkgdir/usr/bin/ryoku-x11-session"
     install -Dm755 "$RYOKU_SRC/payload/bin/ryoku-x11-session-init" "$pkgdir/usr/bin/ryoku-x11-session-init"
+    install -Dm755 "$RYOKU_SRC/payload/bin/ryoku-x11-lock" "$pkgdir/usr/bin/ryoku-x11-lock"
 
     install -d "$pkgdir/usr/share/ryoku/config/ryoku-x11"
     install -m644 "$RYOKU_SRC/payload/ryoku-x11/config" "$pkgdir/usr/share/ryoku/config/ryoku-x11/config"
