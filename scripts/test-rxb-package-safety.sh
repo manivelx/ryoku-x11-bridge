@@ -2,6 +2,16 @@
 set -euo pipefail
 
 dist="${1:-dist}"
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+
+if grep -Fq 'systemctl --user enable' "$root/payload/bin/ryoku-x11-session-init"; then
+  echo "X11 session init must not persistently enable the shell for non-RXb sessions." >&2
+  exit 1
+fi
+if grep -Fq 'ryogami.service' "$root/release/packages/ryoku-desktop-i3/payload.sh"; then
+  echo "Unvalidated Wayland-only Ryogami service must not be linked into the X11 session." >&2
+  exit 1
+fi
 shopt -s nullglob
 packages=("$dist"/*.pkg.tar.*)
 (("${#packages[@]}" > 0)) || { echo "No Arch package artifacts found in $dist" >&2; exit 1; }
