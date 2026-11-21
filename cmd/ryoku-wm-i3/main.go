@@ -100,8 +100,46 @@ func runAct(a []string) error {
 	case "workspace.cycle":
 		d:=1; if len(rest)>0 {v,e:=strconv.Atoi(rest[0]);if e!=nil{return fmt.Errorf("invalid delta %q",rest[0])};d=v};dir:="next";if d<0{dir="prev";d=-d};for i:=0;i<d;i++{if e:=runCommand("workspace "+dir);e!=nil{return e}};return nil
 	case "workspace.moveToOutput":
-		if len(rest)<2{return errors.New("act workspace.moveToOutput: expected workspace id and output")}
-		return runCommand("workspace "+quoteWorkspace(rest[0])+"; move workspace to output "+quoteToken(rest[1]))
+		if len(rest) < 2 {
+			return errors.New("act workspace.moveToOutput: expected workspace id and output")
+		}
+		return runCommand("workspace " + quoteWorkspace(rest[0]) + "; move workspace to output " + quoteToken(rest[1]))
+	case "workspace.moveToOutputBy":
+		if len(rest) < 1 || !validDirection(strings.ToLower(rest[0])) {
+			return errors.New("act workspace.moveToOutputBy: expected left, right, up or down")
+		}
+		return runCommand("move workspace to output " + strings.ToLower(rest[0]))
+	case "window.moveToWorkspaceBy":
+		if len(rest) < 1 {
+			return errors.New("act window.moveToWorkspaceBy: expected a non-zero workspace delta")
+		}
+		direction, count, err := boundedDelta(rest[0])
+		if err != nil {
+			return err
+		}
+		for i := 0; i < count; i++ {
+			if err := runCommand("move container to workspace " + direction); err != nil {
+				return err
+			}
+		}
+		return nil
+	case "window.summon":
+		if len(rest) < 1 {
+			return errors.New("act window.summon: expected exact window title")
+		}
+		snap, err := readState()
+		if err != nil {
+			return err
+		}
+		id, ok := findWindowIDByTitle(snap.Windows, rest[0])
+		if !ok {
+			return fmt.Errorf("no window found with title %q", rest[0])
+		}
+		n, err := strconv.ParseInt(id, 10, 64)
+		if err != nil || n <= 0 {
+			return fmt.Errorf("invalid window id %q", id)
+		}
+		return runCommand(fmt.Sprintf("[con_id=%d] move container to workspace current; [con_id=%d] focus", n, n))
 	case "window.moveToWorkspace":
 		if len(rest)<2{return errors.New("act window.moveToWorkspace: expected window id and workspace id")}
 		n,e:=strconv.ParseInt(rest[0],10,64);if e!=nil||n<=0{return errors.New("invalid window id")}
@@ -131,6 +169,28 @@ func runOutputs(args []string) error {if len(args)==0{return errors.New("outputs
 func runSession() error {_,e:=fmt.Fprint(out,"[Desktop Entry]\nName=Ryoku (X11 / i3)\nComment=Ryoku desktop on Xorg with i3\nTryExec=i3\nExec=ryoku-x11-session\nType=Application\nDesktopNames=Ryoku;\n");return e}
 func runEnvironment(args []string) error {if len(args)!=1{return errors.New("environment: expected one process id")};pid,e:=strconv.Atoi(args[0]);if e!=nil||pid<=0{return errors.New("environment: invalid process id")};b,e:=os.ReadFile(fmt.Sprintf("/proc/%d/environ",pid));if e!=nil{return e};sock:=envValue(b,"I3SOCK");if sock==""{return nil};if !alive(sock){return nil};_,e=fmt.Fprintf(out,"I3SOCK=%s%c",sock,byte(0));return e}
 func envValue(b []byte,k string)string{for _,p:=range strings.Split(string(b),"\x00"){if strings.HasPrefix(p,k+"="){return strings.TrimPrefix(p,k+"=")}};return ""}
+func boundedDelta(raw string) (string, int, error) {
+	delta, err := strconv.Atoi(raw)
+	if err != nil || delta == 0 || delta < -20 || delta > 20 {
+		return "", 0, fmt.Errorf("workspace delta must be between -20 and 20, excluding zero: %q", raw)
+	}
+	direction := "next"
+	if delta < 0 {
+		direction = "prev"
+		delta = -delta
+	}
+	return direction, delta, nil
+}
+
+func findWindowIDByTitle(windows []Window, title string) (string, bool) {
+	for _, window := range windows {
+		if window.Title == title && window.ID != "" {
+			return window.ID, true
+		}
+	}
+	return "", false
+}
+
 func quoteWorkspace(s string)string{if _,e:=strconv.Atoi(s);e==nil{return s};return quoteToken(s)}
 func quoteToken(s string)string{return strconv.Quote(s)}
 func validDirection(s string)bool{return s=="left"||s=="right"||s=="up"||s=="down"}
