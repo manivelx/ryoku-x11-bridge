@@ -61,71 +61,125 @@ type node struct {
 }
 
 func readState() (Snapshot, error) {
-	sock := socketPath()
-	c, e := dial(sock)
-	if e != nil {
-		return Snapshot{}, e
+	return readStateForKinds(nil)
+}
+
+func readStateForKinds(want map[string]bool) (Snapshot, error) {
+	all := len(want) == 0
+	needOutputs := all || want["outputs"]
+	needWorkspaces := all || want["workspaces"] || needOutputs || want["focus"]
+	needTree := all || want["workspaces"] || want["windows"]
+
+	socket := socketPath()
+	connection, err := dial(socket)
+	if err != nil {
+		return Snapshot{}, err
 	}
-	defer c.close()
-	var outs []i3Output
-	var wss []i3Workspace
-	var tree node
-	for _, q := range []struct {
-		k   uint32
-		v   any
-		dst any
-	}{{msgOutputs, nil, &outs}, {msgWorkspaces, nil, &wss}, {msgTree, nil, &tree}} {
-		raw, err := c.request(q.k, q.v)
+	defer connection.close()
+
+	snapshot := Snapshot{
+		Outputs:    []Output{},
+		Workspaces: []Workspace{},
+		Windows:    []Window{},
+	}
+
+	if needOutputs {
+		var outputs []i3Output
+		raw, err := connection.request(msgOutputs, nil)
 		if err != nil {
 			return Snapshot{}, err
 		}
-		if err = json.Unmarshal(raw, q.dst); err != nil {
+		if err := json.Unmarshal(raw, &outputs); err != nil {
 			return Snapshot{}, err
 		}
-	}
-	s := Snapshot{Outputs: []Output{}, Workspaces: []Workspace{}, Windows: []Window{}}
-	for _, o := range outs {
-		if !o.Active {
-			continue
+		for _, output := range outputs {
+			if !output.Active {
+				continue
+			}
+			row := Output{
+				Name:            output.Name,
+				Width:           output.Rect.Width,
+				Height:          output.Rect.Height,
+				Scale:           1,
+				ActiveWorkspace: output.CurrentWorkspace,
+				Make:            output.Make,
+				Model:           output.Model,
+				X:               output.Rect.X,
+				Y:               output.Rect.Y,
+				Mode:            fmt.Sprintf("%dx%d@%.0f", output.CurrentMode.Width, output.CurrentMode.Height, output.CurrentMode.Refresh),
+			}
+			for _, mode := range output.Modes {
+				row.Modes = append(row.Modes, fmt.Sprintf("%dx%d@%.0f", mode.Width, mode.Height, mode.Refresh))
+			}
+			snapshot.Outputs = append(snapshot.Outputs, row)
 		}
-		x := Output{Name: o.Name, Width: o.Rect.Width, Height: o.Rect.Height, Scale: 1, Focused: false, ActiveWorkspace: o.CurrentWorkspace, Make: o.Make, Model: o.Model, X: o.Rect.X, Y: o.Rect.Y, Mode: fmt.Sprintf("%dx%d@%.0f", o.CurrentMode.Width, o.CurrentMode.Height, o.CurrentMode.Refresh)}
-		for _, m := range o.Modes {
-			x.Modes = append(x.Modes, fmt.Sprintf("%dx%d@%.0f", m.Width, m.Height, m.Refresh))
+	}
+
+	if needWorkspaces {
+		var workspaces []i3Workspace
+		raw, err := connection.request(msgWorkspaces, nil)
+		if err != nil {
+			return Snapshot{}, err
 		}
-		s.Outputs = append(s.Outputs, x)
-	}
-	ranks := map[string]int{}
-	for _, w := range wss {
-		if w.Focused {
-			s.FocusedOutput = w.Output
+		if err := json.Unmarshal(raw, &workspaces); err != nil {
+			return Snapshot{}, err
 		}
-		ranks[w.Output]++
-		index := w.Num
-		if index <= 0 {
-			index = ranks[w.Output]
+		ranks := map[string]int{}
+		for _, workspace := range workspaces {
+			if workspace.Focused {
+				snapshot.FocusedOutput = workspace.Output
+			}
+			ranks[workspace.Output]++
+			index := workspace.Num
+			if index <= 0 {
+				index = ranks[workspace.Output]
+			}
+			snapshot.Workspaces = append(snapshot.Workspaces, Workspace{
+				ID:      workspace.Name,
+				Name:    workspace.Name,
+				Output:  workspace.Output,
+				Index:   index,
+				Active:  workspace.Visible,
+				Windows: 0,
+			})
 		}
-		s.Workspaces = append(s.Workspaces, Workspace{ID: w.Name, Name: w.Name, Output: w.Output, Index: index, Active: w.Visible, Windows: 0})
+		for index := range snapshot.Outputs {
+			snapshot.Outputs[index].Focused = snapshot.Outputs[index].Name == snapshot.FocusedOutput
+		}
 	}
-	for i := range s.Outputs {
-		s.Outputs[i].Focused = s.Outputs[i].Name == s.FocusedOutput
-	}
-	walkWindows(&tree, "", "", s.Workspaces, &s.Windows)
-	sort.SliceStable(s.Windows, func(i, j int) bool { return s.Windows[i].Focused && !s.Windows[j].Focused })
-	for i := range s.Windows {
-		s.Windows[i].FocusOrder = i
-	}
-	for i := range s.Workspaces {
-		s.Workspaces[i].Fullscreen = workspaceHasFullscreen(&tree, s.Workspaces[i].Name)
-	}
-	for i := range s.Workspaces {
-		for _, w := range s.Windows {
-			if w.Workspace == s.Workspaces[i].ID {
-				s.Workspaces[i].Windows++
+
+	if needTree {
+		var tree node
+		raw, err := connection.request(msgTree, nil)
+		if err != nil {
+			return Snapshot{}, err
+		}
+		if err := json.Unmarshal(raw, &tree); err != nil {
+			return Snapshot{}, err
+		}
+		if all || want["windows"] {
+			walkWindows(&tree, "", "", snapshot.Workspaces, &snapshot.Windows)
+			sort.SliceStable(snapshot.Windows, func(i, j int) bool {
+				return snapshot.Windows[i].Focused && !snapshot.Windows[j].Focused
+			})
+			for index := range snapshot.Windows {
+				snapshot.Windows[index].FocusOrder = index
+			}
+		}
+		if want["workspaces"] || all {
+			for index := range snapshot.Workspaces {
+				snapshot.Workspaces[index].Fullscreen = workspaceHasFullscreen(&tree, snapshot.Workspaces[index].Name)
+				for _, window := range snapshot.Windows {
+					if window.Workspace == snapshot.Workspaces[index].ID {
+						snapshot.Workspaces[index].Windows++
+					}
+				}
 			}
 		}
 	}
-	return s, nil
+	return snapshot, nil
 }
+
 func workspaceHasFullscreen(n *node, workspace string) bool {
 	if n.Type == "workspace" && n.Name == workspace {
 		return nodeHasFullscreen(n)
