@@ -64,15 +64,17 @@ func TestSocketPathIgnoresSwaySocket(t *testing.T) {
 	}
 	defer listener.Close()
 
+	binDir := t.TempDir()
+	i3Command := filepath.Join(binDir, "i3")
+	script := "#!/bin/sh\nif [ -n \"$SWAYSOCK\" ]; then printf '%s' \"$SWAYSOCK\"; fi\n"
+	if err := os.WriteFile(i3Command, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir)
 	t.Setenv("I3SOCK", "")
 	t.Setenv("SWAYSOCK", swaySocket)
-	// socketPath may ask the local i3 binary, but it must not use SWAYSOCK.
-	if got := socketPathFromEnv(os.Getenv("SWAYSOCK")); got != "" {
-		t.Fatalf("Sway socket must never be accepted as an i3 socket: %q", got)
-	}
-	for _, entry := range withoutEnv([]string{"PATH=/bin", "SWAYSOCK=" + swaySocket, "I3SOCK=/tmp/i3"}, "SWAYSOCK") {
-		if len(entry) >= len("SWAYSOCK=") && entry[:len("SWAYSOCK=")] == "SWAYSOCK=" {
-			t.Fatalf("SWAYSOCK leaked into sanitized environment: %q", entry)
-		}
+
+	if got := socketPath(); got != "" {
+		t.Fatalf("i3 socket discovery must not inherit SWAYSOCK, got %q", got)
 	}
 }
