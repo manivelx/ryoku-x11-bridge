@@ -40,6 +40,38 @@ class X11PanelOverlayTests(unittest.TestCase):
             "shown ? (shownKeyboardFocus !== WlrKeyboardFocus.None) : false",
         )
 
+    def test_wm_adapter_keeps_x11_windows_without_wayland_capture_handles(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            qml = root / "ryoku" / "ui" / "Singletons" / "Wm.qml"
+            qml.parent.mkdir(parents=True)
+            qml.write_text(
+                "import Quickshell.WindowManager\\n"
+                "import Quickshell.Wayland\\n"
+                "    // Bound at declaration so the Wayland registry binds early; the lists fill in\\n"
+                "    // asynchronously after connect.\\n"
+                "    readonly property var _windowsets: WindowManager.windowsets\\n"
+                "    property var _toplevelModel: ToplevelManager.toplevels\\n"
+                "    readonly property var toplevels: root._toplevelModel ? root._toplevelModel.values : []\\n"
+                "            const tl = (arr && at < arr.length) ? arr[at] : null;\\n"
+                "                id: s.name,\\n"
+                "                name: s.name,\\n"
+                "                active: s.active === true,\\n"
+                "                urgent: s.urgent === true,\\n"
+                "                canActivate: s.canActivate === true,\\n"
+                "                windows: 0,\\n"
+                "                occupied: false,\\n"
+                "                fullscreen: false,\\n"
+                "                special: false,\\n"
+                "                output: \\"\\",\\n"
+                "                layout: \\"\\""
+            )
+            OVERLAY.patch_wm_qml(root)
+            result = qml.read_text()
+            self.assertIn("import Quickshell.I3", result)
+            self.assertIn("toplevel: null", result)
+            self.assertIn("const tl = entry ? (entry.toplevel ?? entry) : null;", result)
+
     def test_panel_properties_are_rewritten_for_x11(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
