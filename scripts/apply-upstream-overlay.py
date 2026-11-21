@@ -133,7 +133,7 @@ def patch_wm_qml(root: pathlib.Path) -> None:
     readonly property var toplevels: root._toplevelModel ? root._toplevelModel.values : []'''
     new = '''    // X11/i3 workspace and monitor state is provided by Quickshell's native
     // I3 module. Window identity and geometry come from the RXB provider.
-    readonly property var _windowsets: I3.workspaces
+    readonly property var _windowsets: I3.workspaces.values
     readonly property var _toplevelModel: null
     readonly property var toplevels: {
         const rows = root._winResidue || [];
