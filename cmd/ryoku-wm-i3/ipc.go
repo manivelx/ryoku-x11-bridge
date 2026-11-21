@@ -33,9 +33,14 @@ func (i *ipcConn) request(kind uint32, payload any) (json.RawMessage, error) {
 	var b []byte
 	var e error
 	if payload != nil {
-		b, e = json.Marshal(payload)
-		if e != nil {
-			return nil, e
+		if command, ok := payload.(string); ok && kind == msgCommand {
+			// i3 RUN_COMMAND is the raw command text, not a JSON string.
+			b = []byte(command)
+		} else {
+			b, e = json.Marshal(payload)
+			if e != nil {
+				return nil, e
+			}
 		}
 	}
 	if e = i.write(kind, b); e != nil {
