@@ -404,6 +404,23 @@ exec wl-copy --type "$mime" "$@"
             replace_once(p, "printf '%s' \"$result\" | wl-copy",
                          "printf '%s' \"$result\" | ryoku-cmd-clipboard-copy text/plain")
 
+    p = root / "ryoku/shell/scripts/ryoku-cmd-google-lens"
+    replace_once(p, "for command in grim slurp; do",
+                 "if [[ -n ${DISPLAY:-} && -z ${WAYLAND_DISPLAY:-} ]]; then\n"
+                 "  for command in maim slop xrandr; do\n"
+                 "    command -v \"$command\" >/dev/null 2>&1 || { notify_failure \"$command is not installed\"; exit 1; }\n"
+                 "  done\n"
+                 "else\n  for command in grim slurp; do")
+    replace_once(p, "\t\tdone\n\tinput_file=$(mktemp",
+                 "\t\tdone\nfi\n\tinput_file=$(mktemp")
+    replace_once(p, "geometry=$(slurp 2>/dev/null) || {",
+                 "if [[ -n ${DISPLAY:-} && -z ${WAYLAND_DISPLAY:-} ]]; then\n"
+                 "\tgeometry=$(slop -f '%g' 2>/dev/null) || {\n"
+                 "\t\trm -f -- \"$input_file\"\n\t\texit 130\n\t}\n"
+                 "\telse\n\tgeometry=$(slurp 2>/dev/null) || {")
+    replace_once(p, "\t}\n\t[[ -n $geometry ]] || {",
+                 "\t}\n\tfi\n\t[[ -n $geometry ]] || {")
+
     p = root / "ryoku/shell/quickshell/shell/modules/dock/ii/draw/LiveDrawWindow.qml"
     replace_once(p, "ryoku-cmd-grim -o \"$1\" - | wl-copy --type image/png",
                  "ryoku-cmd-grim -o \"$1\" - | ryoku-cmd-clipboard-copy image/png")
