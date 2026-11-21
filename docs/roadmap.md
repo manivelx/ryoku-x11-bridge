@@ -22,7 +22,7 @@ Status: documentation baseline committed; audit is not yet exhaustive.
 [x] Settings apply remains fail-closed; no placeholder generated config is written
 [x] Bind legend returns empty until the upstream catalogue/rebind resolver is ported (no fabricated chords)
 [x] Provider CI at Go 1.22: gofmt, vet, race tests, build passed
-[ ] Xvfb Quickshell.I3 + X11 PanelWindow smoke test
+[x] Quickshell 0.3.2 Quickshell.I3 + X11 PanelWindow smoke test passed in disposable Xvfb CI
 [ ] Full upstream shell daemon runtime test in isolated i3 session
 
 Acceptance: Go build, vet, unit tests, upstream JSON fixture compatibility and Xephyr/Xvfb i3 tests. No host configuration changes.
@@ -72,9 +72,9 @@ Evidence is deliberately separate. A checked implementation item does not imply 
 |---|---|---|---|---|---|---|---|
 | i3 IPC provider | Yes | Yes, initial | Yes | Yes | Pending | No | No |
 | Watch debounce/incremental frames | Yes, upstream frame contract | Yes | Yes | Yes | Pending | No | No |
-| Quickshell I3/PanelWindow smoke | Quickshell 0.3.2 API reviewed | Smoke harness only | Pending | N/A | Pending | No | No |
-| X11 lock wrapper | XSecureLock/i3lock command paths | Yes, wrapper only | Pending package CI | Wrapper test pending | No | No | No |
+| Quickshell I3/PanelWindow smoke | Quickshell 0.3.2 API reviewed | Smoke harness | Yes | Yes, Xvfb CI | No | No |
+| X11 lock wrapper | XSecureLock/i3lock command paths | Yes, wrapper only | Yes, Arch package CI | Yes, wrapper test | No | No | No |
 | Settings/keybind translation | Upstream schema inspected | No; fail-closed/empty | N/A | N/A | No | No | No |
-| Ryogami wallpaper service | Go daemon and picker entry inspected; full QML use-site audit pending | RXB-target-only unit + session env adapter | Pending | Pending | Pending | No | No |
+| Ryogami wallpaper service | Go daemon and picker entry inspected; full QML use-site audit pending | RXB-target-only unit + session env adapter | Yes, package CI | Unit/overlay CI | Pending | No | No |
 | NVIDIA GT 740 / 470 | Hardware constraints recorded | No hardware changes | N/A | N/A | No | No | No |
 
