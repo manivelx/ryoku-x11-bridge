@@ -6,7 +6,7 @@ This script builds the original Ryoku runtime packages from the pinned upstream 
 
 **It does not install any packages.** Do not install the resulting package set on the existing CachyOS host until the disposable-VM validation phase passes. The build may require development tools already installed on the build machine; use an Arch/CachyOS VM rather than the daily-use desktop.
 
-The overlay explicitly skips the upstream distribution-level SDDM/qylock bundle, system services manifest, hardware helper binaries, udev/modprobe/polkit/logind rules, and boot/UKI integration. It replaces the desktop package install scriptlet with metadata refresh only. The RXB i3 package adds a systemd user drop-in for the Ryoku shell service; it does not change the existing SDDM configuration, Orbital theme, Quickshell lockscreen files, NVIDIA driver, kernel, or bootloader.
+The overlay explicitly skips the upstream distribution-level SDDM/qylock bundle, system services manifest, hardware helper binaries, udev/modprobe/polkit/logind rules, and boot/UKI integration. It replaces the desktop package install scriptlet with metadata refresh only. The RXB i3 package adds a systemd user drop-in for the Ryoku shell service and starts it only through `ryoku-session.target`; it does not call `systemctl --user enable`. The Wayland-only Ryogami wallpaper service is deliberately not linked into the X11 session target until its X11 behavior is validated. It does not change the existing SDDM configuration, Orbital theme, Quickshell lockscreen files, NVIDIA driver, kernel, or bootloader.
 
 ## Prerequisites
 
@@ -20,15 +20,11 @@ The script creates a detached temporary Git worktree at the pinned commit, appli
 ## Prepare the pinned source
 
 ```bash
-git clone https://github.com/Ryoku-dev/ryoku.git
+git clone https://github.com/Ryoku-dev/ryoku.git ryoku
+git clone https://github.com/manivelx/ryoku-x11-bridge.git ryoku-x11-bridge
+
 cd ryoku
 git checkout "$(tr -d '[:space:]' < ../ryoku-x11-bridge/UPSTREAM_PIN)"
-```
-
-Clone RXB separately:
-
-```bash
-git clone https://github.com/manivelx/ryoku-x11-bridge.git
 ```
 
 ## Build
@@ -69,5 +65,5 @@ Do not run `pacman -U` on the daily-use system. First install into a disposable 
 - The X11 provider's i3 settings generator and user keybinding translation are not yet implemented; the initial i3 config is a conservative seed.
 - The original shell's Wayland-only services and features remain gated or unavailable on X11.
 - Screen recording, wallpaper daemon behavior, some overlays, and complete multi-monitor behavior still need runtime testing.
-- The X11 lock path delegates to XSecureLock when installed, otherwise i3lock. Suspend remains disabled/fail-closed until a secure lock-before-suspend handoff is implemented.
+- The X11 lock command prefers XSecureLock and falls back to i3lock. The wrapper selection is testable, but PAM authentication, input grabs, multi-monitor coverage, failure behavior and crash recovery still need security tests. Suspend remains disabled/fail-closed until a secure lock-before-suspend handoff is implemented.
 - QML runtime validation and real hardware testing on the target GT 740/NVIDIA 470 machine are not yet complete.
