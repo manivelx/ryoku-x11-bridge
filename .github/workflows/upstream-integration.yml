@@ -68,9 +68,13 @@ jobs:
             '
       - name: Bundle Arch packages for artifact upload
         run: |
-          mapfile -t packages < <(find dist -maxdepth 1 -type f -name '*.pkg.tar.*' -printf '%f\\n' | sort)
-          (("${#packages[@]}" > 0)) || { echo "No built Arch packages to upload." >&2; exit 1; }
-          tar -czf dist/rxb-arch-packages.tar.gz -C dist "${packages[@]}"
+          shopt -s nullglob
+          package_paths=(dist/*.pkg.tar.*)
+          (("${#package_paths[@]}" > 0)) || { echo "No built Arch packages to upload." >&2; exit 1; }
+          package_names=()
+          for package in "${package_paths[@]}"; do package_names+=("${package##*/}"); done
+          rm -f dist/rxb-arch-packages.tar.gz
+          tar -czf dist/rxb-arch-packages.tar.gz -C dist "${package_names[@]}"
       - name: Upload built Arch packages
         uses: actions/upload-artifact@v4
         with:
