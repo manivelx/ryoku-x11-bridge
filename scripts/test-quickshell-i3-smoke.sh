@@ -50,7 +50,7 @@ i3 -c "$tmp/i3.conf" >"$tmp/i3.log" 2>&1 &
 i3_pid=$!
 socket=""
 for _ in $(seq 1 50); do
-  socket="$(i3 --get-socketpath 2>/dev/null || true)"
+  socket="$(env -u SWAYSOCK -u I3SOCK i3 --get-socketpath 2>/dev/null || true)"
   if [[ -n "$socket" && -S "$socket" ]]; then break; fi
   sleep 0.1
 done
