@@ -159,9 +159,16 @@ func readStateForKinds(want map[string]bool) (Snapshot, error) {
 		var treeWindows []Window
 		walkWindows(&tree, "", "", snapshot.Workspaces, &treeWindows)
 		if all || want["windows"] {
-			// The upstream FocusOrder field is reserved for providers with
-			// authoritative focus history. i3 exposes current focus but not the
-			// same history contract, so leave FocusOrder at its zero value.
+			// Preserve the focused-window sentinel for shell consumers. i3 does
+			// not expose authoritative focus history, so non-focused windows all
+			// use 1 and CapFocusHistory remains unadvertised.
+			for index := range treeWindows {
+				if treeWindows[index].Focused {
+					treeWindows[index].FocusOrder = 0
+				} else {
+					treeWindows[index].FocusOrder = 1
+				}
+			}
 			snapshot.Windows = treeWindows
 		}
 		if want["workspaces"] || all {
