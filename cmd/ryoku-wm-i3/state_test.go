@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"testing"
+	"strings"
 )
 
 func TestIPCRequestUsesEmptyPayloadForQueries(t *testing.T) {
@@ -63,6 +64,80 @@ func TestWalkWindowsPreservesIdentityAndFullscreen(t *testing.T) {
 	}
 	if !workspaceHasFullscreen(&root, "1") { t.Fatal("workspace fullscreen state was not detected") }
 	if workspaceHasFullscreen(&root, "2") { t.Fatal("unrelated workspace reported fullscreen") }
+}
+
+
+func TestIPCReadMessageHandlesFragmentedFrames(t *testing.T) {
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+	body := []byte(`{"success":true}`)
+	header := make([]byte, 14)
+	copy(header, ipcMagic)
+	binary.LittleEndian.PutUint32(header[6:10], uint32(len(body)))
+	binary.LittleEndian.PutUint32(header[10:14], msgSubscribe)
+	go func() {
+		for _, part := range [][]byte{header[:3], header[3:9], header[9:], body[:4], body[4:]} {
+			_, _ = server.Write(part)
+		}
+	}()
+	kind, got, err := (&ipcConn{c: client}).readMessage()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if kind != msgSubscribe || string(got) != string(body) {
+		t.Fatalf("got kind=%d body=%q", kind, got)
+	}
+}
+
+func TestIPCReadRejectsInvalidMagic(t *testing.T) {
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+	go func() {
+		header := make([]byte, 14)
+		copy(header, "bad-ipc")
+		_, _ = server.Write(header)
+	}()
+	_, _, err := (&ipcConn{c: client}).readMessage()
+	if err == nil || err.Error() != "invalid i3 IPC magic" {
+		t.Fatalf("expected invalid magic error, got %v", err)
+	}
+}
+
+func TestIPCReadRejectsOversizedPayloadBeforeAllocation(t *testing.T) {
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+	go func() {
+		header := make([]byte, 14)
+		copy(header, ipcMagic)
+		binary.LittleEndian.PutUint32(header[6:10], 4*1024*1024+1)
+		binary.LittleEndian.PutUint32(header[10:14], msgTree)
+		_, _ = server.Write(header)
+	}()
+	_, _, err := (&ipcConn{c: client}).readMessage()
+	if err == nil || !strings.Contains(err.Error(), "exceeds limit") {
+		t.Fatalf("expected payload limit error, got %v", err)
+	}
+}
+
+func TestIPCRequestRejectsMismatchedReplyType(t *testing.T) {
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+	go func() {
+		header := make([]byte, 14)
+		_, _ = io.ReadFull(server, header)
+		reply := make([]byte, 14)
+		copy(reply, ipcMagic)
+		binary.LittleEndian.PutUint32(reply[10:14], msgOutputs)
+		_, _ = server.Write(reply)
+	}()
+	_, err := (&ipcConn{c: client}).request(msgTree, nil)
+	if err == nil || !strings.Contains(err.Error(), "reply type mismatch") {
+		t.Fatalf("expected reply type mismatch, got %v", err)
+	}
 }
 
 func TestWorkspaceAndActionValidation(t *testing.T) {
