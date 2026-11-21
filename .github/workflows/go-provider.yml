@@ -11,7 +11,7 @@ on:
       - ".github/workflows/go-provider.yml"
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -24,15 +24,12 @@ jobs:
         with:
           go-version: "1.23.x"
           cache-dependency-path: cmd/ryoku-wm-i3/go.mod
-      - name: Format provider Go sources once
+      - name: Check Go formatting
         run: |
-          gofmt -w *.go
-          if ! git diff --quiet -- *.go; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add -- *.go
-            git commit -m "style: format i3 provider Go sources"
-            git push origin "HEAD:$GITHUB_REF_NAME"
+          unformatted="$(gofmt -l .)"
+          if [[ -n "$unformatted" ]]; then
+            printf 'Go files need gofmt:\n%s\n' "$unformatted" >&2
+            exit 1
           fi
       - run: go vet ./...
       - run: go test -race ./...
