@@ -278,7 +278,7 @@ func TestFocusedWindowSentinelDoesNotClaimHistory(t *testing.T) {
 		{ID: "3", Focused: false},
 	}
 	setFocusedWindowSentinel(windows)
-	for index, window := range windows {
+	for _, window := range windows {
 		want := 1
 		if window.Focused {
 			want = 0
