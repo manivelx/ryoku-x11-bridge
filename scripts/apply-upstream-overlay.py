@@ -20,8 +20,14 @@ def replace_once(path: pathlib.Path, old: str, new: str) -> None:
 
 def replace_in_map(path: pathlib.Path, marker: str, old: str, new: str) -> None:
     text = path.read_text()
-    start = text.index(marker)
-    end = text.index("\n}", start) + 2
+    try:
+        start = text.index(marker)
+    except ValueError as exc:
+        raise RuntimeError(f"{path}: map marker not found: {marker}") from exc
+    try:
+        end = text.index("\n}", start) + 2
+    except ValueError as exc:
+        raise RuntimeError(f"{path}: closing brace not found for map: {marker}") from exc
     section = text[start:end]
     count = section.count(old)
     if count != 1:
