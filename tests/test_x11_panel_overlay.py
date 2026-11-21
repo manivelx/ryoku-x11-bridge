@@ -45,12 +45,12 @@ class X11PanelOverlayTests(unittest.TestCase):
             root = pathlib.Path(directory)
             qml = root / "Panel.qml"
             qml.write_text(
-                'PanelWindow {\\n'
-                '    WlrLayershell.namespace: "rxb-test"\\n'
-                '    WlrLayershell.layer: WlrLayer.Overlay\\n'
-                '    WlrLayershell.keyboardFocus: (root.open)\\n'
-                '        ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None\\n'
-                '}\\n'
+                'PanelWindow {\n'
+                '    WlrLayershell.namespace: "rxb-test"\n'
+                '    WlrLayershell.layer: WlrLayer.Overlay\n'
+                '    WlrLayershell.keyboardFocus: (root.open)\n'
+                '        ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None\n'
+                '}\n'
             )
             OVERLAY.patch_x11_panel_properties(root)
             result = qml.read_text()
