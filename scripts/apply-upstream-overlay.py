@@ -35,34 +35,39 @@ def replace_in_map(path: pathlib.Path, marker: str, old: str, new: str) -> None:
     path.write_text(text[:start] + section.replace(old, new, 1) + text[end:])
 
 
-def patch_detect(root: pathlib.Path) -> None:
-    p = root / "ryoku/wm/detect.go"
-    replace_once(p, 'ProviderWayfire  = "wayfire"\n', 'ProviderWayfire  = "wayfire"\n\tProviderI3       = "i3"\n')
-    replace_once(p, '\t{"WAYFIRE_SOCKET", ProviderWayfire, func(h string) []string { return []string{h} }},\n',
-        '\t{"WAYFIRE_SOCKET", ProviderWayfire, func(h string) []string { return []string{h} }},\n'
-        '\t// i3 exports its IPC socket path to clients in the session.\n'
-        '\t{"I3SOCK", ProviderI3, func(h string) []string { return []string{h} }},\n')
-    replace_in_map(p, "var configDirs", '\tProviderWayfire:  "wayfire",\n',
-                   '\tProviderWayfire:  "wayfire",\n\tProviderI3:       "ryoku-x11",\n')
-    replace_once(p, '\tProviderWayfire:  "wayfire.ini",\n', '\tProviderWayfire:  "wayfire.ini",\n\tProviderI3:       "config",\n')
-    replace_once(p, '\tProviderWayfire: {"monitors.ini", "keyboard.ini", "user.ini"},\n',
-        '\tProviderWayfire: {"monitors.ini", "keyboard.ini", "user.ini"},\n'
-        '\tProviderI3:      {"config", "generated.conf", "user.conf"},\n')
-    replace_once(p, '\tProviderWayfire:  {"wayfire/user.ini", "wayfire/monitors.ini"},\n',
-        '\tProviderWayfire:  {"wayfire/user.ini", "wayfire/monitors.ini"},\n'
-        '\tProviderI3:       {"ryoku-x11/user.conf", "ryoku-x11/config"},\n')
-    replace_once(p, '\tProviderWayfire:  {"wayfire/wayfire.ini", "ryoku/user_edits/wayfire/wayfire.ini"},\n',
-        '\tProviderWayfire:  {"wayfire/wayfire.ini", "ryoku/user_edits/wayfire/wayfire.ini"},\n'
-        '\tProviderI3:       {"ryoku-x11/generated.conf"},\n')
+def patch_detect_file(p: pathlib.Path) -> None:
+    replace_once(p, 'ProviderWayfire  = "wayfire"\\n', 'ProviderWayfire  = "wayfire"\\n\\tProviderI3       = "i3"\\n')
+    replace_once(p, '\\t{"WAYFIRE_SOCKET", ProviderWayfire, func(h string) []string { return []string{h} }},\\n',
+        '\\t{"WAYFIRE_SOCKET", ProviderWayfire, func(h string) []string { return []string{h} }},\\n'
+        '\\t// i3 exports its IPC socket path to clients in the session.\\n'
+        '\\t{"I3SOCK", ProviderI3, func(h string) []string { return []string{h} }},\\n')
+    replace_in_map(p, "var configDirs", '\\tProviderWayfire:  "wayfire",\\n',
+                   '\\tProviderWayfire:  "wayfire",\\n\\tProviderI3:       "ryoku-x11",\\n')
+    replace_once(p, '\\tProviderWayfire:  "wayfire.ini",\\n', '\\tProviderWayfire:  "wayfire.ini",\\n\\tProviderI3:       "config",\\n')
+    replace_once(p, '\\tProviderWayfire: {"monitors.ini", "keyboard.ini", "user.ini"},\\n',
+        '\\tProviderWayfire: {"monitors.ini", "keyboard.ini", "user.ini"},\\n'
+        '\\tProviderI3:      {"config", "generated.conf", "user.conf"},\\n')
+    replace_once(p, '\\tProviderWayfire:  {"wayfire/user.ini", "wayfire/monitors.ini"},\\n',
+        '\\tProviderWayfire:  {"wayfire/user.ini", "wayfire/monitors.ini"},\\n'
+        '\\tProviderI3:       {"ryoku-x11/user.conf", "ryoku-x11/config"},\\n')
+    replace_once(p, '\\tProviderWayfire:  {"wayfire/wayfire.ini", "ryoku/user_edits/wayfire/wayfire.ini"},\\n',
+        '\\tProviderWayfire:  {"wayfire/wayfire.ini", "ryoku/user_edits/wayfire/wayfire.ini"},\\n'
+        '\\tProviderI3:       {"ryoku-x11/generated.conf"},\\n')
     replace_once(p, 'return []string{ProviderHyprland, ProviderNiri, ProviderWayfire}',
         'return []string{ProviderHyprland, ProviderNiri, ProviderWayfire, ProviderI3}')
-    replace_in_map(p, "var compositorBins", '\tProviderWayfire:  "wayfire",\n',
-                   '\tProviderWayfire:  "wayfire",\n\tProviderI3:       "i3",\n')
+    replace_in_map(p, "var compositorBins", '\\tProviderWayfire:  "wayfire",\\n',
+                   '\\tProviderWayfire:  "wayfire",\\n\\tProviderI3:       "i3",\\n')
     subprocess.run(["gofmt", "-w", str(p)], check=True)
 
 
-def patch_session_detection(root: pathlib.Path) -> None:
-    p = root / "ryoku/wm/detect.go"
+def patch_detect(root: pathlib.Path) -> None:
+    files = [root / "ryoku/wm/detect.go"]
+    files.extend(root.glob("**/vendor/ryoku-wm/detect.go"))
+    for p in files:
+        patch_detect_file(p)
+
+
+def patch_session_detection_file(p: pathlib.Path) -> None:
     old = '''var sessionEntryDirs = func() []string {
 	dirs := []string{"/usr/local/share/wayland-sessions", "/usr/share/wayland-sessions"}
 	for _, d := range filepath.SplitList(os.Getenv("XDG_DATA_DIRS")) {
@@ -102,12 +107,19 @@ func sessionDirsFor(name string) []string {
 	return dirs
 }'''
     replace_once(p, old, new)
-    replace_once(p, "for _, dir := range dirs {\n\t\tentries, err := os.ReadDir(dir)",
-                 "wanted := sessionEntryNames[name]\n\tfor _, dir := range sessionDirsFor(name) {\n\t\tentries, err := os.ReadDir(dir)")
-    replace_once(p, "if entry.IsDir() || filepath.Ext(entry.Name()) != \".desktop\" {",
-                 "if entry.IsDir() || filepath.Ext(entry.Name()) != \".desktop\" || (wanted != \"\" && entry.Name() != wanted) {")
-    replace_once(p, "entry := name + \".desktop\"\n\tfor _, d := range sessionEntryDirs() {",
-                 "entry := name + \".desktop\"\n\tif custom := sessionEntryNames[name]; custom != \"\" { entry = custom }\n\tfor _, d := range sessionDirsFor(name) {")
+    replace_once(p, "for _, dir := range dirs {\\n\\t\\tentries, err := os.ReadDir(dir)",
+                 "wanted := sessionEntryNames[name]\\n\\tfor _, dir := range sessionDirsFor(name) {\\n\\t\\tentries, err := os.ReadDir(dir)")
+    replace_once(p, "if entry.IsDir() || filepath.Ext(entry.Name()) != \\".desktop\\" {",
+                 "if entry.IsDir() || filepath.Ext(entry.Name()) != \\".desktop\\" || (wanted != \\"\\" && entry.Name() != wanted) {")
+    replace_once(p, "entry := name + \\".desktop\\"\\n\\tfor _, d := range sessionEntryDirs() {",
+                 "entry := name + \\".desktop\\"\\n\\tif custom := sessionEntryNames[name]; custom != \\"\\" { entry = custom }\\n\\tfor _, d := range sessionDirsFor(name) {")
+
+
+def patch_session_detection(root: pathlib.Path) -> None:
+    files = [root / "ryoku/wm/detect.go"]
+    files.extend(root.glob("**/vendor/ryoku-wm/detect.go"))
+    for p in files:
+        patch_session_detection_file(p)
 
 
 def patch_wm_qml(root: pathlib.Path) -> None:
