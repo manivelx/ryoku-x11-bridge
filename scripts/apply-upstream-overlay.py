@@ -225,6 +225,7 @@ def patch_wayland_consumers(root: pathlib.Path) -> None:
     # The original taskbar/dock paths used Wayland foreign-toplevel objects.
     # RXB's Wm singleton now supplies provider-backed wrappers with activate/close.
     p = root / "ryoku/shell/quickshell/inir/services/TaskbarApps.qml"
+    replace_once(p, "import inir.services\n", "import inir.services\nimport Ryoku.Ui.Singletons\n")
     replace_once(p, "target: ToplevelManager.toplevels\n        function onValuesChanged()",
                  "target: Wm\n        function onWindowsChanged()")
     replace_once(p, "(ToplevelManager.toplevels?.values ?? [])", "(Wm.toplevels ?? [])")
