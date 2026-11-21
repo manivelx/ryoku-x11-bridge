@@ -109,4 +109,3 @@ func TestCoalesceEventsReportsSocketLoss(t *testing.T) {
 		t.Fatalf("socket loss must be surfaced for watch resynchronization, got %v", err)
 	}
 }
-
