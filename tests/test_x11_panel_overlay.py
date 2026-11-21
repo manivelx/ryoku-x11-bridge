@@ -37,7 +37,7 @@ class X11PanelOverlayTests(unittest.TestCase):
             OVERLAY._convert_x11_focus(
                 "shown ? shownKeyboardFocus : WlrKeyboardFocus.None"
             ),
-            "shown ? (shownKeyboardFocus !== WlrKeyboardFocus.None) : false",
+            "shown ? !!shownKeyboardFocus : false",
         )
 
     def test_wm_adapter_keeps_x11_windows_without_wayland_capture_handles(self):
