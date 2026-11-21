@@ -63,11 +63,12 @@ See [docs/build.md](docs/build.md) for prerequisites, pinned source checkout, pa
 Quick outline:
 
 ```bash
-git clone https://github.com/Ryoku-dev/ryoku.git
+git clone https://github.com/Ryoku-dev/ryoku.git ryoku
+git clone https://github.com/manivelx/ryoku-x11-bridge.git ryoku-x11-bridge
+
 cd ryoku
 git checkout "$(tr -d '[:space:]' < ../ryoku-x11-bridge/UPSTREAM_PIN)"
 
-git clone https://github.com/manivelx/ryoku-x11-bridge.git ../ryoku-x11-bridge
 cd ../ryoku-x11-bridge
 bash scripts/build-rxb-packages.sh ../ryoku
 ```
