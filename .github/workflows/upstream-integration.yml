@@ -30,8 +30,23 @@ jobs:
         with:
           go-version: "1.26.5"
           cache: false
+      - name: Validate RXB overlay script syntax
+        run: python3 -m py_compile scripts/apply-upstream-overlay.py
+      - name: Validate RXB package scripts
+        run: |
+          bash -n payload/bin/ryoku-x11-session
+          bash -n payload/bin/ryoku-x11-session-init
+          bash -n release/packages/ryoku-desktop-i3/PKGBUILD
+          bash -n release/packages/ryoku-desktop-i3/payload.sh
       - name: Apply RXB overlay
         run: python3 scripts/apply-upstream-overlay.py upstream
+      - name: Validate patched helper scripts
+        run: |
+          bash -n upstream/ryoku/shell/scripts/ryoku-cmd-grim
+          bash -n upstream/ryoku/shell/scripts/ryoku-cmd-clipboard-copy
+          bash -n upstream/ryoku/shell/scripts/ryoku-cmd-ocr
+          bash -n upstream/ryoku/shell/scripts/ryoku-cmd-qr-scan
+          bash -n upstream/ryoku/shell/scripts/ryoku-cmd-google-lens
       - name: Format patched upstream Go
         run: gofmt -w upstream/ryoku/wm/detect.go upstream/ryoku/shell/ipc/actions.go
       - name: Test upstream WM contract
