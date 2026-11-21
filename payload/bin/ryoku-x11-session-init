@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+[[ -n ${DISPLAY:-} ]] || exit 1
+[[ -z ${WAYLAND_DISPLAY:-} ]] || exit 1
+
+socket="$(i3 --get-socketpath)"
+[[ -S "$socket" ]] || {
+  echo "ryoku-x11-session-init: i3 IPC socket is not ready: $socket" >&2
+  exit 1
+}
+
+export XDG_SESSION_TYPE=x11
+export XDG_CURRENT_DESKTOP=Ryoku
+export RYOKU_WM=i3
+export I3SOCK="$socket"
+
+systemctl --user import-environment DISPLAY XAUTHORITY XDG_SESSION_TYPE XDG_CURRENT_DESKTOP RYOKU_WM I3SOCK
+systemctl --user start graphical-session.target
+systemctl --user start ryoku-session.target
