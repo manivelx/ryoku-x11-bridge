@@ -22,11 +22,12 @@ func readState()(Snapshot,error){
 	for i:=range s.Outputs{s.Outputs[i].Focused=s.Outputs[i].Name==s.FocusedOutput}
 	byWS:=map[string]int{};for _,w:=range s.Workspaces{byWS[w.ID]=w.Index}
 	walkWindows(&tree,"","",s.Workspaces,&s.Windows)
+	for i:=range s.Workspaces { s.Workspaces[i].Fullscreen = workspaceHasFullscreen(&tree,s.Workspaces[i].Name) }
 	for i:=range s.Workspaces{for _,w:=range s.Windows{if w.Workspace==s.Workspaces[i].ID{s.Workspaces[i].Windows++}}}
 	_ = byWS
 	return s,nil
 }
-func walkWindows(n *node,ws,out string,wss []Workspace,windows *[]Window){
+func workspaceHasFullscreen(n *node, workspace string) bool {\n\tif n.Type == "workspace" && n.Name == workspace { return nodeHasFullscreen(n) }; for i := range n.Nodes { if workspaceHasFullscreen(&n.Nodes[i], workspace) { return true } }; for i := range n.FloatingNodes { if workspaceHasFullscreen(&n.FloatingNodes[i], workspace) { return true } }; return false\n}\nfunc nodeHasFullscreen(n *node) bool { if n.FullscreenMode != 0 { return true }; for i := range n.Nodes { if nodeHasFullscreen(&n.Nodes[i]) { return true } }; for i := range n.FloatingNodes { if nodeHasFullscreen(&n.FloatingNodes[i]) { return true } }; return false }\nfunc walkWindows(n *node,ws,out string,wss []Workspace,windows *[]Window){
 	if n.Type=="workspace"{ws=n.Name}
 	if n.Type=="output"{out=n.Name}
 	if n.WindowProperties.Title!=""||n.AppID!=nil||n.PID>0{
