@@ -8,6 +8,10 @@ if grep -Fq 'systemctl --user enable' "$root/payload/bin/ryoku-x11-session-init"
   echo "X11 session init must not persistently enable the shell for non-RXB sessions." >&2
   exit 1
 fi
+if ! grep -Fq 'env -u SWAYSOCK -u I3SOCK i3 --get-socketpath' "$root/payload/bin/ryoku-x11-session-init"; then
+  echo "X11 session init must sanitize Sway's IPC socket environment." >&2
+  exit 1
+fi
 if grep -Fq 'ryogami.service' "$root/release/packages/ryoku-desktop-i3/payload.sh"; then
   echo "Unvalidated Wayland-only Ryogami service must not be linked into the X11 session." >&2
   exit 1
