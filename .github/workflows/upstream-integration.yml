@@ -13,6 +13,11 @@ on:
   pull_request:
     paths:
       - "scripts/**"
+      - "payload/**"
+      - "release/packages/ryoku-desktop-i3/**"
+      - "docs/**"
+      - "UPSTREAM_PIN"
+      - "RXB_VERSION"
       - "cmd/ryoku-wm-i3/**"
       - ".github/workflows/upstream-integration.yml"
   workflow_dispatch:
