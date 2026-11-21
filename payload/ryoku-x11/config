@@ -1,37 +1,46 @@
-# RXB isolated i3 configuration. This file is owned by the ryoku-desktop-i3 package
-# only as a first-install seed; the user's ~/.config/ryoku-x11/config is preserved.
+# RXB i3 session configuration.
+# This file is user-owned after first launch. Keep personal overrides in user.conf.
 set $mod Mod4
 font pango:Sans 10
-floating_modifier $mod
-focus_follows_mouse no
-mouse_warping none
-workspace_auto_back_and_forth yes
+gaps inner 8
+gaps outer 4
 default_border pixel 2
 default_floating_border pixel 2
-hide_edge_borders smart
-focus_wrapping no
+floating_modifier $mod
+focus_follows_mouse no
+workspace_auto_back_and_forth yes
+focus_on_window_activation urgent
 
-# Basic window management.
-bindsym $mod+q kill
-bindsym $mod+f fullscreen toggle
-bindsym $mod+Shift+space floating toggle
-bindsym $mod+h focus left
-bindsym $mod+j focus down
-bindsym $mod+k focus up
-bindsym $mod+l focus right
-bindsym $mod+Shift+h move left
-bindsym $mod+Shift+j move down
-bindsym $mod+Shift+k move up
-bindsym $mod+Shift+l move right
+# Start the user-session bridge after i3 has created its IPC socket.
+exec --no-startup-id ryoku-x11-session-init
 
-# Ryoku shell surfaces and session actions.
+# Generated settings are owned by ryoku-wm-i3; user.conf is the safe override.
+include ~/.config/ryoku-x11/generated.conf
+include ~/.config/ryoku-x11/user.conf
+
+# Ryoku shell and applications.
+bindsym $mod+Return exec --no-startup-id ryoku-app terminal
 bindsym $mod+space exec --no-startup-id ryoku-shell launcher
 bindsym $mod+Escape exec --no-startup-id ryoku-shell quicksettings
+bindsym $mod+comma exec --no-startup-id ryoku-shell hub open
 bindsym $mod+w exec --no-startup-id ryogami wallpaper ui
-bindsym $mod+Shift+e exec --no-startup-id ryoku wm act session.exit
-bindsym $mod+Shift+r restart
+bindsym $mod+Shift+s exec --no-startup-id ryoku-shell screenshot
+bindsym $mod+l exec --no-startup-id ryoku-shell lock
 
-# Workspaces.
+# Window management.
+bindsym $mod+q kill
+bindsym $mod+f fullscreen toggle
+bindsym $mod+Shift+f floating toggle
+bindsym $mod+Left focus left
+bindsym $mod+Right focus right
+bindsym $mod+Up focus up
+bindsym $mod+Down focus down
+bindsym $mod+Shift+Left move left
+bindsym $mod+Shift+Right move right
+bindsym $mod+Shift+Up move up
+bindsym $mod+Shift+Down move down
+
+# Workspaces 1–9.
 bindsym $mod+1 workspace number 1
 bindsym $mod+2 workspace number 2
 bindsym $mod+3 workspace number 3
@@ -41,20 +50,16 @@ bindsym $mod+6 workspace number 6
 bindsym $mod+7 workspace number 7
 bindsym $mod+8 workspace number 8
 bindsym $mod+9 workspace number 9
-bindsym $mod+Shift+1 move container to workspace number 1
-bindsym $mod+Shift+2 move container to workspace number 2
-bindsym $mod+Shift+3 move container to workspace number 3
-bindsym $mod+Shift+4 move container to workspace number 4
-bindsym $mod+Shift+5 move container to workspace number 5
-bindsym $mod+Shift+6 move container to workspace number 6
-bindsym $mod+Shift+7 move container to workspace number 7
-bindsym $mod+Shift+8 move container to workspace number 8
-bindsym $mod+Shift+9 move container to workspace number 9
+bindsym $mod+Shift+1 move container to workspace number 1; workspace number 1
+bindsym $mod+Shift+2 move container to workspace number 2; workspace number 2
+bindsym $mod+Shift+3 move container to workspace number 3; workspace number 3
+bindsym $mod+Shift+4 move container to workspace number 4; workspace number 4
+bindsym $mod+Shift+5 move container to workspace number 5; workspace number 5
+bindsym $mod+Shift+6 move container to workspace number 6; workspace number 6
+bindsym $mod+Shift+7 move container to workspace number 7; workspace number 7
+bindsym $mod+Shift+8 move container to workspace number 8; workspace number 8
+bindsym $mod+Shift+9 move container to workspace number 9; workspace number 9
 
-# Import the login environment and start Ryoku's original shell daemon after i3
-# has created its IPC socket. No Wayland service is started by this session.
-exec --no-startup-id ryoku-x11-session-init
-
-# Provider-generated settings and user-owned additions.
-include ~/.config/ryoku-x11/generated.conf
-include ~/.config/ryoku-x11/user.conf
+# Session control.
+bindsym $mod+Shift+r exec --no-startup-id ryoku wm act config.reload
+bindsym $mod+Shift+e exec --no-startup-id ryoku wm act session.exit
