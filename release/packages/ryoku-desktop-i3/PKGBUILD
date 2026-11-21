@@ -16,14 +16,14 @@ depends=(
   'i3lock'
   'xorg-server'
   'quickshell'
+  'maim'
+  'xclip'
+  'slop'
+  'xorg-xrandr'
 )
 optdepends=(
   'xsecurelock: PAM-backed X11 screen locker for the Ryoku lock action'
   'picom: X11 compositor for transparency and effects'
-  'maim: X11 screenshot capture backend'
-  'xclip: X11 clipboard ownership and clipboard history'
-  'slop: X11 region selection for OCR and QR capture'
-  'xorg-xrandr: output geometry lookup for X11 screenshots'
   'xterm: fallback terminal for the starter i3 keybinding'
 )
 provides=('ryoku-desktop-compositor')
