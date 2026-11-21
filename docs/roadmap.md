@@ -6,12 +6,17 @@
 [x] Shared provider seam inspected
 [x] Initial compositor/provider comparison
 [x] Initial X11 compatibility matrix and risk register
+[x] Go provider package compiles, vets and passes race-enabled unit tests in CI
+[x] Pinned upstream Go package tests and RXB overlay unit tests pass in CI
+[x] Non-destructive package overlay checks pass in CI
+[x] Disposable Arch package build completes in CI
+[ ] Package safety test passes against built package artifacts (metadata selector fix committed; rerun pending)
 [ ] Exhaustive QML import and Wayland API usage inventory
-[ ] Go service and runtime dependency inventory
-[ ] Installed Quickshell 0.3.2 smoke tests
+[ ] Installed Quickshell 0.3.2 smoke tests with actual QML loading and interaction
+[ ] Original shell + i3 provider integration in isolated session
 [ ] Architecture review and acceptance
 
-Status: documentation baseline committed; audit is not yet exhaustive.
+Status: the Go/provider and overlay CI checks are green; the package build completes but its post-build safety assertion had a filename-matching defect, now corrected to inspect embedded package metadata. QML/Quickshell runtime compatibility and secure-lock behavior remain unproven.
 
 ## Phase 1 — i3 provider foundation
 Implement upstream provider contract, i3 IPC framing, request/event clients, normalized outputs/workspaces/windows, semantic actions, conservative capabilities, watch resync, config preview/apply, defaults, schema and keybinds.
