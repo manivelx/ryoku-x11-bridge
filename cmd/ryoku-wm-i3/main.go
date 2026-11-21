@@ -109,7 +109,7 @@ func runApply(args []string) error {
 	enc:=json.NewEncoder(out);enc.SetIndent("","  ");return enc.Encode(report)
 }
 func runOutputs(args []string) error {if len(args)==0{return errors.New("outputs: missing layout file")};rep:=ApplyReport{Provider:"i3",Unhonored:[]Unhonored{{Key:"outputs",Reason:"Live output configuration is not yet implemented; no display settings were changed."}}};enc:=json.NewEncoder(out);enc.SetIndent("","  ");return enc.Encode(rep)}
-func runSession() error {_,e:=fmt.Fprint(out,"[Desktop Entry]\nName=Ryoku (X11 / i3)\nComment=Ryoku desktop on Xorg with i3\nExec=ryoku-x11-session\nType=Application\nDesktopNames=Ryoku;\n");return e}
+func runSession() error {_,e:=fmt.Fprint(out,"[Desktop Entry]\nName=Ryoku (X11 / i3)\nComment=Ryoku desktop on Xorg with i3\nTryExec=i3\nExec=ryoku-x11-session\nType=Application\nDesktopNames=Ryoku;\n");return e}
 func runEnvironment(args []string) error {if len(args)!=1{return errors.New("environment: expected one process id")};pid,e:=strconv.Atoi(args[0]);if e!=nil||pid<=0{return errors.New("environment: invalid process id")};b,e:=os.ReadFile(fmt.Sprintf("/proc/%d/environ",pid));if e!=nil{return e};sock:=envValue(b,"I3SOCK");if sock==""{return nil};if !alive(sock){return nil};_,e=fmt.Fprintf(out,"I3SOCK=%s%c",sock,byte(0));return e}
 func envValue(b []byte,k string)string{for _,p:=range strings.Split(string(b),"\x00"){if strings.HasPrefix(p,k+"="){return strings.TrimPrefix(p,k+"=")}};return ""}
 func quoteWorkspace(s string)string{if _,e:=strconv.Atoi(s);e==nil{return s};return quoteToken(s)}
