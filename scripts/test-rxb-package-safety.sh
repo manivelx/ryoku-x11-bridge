@@ -29,8 +29,8 @@ if ! grep -Fq 'systemctl --user stop ryoku-session.target' "$root/payload/bin/ry
   echo "X11 session wrapper must stop its target on exit." >&2
   exit 1
 fi
-if grep -Fq 'ryogami.service' "$root/release/packages/ryoku-desktop-i3/payload.sh"; then
-  echo "Unvalidated Wayland-only Ryogami service must not be linked into the X11 session." >&2
+if ! grep -Fq 'ryoku-session.target.wants/ryogami.service' "$root/release/packages/ryoku-desktop-i3/payload.sh"; then
+  echo "Ryogami must be linked only to the RXB session target." >&2
   exit 1
 fi
 shopt -s nullglob
@@ -88,6 +88,8 @@ done
 for required in \
   'usr/share/xsessions/ryoku-x11.desktop' \
   'usr/lib/systemd/user/ryoku-shell.service.d/10-rxb-x11.conf' \
+  'usr/lib/systemd/user/ryogami.service.d/10-rxb-x11.conf' \
+  'usr/lib/systemd/user/ryoku-session.target.wants/ryogami.service' \
   'usr/bin/ryoku-x11-session' \
   'usr/bin/ryoku-x11-session-init' \
   'usr/bin/ryoku-x11-lock' \
