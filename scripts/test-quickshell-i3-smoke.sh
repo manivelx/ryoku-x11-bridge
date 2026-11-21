@@ -77,9 +77,9 @@ if ! timeout 20s qs -p "$tmp/qml" >"$tmp/qs.log" 2>&1; then
   cat "$tmp/qs.log"
   exit 1
 fi
-grep -q "RXB_I3_SMOKE" "$tmp/qs.log" || {
+grep -q "RXB_I3_SMOKE socket=" "$tmp/qs.log" || {
   cat "$tmp/qs.log"
   echo "Quickshell did not report a successful I3 module initialization." >&2
   exit 1
 }
-echo "Quickshell 0.3.2 I3 module smoke test passed."
+echo "Quickshell $(qs --version 2>&1 | head -n1) I3 module smoke test passed."
