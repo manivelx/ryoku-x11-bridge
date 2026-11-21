@@ -105,6 +105,7 @@ jobs:
           bash -n release/packages/ryoku-desktop-i3/PKGBUILD
           bash -n release/packages/ryoku-desktop-i3/payload.sh
           bash -n scripts/build-rxb-packages.sh
+          bash -n scripts/test-rxb-package-safety.sh
           bash -n scripts/test-quickshell-i3-smoke.sh
       - name: Apply RXB overlay
         run: python3 scripts/apply-upstream-overlay.py upstream
