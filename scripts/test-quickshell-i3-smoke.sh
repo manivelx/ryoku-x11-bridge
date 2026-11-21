@@ -12,6 +12,8 @@ tmp="$(mktemp -d)"
 runtime="$tmp/runtime"
 mkdir -m 700 "$runtime"
 export XDG_RUNTIME_DIR="$runtime"
+# Prevent a runner-provided Sway socket from taking precedence over i3.
+unset SWAYSOCK I3SOCK
 export QT_QPA_PLATFORM=xcb
 export QT_QUICK_BACKEND=software
 export QT_OPENGL=software
@@ -73,18 +75,20 @@ ShellRoot {
         visible: true
     }
 
-    Connections {
-        target: I3
-        function onConnected() {
-            if (!I3.socketPath) {
-                console.error("RXB_I3_SMOKE connected without a socket path");
-                Qt.exit(1);
-                return;
+    // Poll the singleton state as well as relying on IPC signals: the
+    // initial connected() signal can fire before this QML Connections object
+    // is instantiated by the shell.
+    Timer {
+        interval: 50
+        repeat: true
+        running: true
+        onTriggered: {
+            if (I3.socketPath.length > 0) {
+                console.log("RXB_I3_SMOKE socket=" + I3.socketPath
+                            + " workspaceCount=" + I3.workspaces.count
+                            + " panelAbove=" + smokePanel.aboveWindows);
+                Qt.quit();
             }
-            console.log("RXB_I3_SMOKE socket=" + I3.socketPath
-                        + " workspaceCount=" + I3.workspaces.values.length
-                        + " panelAbove=" + smokePanel.aboveWindows);
-            Qt.quit();
         }
     }
 
@@ -92,7 +96,8 @@ ShellRoot {
         interval: 10000
         running: true
         onTriggered: {
-            console.error("RXB_I3_SMOKE timed out waiting for Quickshell.I3");
+            console.error("RXB_I3_SMOKE timed out waiting for Quickshell.I3; socketPath="
+                          + I3.socketPath);
             Qt.exit(1);
         }
     }
