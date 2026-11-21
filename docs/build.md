@@ -22,7 +22,7 @@ The script creates a detached temporary Git worktree at the pinned commit, appli
 ```bash
 git clone https://github.com/Ryoku-dev/ryoku.git
 cd ryoku
-git checkout 0bf11741b22f69f22ad2733025671c7d0a5e1a47
+git checkout "$(tr -d '[:space:]' < ../ryoku-x11-bridge/UPSTREAM_PIN)"
 ```
 
 Clone RXB separately:
@@ -40,6 +40,8 @@ bash scripts/build-rxb-packages.sh /path/to/ryoku-checkout
 ```
 
 Artifacts are written to `RXB/dist/` by default. An optional second argument selects another output directory.
+
+The pinned upstream revision is read from `UPSTREAM_PIN`. The RXB provider version is read from `RXB_VERSION` and injected with Go linker flags. The Arch package `pkgver` deliberately follows the upstream `VERSION` so its dependency versions match the Ryoku base packages; it is not the RXB bridge version. The RXB provider module declares Go 1.22, its CI tests that minimum, and upstream integration uses Go 1.26.5 because the pinned shell/Hub modules declare that toolchain.
 
 The build order is:
 1. GPK and Ryoku keyring.
