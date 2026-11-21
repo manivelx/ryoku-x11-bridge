@@ -46,9 +46,9 @@ def patch_detect_file(p: pathlib.Path) -> None:
     replace_in_map(p, "var configDirs", 'ProviderWayfire:  "wayfire",',
                    'ProviderWayfire:  "wayfire",\n\tProviderI3:       "ryoku-x11",')
     replace_once(p, 'ProviderWayfire:  "wayfire.ini",',
-                 'ProviderWayfire:  "wayfire.ini",\n\tProviderI3:       "config",')
+                 'ProviderWayfire:  "wayfire.ini",\n\tProviderI3:       "ryoku-x11/config",')
     replace_once(p, 'ProviderWayfire: {"monitors.ini", "keyboard.ini", "user.ini"},',
-                 'ProviderWayfire: {"monitors.ini", "keyboard.ini", "user.ini"},\n\tProviderI3:      {"config", "generated.conf", "user.conf"},')
+                 'ProviderWayfire: {"monitors.ini", "keyboard.ini", "user.ini"},\n\tProviderI3:      {"ryoku-x11/config", "ryoku-x11/generated.conf", "ryoku-x11/user.conf"},')
     replace_once(p, 'ProviderWayfire:  {"wayfire/user.ini", "wayfire/monitors.ini"},',
                  'ProviderWayfire:  {"wayfire/user.ini", "wayfire/monitors.ini"},\n\tProviderI3:       {"ryoku-x11/user.conf", "ryoku-x11/config"},')
     replace_once(p, 'ProviderWayfire:  {"wayfire/wayfire.ini", "ryoku/user_edits/wayfire/wayfire.ini"},',
