@@ -53,9 +53,9 @@ The package build script uses a detached worktree of the pinned upstream source.
 | X11 lock command | Prefers XSecureLock; falls back to i3lock; not yet security-audited |
 | Ryogami wallpaper daemon | Starts only through the RXB session target with a session-scoped environment; picker/wallpaper runtime still unverified |
 | Quickshell X11 adapters | Source overlay in progress; full original shell runtime is not proven |
-| Quickshell 0.3.2 / i3 smoke test | Xvfb smoke harness added; current package/runtime CI result pending; target machine remains untested |
+| Quickshell 0.3.2 / i3 smoke test | Quickshell.I3 + X11 PanelWindow smoke passed in disposable Xvfb CI; full original shell runtime and target machine remain untested |
 | GT 740 / NVIDIA 470 | No RXB hardware validation yet |
-| Install/uninstall/rollback | Not release-ready; disposable-root validation remains open |
+| Arch package build and package safety | Passed in disposable Arch CI; package artifact archive uploaded (14-day retention) |\n| Install/uninstall/rollback | Not release-ready; disposable-root validation remains open |
 
 ## Build
 
