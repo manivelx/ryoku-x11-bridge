@@ -55,6 +55,55 @@ def patch_detect(root: pathlib.Path) -> None:
     subprocess.run(["gofmt", "-w", str(p)], check=True)
 
 
+def patch_session_detection(root: pathlib.Path) -> None:
+    p = root / "ryoku/wm/detect.go"
+    old = '''var sessionEntryDirs = func() []string {
+	dirs := []string{"/usr/local/share/wayland-sessions", "/usr/share/wayland-sessions"}
+	for _, d := range filepath.SplitList(os.Getenv("XDG_DATA_DIRS")) {
+		if d != "" {
+			dirs = append(dirs, filepath.Join(d, "wayland-sessions"))
+		}
+	}
+	return dirs
+}'''
+    new = '''var sessionEntryDirs = func() []string {
+	dirs := []string{"/usr/local/share/wayland-sessions", "/usr/share/wayland-sessions"}
+	for _, d := range filepath.SplitList(os.Getenv("XDG_DATA_DIRS")) {
+		if d != "" {
+			dirs = append(dirs, filepath.Join(d, "wayland-sessions"))
+		}
+	}
+	return dirs
+}
+
+var xSessionEntryDirs = func() []string {
+	dirs := []string{"/usr/local/share/xsessions", "/usr/share/xsessions"}
+	for _, d := range filepath.SplitList(os.Getenv("XDG_DATA_DIRS")) {
+		if d != "" {
+			dirs = append(dirs, filepath.Join(d, "xsessions"))
+		}
+	}
+	return dirs
+}
+
+var sessionEntryNames = map[string]string{ProviderI3: "ryoku-x11.desktop"}
+
+func sessionDirsFor(name string) []string {
+	dirs := sessionEntryDirs()
+	if name == ProviderI3 {
+		dirs = append(dirs, xSessionEntryDirs()...)
+	}
+	return dirs
+}'''
+    replace_once(p, old, new)
+    replace_once(p, "for _, dir := range dirs {\n\t\tentries, err := os.ReadDir(dir)",
+                 "wanted := sessionEntryNames[name]\n\tfor _, dir := range sessionDirsFor(name) {\n\t\tentries, err := os.ReadDir(dir)")
+    replace_once(p, "if entry.IsDir() || filepath.Ext(entry.Name()) != \".desktop\" {",
+                 "if entry.IsDir() || filepath.Ext(entry.Name()) != \".desktop\" || (wanted != \"\" && entry.Name() != wanted) {")
+    replace_once(p, "entry := name + \".desktop\"\n\tfor _, d := range sessionEntryDirs() {",
+                 "entry := name + \".desktop\"\n\tif custom := sessionEntryNames[name]; custom != \"\" { entry = custom }\n\tfor _, d := range sessionDirsFor(name) {")
+
+
 def patch_wm_qml(root: pathlib.Path) -> None:
     p = root / "ryoku/ui/Singletons/Wm.qml"
     replace_once(p, 'import Quickshell.WindowManager\nimport Quickshell.Wayland',
@@ -220,6 +269,7 @@ def main() -> int:
     if head != PIN:
         raise RuntimeError(f"upstream pin mismatch: expected {PIN}, got {head}")
     patch_detect(root)
+    patch_session_detection(root)
     patch_wm_qml(root)
     patch_compositor_service(root)
     patch_wayland_consumers(root)
