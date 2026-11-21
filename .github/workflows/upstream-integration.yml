@@ -3,6 +3,9 @@ on:
   push:
     paths:
       - "scripts/**"
+      - "payload/**"
+      - "release/packages/ryoku-desktop-i3/**"
+      - "docs/**"
       - "cmd/ryoku-wm-i3/**"
       - ".github/workflows/upstream-integration.yml"
   pull_request:
