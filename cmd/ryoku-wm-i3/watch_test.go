@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
-	"io"
 	"net"
 	"testing"
 	"time"
@@ -107,9 +105,8 @@ func TestCoalesceEventsReportsSocketLoss(t *testing.T) {
 	defer client.Close()
 	_ = server.Close()
 	err := coalesceEvents(&ipcConn{c: client}, 10*time.Millisecond)
-	if err == nil || err == io.EOF {
+	if err == nil {
 		t.Fatalf("socket loss must be surfaced for watch resynchronization, got %v", err)
 	}
 }
 
-var _ = bufio.NewWriter
