@@ -1,0 +1,30 @@
+name: i3 provider
+on:
+  push:
+    paths:
+      - "cmd/ryoku-wm-i3/**"
+      - ".github/workflows/go-provider.yml"
+  pull_request:
+    paths:
+      - "cmd/ryoku-wm-i3/**"
+      - ".github/workflows/go-provider.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cmd/ryoku-wm-i3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.x"
+          cache-dependency-path: cmd/ryoku-wm-i3/go.mod
+      - run: gofmt -w *.go
+      - run: go vet ./...
+      - run: go test -race ./...
+      - run: go build -trimpath -o dist/ryoku-wm-i3 .
+      - run: ./dist/ryoku-wm-i3 --help
