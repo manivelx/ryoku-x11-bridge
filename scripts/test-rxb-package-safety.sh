@@ -45,12 +45,14 @@ packages=("$dist"/*.pkg.tar.*)
 base_pkg=""
 variant_pkg=""
 for pkg in "${packages[@]}"; do
-  name="${pkg##*/}"
-  [[ "$name" == ryoku-desktop-i3-* ]] && variant_pkg="$pkg"
-  [[ "$name" == ryoku-desktop-[0-9]* ]] && base_pkg="$pkg"
+  pkg_name="$(bsdtar -xOf "$pkg" .PKGINFO 2>/dev/null | sed -n 's/^pkgname = //p' | head -n1)"
+  case "$pkg_name" in
+    ryoku-desktop) base_pkg="$pkg" ;;
+    ryoku-desktop-i3) variant_pkg="$pkg" ;;
+  esac
 done
-[[ -n "$base_pkg" ]] || { echo "Missing ryoku-desktop base package" >&2; exit 1; }
-[[ -n "$variant_pkg" ]] || { echo "Missing ryoku-desktop-i3 package" >&2; exit 1; }
+[[ -n "$base_pkg" ]] || { echo "Missing ryoku-desktop base package (PKGINFO metadata)" >&2; exit 1; }
+[[ -n "$variant_pkg" ]] || { echo "Missing ryoku-desktop-i3 package (PKGINFO metadata)" >&2; exit 1; }
 
 base_list="$(bsdtar -tf "$base_pkg")"
 variant_list="$(bsdtar -tf "$variant_pkg")"
