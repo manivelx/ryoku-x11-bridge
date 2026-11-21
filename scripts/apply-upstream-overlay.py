@@ -554,53 +554,51 @@ def patch_wayland_consumers(root: pathlib.Path) -> None:
 
 
 def patch_x11_package_safety(root: pathlib.Path) -> None:
-    # The upstream desktop package is a distribution integration package: its
-    # normal payload installs boot, udev, modprobe, polkit, logind and SDDM
-    # assets. RXB must not apply those host policies to the user's existing
-    # CachyOS/BSPWM/SDDM installation.
+    # The upstream desktop package normally installs distribution-wide boot,
+    # udev, modprobe, polkit, logind and SDDM integration. RXB must not apply
+    # those host policies to the user's existing CachyOS/BSPWM/SDDM install.
     p = root / "release/packages/ryoku-desktop/payload.sh"
     text = p.read_text()
-    replace_once(p, 'install -Dm644 "$_repo/system/services/manifest.tsv" \\\n    "$pkgdir/usr/share/ryoku/services.tsv"',
-                 'if [[ ${RYOKU_X11_BRIDGE:-0} != 1 ]]; then\\n'
-                 '    install -Dm644 "$_repo/system/services/manifest.tsv" \\\n'
-                 '      "$pkgdir/usr/share/ryoku/services.tsv"\\n'
-                 '  fi')
-    text = p.read_text()
+    old_manifest = 'install -Dm644 "$_repo/system/services/manifest.tsv" ' + chr(92) + '\\n    "$pkgdir/usr/share/ryoku/services.tsv"'
+    new_manifest = ('if [[ ${RYOKU_X11_BRIDGE:-0} != 1 ]]; then\\n'
+                    '    install -Dm644 "$_repo/system/services/manifest.tsv" ' + chr(92) + '\\n'
+                    '      "$pkgdir/usr/share/ryoku/services.tsv"\\n'
+                    '  fi')
+    if text.count(old_manifest) != 1:
+        raise RuntimeError(f"{p}: system service manifest install anchor missing")
+    text = text.replace(old_manifest, new_manifest, 1)
     start = text.index("# the qylock lockscreen bundle + its installer")
     end = text.index("  if [[ $RYOKU_INIT_MODE == systemd ]]; then\\n    # Keep session-critical units", start)
     text = text[:start] + '  if [[ ${RYOKU_X11_BRIDGE:-0} != 1 ]]; then\\n' + text[start:end] + '  fi\\n\\n' + text[end:]
-    p.write_text(text)
 
-    text = p.read_text()
-    old = '''  for s in "$_repo"/system/hardware/*/ryoku-*; do
+    old_hw_helpers = '''  for s in "$_repo"/system/hardware/*/ryoku-*; do
     [[ -f $s && -x $s ]] || continue
     install -Dm755 "$s" "$pkgdir/usr/bin/${s##*/}"
   done'''
-    new = '''  if [[ ${RYOKU_X11_BRIDGE:-0} != 1 ]]; then
+    new_hw_helpers = '''  if [[ ${RYOKU_X11_BRIDGE:-0} != 1 ]]; then
     for s in "$_repo"/system/hardware/*/ryoku-*; do
       [[ -f $s && -x $s ]] || continue
       install -Dm755 "$s" "$pkgdir/usr/bin/${s##*/}"
     done
   fi'''
-    replace_once(p, old, new)
+    if text.count(old_hw_helpers) != 1:
+        raise RuntimeError(f"{p}: system hardware helper loop anchor missing")
+    text = text.replace(old_hw_helpers, new_hw_helpers, 1)
 
-    text = p.read_text()
     start = text.index("  # GPU primary-renderer udev rule")
-    end = text.rindex("\\n}\\ncase "${1:-}" in")
+    end = text.rindex('\\n}\\ncase "${1:-}" in')
     text = text[:start] + '  if [[ ${RYOKU_X11_BRIDGE:-0} != 1 ]]; then\\n' + text[start:end] + '\\n  fi' + text[end:]
     p.write_text(text)
 
-    # No package scriptlet may reconcile system services, change logind,
-    # rewrite BlueZ/NetworkManager config, alter boot assets, or touch SDDM.
+    # Package hooks become metadata refresh only; no host service reconciliation,
+    # power-policy changes, hardware rules, boot/UKI updates or SDDM changes.
     safe_install = root / "release/packages/ryoku-desktop/ryoku-desktop.install"
-    safe_install.write_text('''# RXB X11 variant: package hooks are intentionally non-destructive.
-# No system service reconciliation, SDDM changes, logind policy, boot/UKI
-# changes, hardware rules, polkit changes, or service restarts are performed.
+    safe_install.write_text('''# RXB X11 variant: intentionally non-destructive package hooks.
 _hint() {
   cat <<'EOF'
 ==> RXB installed the Ryoku X11/i3 session without changing SDDM, the existing
     lock screen, boot configuration, GPU drivers, or system services.
-    Select "Ryoku (X11 / i3)" only when you are ready to test the session.
+    Select "Ryoku (X11 / i3)" only when ready to test the session.
 EOF
 }
 _refresh() {
@@ -620,14 +618,16 @@ post_remove() { _refresh; }
                 "'wl-clipboard'", "'wl-clip-persist'", "'grim'", "'slurp'",
                 "'wtype'", "'hypridle'", "'hyprpicker'"):
         text = text.replace("  " + dep + "\\n", "")
-    old = '  RYOKU_SRC="$_repo" \\\\n'
+    old = '  RYOKU_SRC="$_repo" ' + chr(92) + "\\n"
     if text.count(old) != 2:
         raise RuntimeError(f"{p}: expected two payload environment blocks, found {text.count(old)}")
-    text = text.replace(old, '  RYOKU_X11_BRIDGE=1 \\\\n  RYOKU_SRC="$_repo" \\\\n')
+    new = ('  RYOKU_X11_BRIDGE=1 ' + chr(92) + "\\n"
+           '  RYOKU_SRC="$_repo" ' + chr(92) + "\\n")
+    text = text.replace(old, new)
     p.write_text(text)
 
     p = root / "release/packages/ryoku-shell/PKGBUILD"
-    text = p.read_text().replace("'wtype' ", "").replace("'wl-clipboard' ", "")
+    text = p.read_text().replace("'wtype'", "").replace("'wl-clipboard'", "")
     p.write_text(text)
 
 
