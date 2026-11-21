@@ -32,9 +32,9 @@ source=()
 _repo="$startdir/../../.."
 
 build() {
-  RYOKU_SRC="$_repo" RYOKU_PKGVER="$pkgver" RYOKU_BUILD_DIR="$srcdir" "$startdir/payload.sh" build
+  RYOKU_SRC="$_repo" RYOKU_PKGVER="$pkgver" RYOKU_BUILD_DIR="$srcdir" bash "$startdir/payload.sh" build
 }
 
 package() {
-  RYOKU_SRC="$_repo" RYOKU_PKGVER="$pkgver" RYOKU_BUILD_DIR="$srcdir" "$startdir/payload.sh" install "$pkgdir" systemd
+  RYOKU_SRC="$_repo" RYOKU_PKGVER="$pkgver" RYOKU_BUILD_DIR="$srcdir" bash "$startdir/payload.sh" install "$pkgdir" systemd
 }
