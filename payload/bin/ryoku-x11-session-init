@@ -31,6 +31,7 @@ ryoku materialize || {
 systemctl --user unset-environment WAYLAND_DISPLAY
 systemctl --user daemon-reload
 systemctl --user import-environment "${env_names[@]}"
+systemctl --user daemon-reload
 systemctl --user enable ryoku-shell.service
 systemctl --user start graphical-session.target
 systemctl --user start ryoku-session.target
