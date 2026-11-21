@@ -49,7 +49,7 @@ func runCaps() error {
 		GeneratedFiles: []string{"ryoku-x11/generated.conf"},
 		Packages:       []string{"i3-wm", "quickshell", "i3lock", "xclip", "maim", "slop", "xorg-xrandr"},
 		WorkspaceModel: "dynamic",
-		ForeignAPIs:    []ForeignAPI{},
+		ForeignAPIs:    []any{},
 	}
 	return json.NewEncoder(out).Encode(c)
 }
