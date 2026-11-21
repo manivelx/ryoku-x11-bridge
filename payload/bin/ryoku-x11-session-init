@@ -4,9 +4,13 @@ set -euo pipefail
 [[ -n ${DISPLAY:-} ]] || exit 1
 [[ -z ${WAYLAND_DISPLAY:-} ]] || exit 1
 
-socket=""
+socket="${I3SOCK:-}"
 for _ in $(seq 1 50); do
-  socket="$(i3 --get-socketpath 2>/dev/null || true)"
+  if [[ -z "$socket" || ! -S "$socket" ]]; then
+    # i3 and Sway share the IPC protocol; explicitly ignore SWAYSOCK so this
+    # X11 session cannot accidentally bootstrap against a Sway instance.
+    socket="$(env -u SWAYSOCK -u I3SOCK i3 --get-socketpath 2>/dev/null || true)"
+  fi
   if [[ -n "$socket" && -S "$socket" ]]; then
     break
   fi
