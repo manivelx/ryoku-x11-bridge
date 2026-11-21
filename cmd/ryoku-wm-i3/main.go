@@ -71,7 +71,7 @@ func runCaps() error {
 		ConfigEntry:    "ryoku-x11/config",
 		ConfigFiles:    []string{"ryoku-x11/config", "ryoku-x11/user.conf"},
 		GeneratedFiles: []string{"ryoku-x11/generated.conf"},
-		Packages:       []string{"i3-wm", "quickshell", "i3lock", "xclip", "maim", "slop", "xorg-xrandr"},
+		Packages:       []string{"ryoku-desktop-i3", "i3-wm"},
 		WorkspaceModel: "dynamic",
 		ForeignAPIs:    []any{},
 	}
@@ -120,7 +120,7 @@ func runWatch(args []string) error {
 			continue
 		}
 
-		current, err := readState()
+		current, err := readStateForKinds(want)
 		if err != nil {
 			connection.close()
 			time.Sleep(500 * time.Millisecond)
@@ -150,7 +150,7 @@ func runWatch(args []string) error {
 			if err := coalesceEvents(connection, 40*time.Millisecond); err != nil {
 				break
 			}
-			next, err := readState()
+			next, err := readStateForKinds(want)
 			if err != nil {
 				break
 			}
