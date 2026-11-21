@@ -18,6 +18,17 @@ def replace_once(path: pathlib.Path, old: str, new: str) -> None:
     path.write_text(text.replace(old, new, 1))
 
 
+def replace_in_map(path: pathlib.Path, marker: str, old: str, new: str) -> None:
+    text = path.read_text()
+    start = text.index(marker)
+    end = text.index("\\n}", start) + 2
+    section = text[start:end]
+    count = section.count(old)
+    if count != 1:
+        raise RuntimeError(f"{path}: expected one {marker} entry, found {count}")
+    path.write_text(text[:start] + section.replace(old, new, 1) + text[end:])
+
+
 def patch_detect(root: pathlib.Path) -> None:
     p = root / "ryoku/wm/detect.go"
     replace_once(p, 'ProviderWayfire  = "wayfire"\n', 'ProviderWayfire  = "wayfire"\n\tProviderI3       = "i3"\n')
@@ -25,7 +36,8 @@ def patch_detect(root: pathlib.Path) -> None:
         '\t{"WAYFIRE_SOCKET", ProviderWayfire, func(h string) []string { return []string{h} }},\n'
         '\t// i3 exports its IPC socket path to clients in the session.\n'
         '\t{"I3SOCK", ProviderI3, func(h string) []string { return []string{h} }},\n')
-    replace_once(p, '\tProviderWayfire:  "wayfire",\n', '\tProviderWayfire:  "wayfire",\n\tProviderI3:       "ryoku-x11",\n')
+    replace_in_map(p, "var configDirs", '\tProviderWayfire:  "wayfire",\n',
+                   '\tProviderWayfire:  "wayfire",\n\tProviderI3:       "ryoku-x11",\n')
     replace_once(p, '\tProviderWayfire:  "wayfire.ini",\n', '\tProviderWayfire:  "wayfire.ini",\n\tProviderI3:       "config",\n')
     replace_once(p, '\tProviderWayfire: {"monitors.ini", "keyboard.ini", "user.ini"},\n',
         '\tProviderWayfire: {"monitors.ini", "keyboard.ini", "user.ini"},\n'
@@ -38,7 +50,8 @@ def patch_detect(root: pathlib.Path) -> None:
         '\tProviderI3:       {"ryoku-x11/generated.conf"},\n')
     replace_once(p, 'return []string{ProviderHyprland, ProviderNiri, ProviderWayfire}',
         'return []string{ProviderHyprland, ProviderNiri, ProviderWayfire, ProviderI3}')
-    replace_once(p, '\tProviderWayfire:  "wayfire",\n}', '\tProviderWayfire:  "wayfire",\n\tProviderI3:       "i3",\n}')
+    replace_in_map(p, "var compositorBins", '\tProviderWayfire:  "wayfire",\n',
+                   '\tProviderWayfire:  "wayfire",\n\tProviderI3:       "i3",\n')
     subprocess.run(["gofmt", "-w", str(p)], check=True)
 
 
