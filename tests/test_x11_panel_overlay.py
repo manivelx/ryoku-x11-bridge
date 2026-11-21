@@ -63,8 +63,8 @@ class X11PanelOverlayTests(unittest.TestCase):
                 "                occupied: false,\n"
                 "                fullscreen: false,\n"
                 "                special: false,\n"
-                "                output: \\"\\",\n"
-                "                layout: \\"\\""
+                '                output: "",\n'
+                '                layout: ""'
             )
             OVERLAY.patch_wm_qml(root)
             result = qml.read_text()
