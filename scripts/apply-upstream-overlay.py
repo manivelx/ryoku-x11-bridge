@@ -553,6 +553,84 @@ def patch_wayland_consumers(root: pathlib.Path) -> None:
                  '(Wm.focusedWindow ? String(Wm.focusedWindow.id) : "") !== root.launchActiveToplevel')
 
 
+def patch_x11_package_safety(root: pathlib.Path) -> None:
+    # The upstream desktop package is a distribution integration package: its
+    # normal payload installs boot, udev, modprobe, polkit, logind and SDDM
+    # assets. RXB must not apply those host policies to the user's existing
+    # CachyOS/BSPWM/SDDM installation.
+    p = root / "release/packages/ryoku-desktop/payload.sh"
+    text = p.read_text()
+    replace_once(p, 'install -Dm644 "$_repo/system/services/manifest.tsv" \\\n    "$pkgdir/usr/share/ryoku/services.tsv"',
+                 'if [[ ${RYOKU_X11_BRIDGE:-0} != 1 ]]; then\\n'
+                 '    install -Dm644 "$_repo/system/services/manifest.tsv" \\\n'
+                 '      "$pkgdir/usr/share/ryoku/services.tsv"\\n'
+                 '  fi')
+    text = p.read_text()
+    start = text.index("# the qylock lockscreen bundle + its installer")
+    end = text.index("  if [[ $RYOKU_INIT_MODE == systemd ]]; then\\n    # Keep session-critical units", start)
+    text = text[:start] + '  if [[ ${RYOKU_X11_BRIDGE:-0} != 1 ]]; then\\n' + text[start:end] + '  fi\\n\\n' + text[end:]
+    p.write_text(text)
+
+    text = p.read_text()
+    old = '''  for s in "$_repo"/system/hardware/*/ryoku-*; do
+    [[ -f $s && -x $s ]] || continue
+    install -Dm755 "$s" "$pkgdir/usr/bin/${s##*/}"
+  done'''
+    new = '''  if [[ ${RYOKU_X11_BRIDGE:-0} != 1 ]]; then
+    for s in "$_repo"/system/hardware/*/ryoku-*; do
+      [[ -f $s && -x $s ]] || continue
+      install -Dm755 "$s" "$pkgdir/usr/bin/${s##*/}"
+    done
+  fi'''
+    replace_once(p, old, new)
+
+    text = p.read_text()
+    start = text.index("  # GPU primary-renderer udev rule")
+    end = text.rindex("\\n}\\ncase "${1:-}" in")
+    text = text[:start] + '  if [[ ${RYOKU_X11_BRIDGE:-0} != 1 ]]; then\\n' + text[start:end] + '\\n  fi' + text[end:]
+    p.write_text(text)
+
+    # No package scriptlet may reconcile system services, change logind,
+    # rewrite BlueZ/NetworkManager config, alter boot assets, or touch SDDM.
+    safe_install = root / "release/packages/ryoku-desktop/ryoku-desktop.install"
+    safe_install.write_text('''# RXB X11 variant: package hooks are intentionally non-destructive.
+# No system service reconciliation, SDDM changes, logind policy, boot/UKI
+# changes, hardware rules, polkit changes, or service restarts are performed.
+_hint() {
+  cat <<'EOF'
+==> RXB installed the Ryoku X11/i3 session without changing SDDM, the existing
+    lock screen, boot configuration, GPU drivers, or system services.
+    Select "Ryoku (X11 / i3)" only when you are ready to test the session.
+EOF
+}
+_refresh() {
+  command -v gtk-update-icon-cache >/dev/null 2>&1 && gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor 2>/dev/null || true
+  command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database -q /usr/share/applications 2>/dev/null || true
+}
+pre_install() { :; }
+pre_upgrade() { :; }
+post_install() { _refresh; _hint; }
+post_upgrade() { _refresh; _hint; }
+post_remove() { _refresh; }
+''')
+
+    p = root / "release/packages/ryoku-desktop/PKGBUILD"
+    text = p.read_text()
+    for dep in ("'xorg-xwayland'", "'qt6-wayland'", "'qt5-wayland'", "'weston'",
+                "'wl-clipboard'", "'wl-clip-persist'", "'grim'", "'slurp'",
+                "'wtype'", "'hypridle'", "'hyprpicker'"):
+        text = text.replace("  " + dep + "\\n", "")
+    old = '  RYOKU_SRC="$_repo" \\\\n'
+    if text.count(old) != 2:
+        raise RuntimeError(f"{p}: expected two payload environment blocks, found {text.count(old)}")
+    text = text.replace(old, '  RYOKU_X11_BRIDGE=1 \\\\n  RYOKU_SRC="$_repo" \\\\n')
+    p.write_text(text)
+
+    p = root / "release/packages/ryoku-shell/PKGBUILD"
+    text = p.read_text().replace("'wtype' ", "").replace("'wl-clipboard' ", "")
+    p.write_text(text)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("ryoku_checkout", type=pathlib.Path)
@@ -572,8 +650,9 @@ def main() -> int:
     patch_x11_clipboard(root)
     patch_x11_region_tools(root)
     patch_lock_dispatch(root)
+    patch_x11_package_safety(root)
     print(f"RXB overlay applied to pinned Ryoku {PIN}")
-    print("Changed: provider/session discovery, QML i3 bridge, taskbar/capture/region adapters, X11 clipboard and lock dispatch")
+    print("Changed: provider/session discovery, QML i3 bridge, taskbar/capture/region adapters, X11 clipboard, lock, and non-destructive package policy")
     print("Note: this is a source overlay, not a completed/validated desktop build.")
     return 0
 
