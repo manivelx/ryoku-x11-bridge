@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 )
 
 type rect struct{X int `json:"x"`;Y int `json:"y"`;Width int `json:"width"`;Height int `json:"height"`}
@@ -27,7 +26,11 @@ func readState()(Snapshot,error){
 	_ = byWS
 	return s,nil
 }
-func workspaceHasFullscreen(n *node, workspace string) bool {\n\tif n.Type == "workspace" && n.Name == workspace { return nodeHasFullscreen(n) }; for i := range n.Nodes { if workspaceHasFullscreen(&n.Nodes[i], workspace) { return true } }; for i := range n.FloatingNodes { if workspaceHasFullscreen(&n.FloatingNodes[i], workspace) { return true } }; return false\n}\nfunc nodeHasFullscreen(n *node) bool { if n.FullscreenMode != 0 { return true }; for i := range n.Nodes { if nodeHasFullscreen(&n.Nodes[i]) { return true } }; for i := range n.FloatingNodes { if nodeHasFullscreen(&n.FloatingNodes[i]) { return true } }; return false }\nfunc walkWindows(n *node,ws,out string,wss []Workspace,windows *[]Window){
+func workspaceHasFullscreen(n *node, workspace string) bool {
+\tif n.Type == "workspace" && n.Name == workspace { return nodeHasFullscreen(n) }; for i := range n.Nodes { if workspaceHasFullscreen(&n.Nodes[i], workspace) { return true } }; for i := range n.FloatingNodes { if workspaceHasFullscreen(&n.FloatingNodes[i], workspace) { return true } }; return false
+}
+func nodeHasFullscreen(n *node) bool { if n.FullscreenMode != 0 { return true }; for i := range n.Nodes { if nodeHasFullscreen(&n.Nodes[i]) { return true } }; for i := range n.FloatingNodes { if nodeHasFullscreen(&n.FloatingNodes[i]) { return true } }; return false }
+func walkWindows(n *node,ws,out string,wss []Workspace,windows *[]Window){
 	if n.Type=="workspace"{ws=n.Name}
 	if n.Type=="output"{out=n.Name}
 	if n.WindowProperties.Title!=""||n.AppID!=nil||n.PID>0{
@@ -38,4 +41,3 @@ func workspaceHasFullscreen(n *node, workspace string) bool {\n\tif n.Type == "w
 	for i:=range n.Nodes{walkWindows(&n.Nodes[i],ws,out,wss,windows)}
 	for i:=range n.FloatingNodes{walkWindows(&n.FloatingNodes[i],ws,out,wss,windows)}
 }
-func init(){_ = strings.TrimSpace}
