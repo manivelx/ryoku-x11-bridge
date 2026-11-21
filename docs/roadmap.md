@@ -6,7 +6,7 @@
 [x] Shared provider seam inspected
 [x] Initial compositor/provider comparison
 [x] Initial X11 compatibility matrix and risk register
-[ ] Exhaustive QML import and Wayland API usage inventory
+[~] Partial QML import and Wayland API inventory recorded in qml-x11-audit.md; exhaustive active-profile inventory remains open
 [ ] Go service and runtime dependency inventory
 [ ] Installed Quickshell 0.3.2 smoke tests
 [ ] Architecture review and acceptance
