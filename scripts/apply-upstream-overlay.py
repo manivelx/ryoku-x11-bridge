@@ -241,7 +241,7 @@ fi
     p = root / "ryoku/shell/quickshell/shell/modules/launcher/variants/hero/LocalFrost.qml"
     text = p.read_text()
     if "import Ryoku.Ui.Singletons" not in text:
-        replace_once(p, "import Quickshell.Wayland\\n", "import Quickshell.Wayland\\nimport Ryoku.Ui.Singletons\\n")
+        replace_once(p, "import QtQuick\n", "import QtQuick\nimport Ryoku.Ui.Singletons\n")
     replace_once(p, "(root.captureStarted && root.captureWanted)",
                  "(root.captureStarted && root.captureWanted && Wm.caps.persistentScreenCapture === true)")
 
