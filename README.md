@@ -51,6 +51,7 @@ The package build script uses a detached worktree of the pinned upstream source.
 | Effective bind legend | Deliberately empty until the upstream catalogue/rebind resolver is ported |
 | X11 session config | RXB-owned seed under `ryoku-x11`; no existing i3/BSPWM config overwritten |
 | X11 lock command | Prefers XSecureLock; falls back to i3lock; not yet security-audited |
+| Ryogami wallpaper daemon | Starts only through the RXB session target with a session-scoped environment; picker/wallpaper runtime still unverified |
 | Quickshell X11 adapters | Source overlay in progress; full original shell runtime is not proven |
 | Quickshell 0.3.2 / i3 smoke test | Xvfb smoke harness added; current package/runtime CI result pending; target machine remains untested |
 | GT 740 / NVIDIA 470 | No RXB hardware validation yet |
