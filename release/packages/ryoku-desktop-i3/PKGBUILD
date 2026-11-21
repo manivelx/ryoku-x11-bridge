@@ -1,6 +1,5 @@
-# RXB i3 provider package. The base ryoku-desktop package depends on the
-# ryoku-desktop-compositor virtual; this package provides it without depending
-# back on the umbrella package (which would create a dependency cycle).
+# RXB i3 compositor variant. Like the upstream Hyprland/niri variants, it
+# depends on the Ryoku base and provides the compositor virtual required by it.
 pkgname=ryoku-desktop-i3
 pkgver=${RYOKU_PKGVER:-0.1.0}
 pkgrel=1
@@ -11,7 +10,7 @@ url="https://github.com/manivelx/ryoku-x11-bridge"
 license=('GPL-3.0-or-later')
 makedepends=('go')
 depends=(
-  "ryoku-shell=$epoch:$pkgver"
+  "ryoku-desktop=$epoch:$pkgver"
   'i3-wm'
   'i3lock'
   'xorg-server'
