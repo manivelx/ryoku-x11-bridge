@@ -12,6 +12,19 @@ if ! grep -Fq 'env -u SWAYSOCK -u I3SOCK i3 --get-socketpath' "$root/payload/bin
   echo "X11 session init must sanitize Sway's IPC socket environment." >&2
   exit 1
 fi
+if grep -Eq 'systemctl --user (import-environment|unset-environment)' "$root/payload/bin/ryoku-x11-session-init"; then
+  echo "X11 session init must not mutate the shared systemd user-manager environment." >&2
+  exit 1
+fi
+if ! grep -Fq 'EnvironmentFile=%t/ryoku-x11-session.env' "$root/payload/systemd/ryoku-shell.service.d/10-rxb-x11.conf" ||
+   ! grep -Fq 'ConditionPathExists=%t/ryoku-x11-session.env' "$root/payload/systemd/ryoku-shell.service.d/10-rxb-x11.conf"; then
+  echo "Ryoku shell must consume a session-scoped environment file." >&2
+  exit 1
+fi
+if ! grep -Fq 'systemctl --user stop ryoku-session.target' "$root/payload/bin/ryoku-x11-session"; then
+  echo "X11 session wrapper must stop its target on exit." >&2
+  exit 1
+fi
 if grep -Fq 'ryogami.service' "$root/release/packages/ryoku-desktop-i3/payload.sh"; then
   echo "Unvalidated Wayland-only Ryogami service must not be linked into the X11 session." >&2
   exit 1
