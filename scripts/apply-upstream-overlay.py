@@ -274,6 +274,44 @@ def patch_x11_clipboard(root: pathlib.Path) -> None:
         raise RuntimeError(f"{p}: selection keeper anchor missing")
     p.write_text(text.replace(keep, keep_new, 1))
 
+    test = root / "ryoku/shell/ipc/clipboard_x11_test.go"
+    test.write_text("""package main
+
+import (
+	"path/filepath"
+	"testing"
+)
+
+func TestRXBSelectionCopyCommandChoosesX11Backend(t *testing.T) {
+	t.Setenv("DISPLAY", ":99")
+	t.Setenv("WAYLAND_DISPLAY", "")
+	if got := filepath.Base(selectionCopyCommand("image/png").Path); got != "xclip" {
+		t.Fatalf("X11 clipboard writer = %q, want xclip", got)
+	}
+}
+
+func TestRXBSelectionCopyCommandKeepsWaylandBackend(t *testing.T) {
+	t.Setenv("DISPLAY", ":99")
+	t.Setenv("WAYLAND_DISPLAY", "wayland-0")
+	if got := filepath.Base(selectionCopyCommand("image/png").Path); got != "wl-copy" {
+		t.Fatalf("Wayland clipboard writer = %q, want wl-copy", got)
+	}
+}
+
+func TestRXBX11ClipboardMimeFiltersProtocolTargets(t *testing.T) {
+	got := x11ClipboardMime([]string{"TARGETS", "MULTIPLE", "TIMESTAMP", "UTF8_STRING"})
+	if got != "UTF8_STRING" {
+		t.Fatalf("selected MIME = %q, want UTF8_STRING", got)
+	}
+	if got := normalizeX11Mime("UTF8_STRING"); got != "text/plain;charset=utf-8" {
+		t.Fatalf("normalized MIME = %q", got)
+	}
+	if got := x11ClipboardMime([]string{"TARGETS", "MULTIPLE", "TIMESTAMP"}); got != "" {
+		t.Fatalf("protocol-only targets returned %q", got)
+	}
+}
+""")
+
     p = root / "ryoku/shell/ipc/clipwatch.go"
     text = p.read_text()
     text = text.replace('import (\n', 'import (\n\t"context"\n', 1)
