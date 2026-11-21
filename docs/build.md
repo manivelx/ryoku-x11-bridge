@@ -15,7 +15,7 @@ The overlay explicitly skips the upstream distribution-level SDDM/qylock bundle,
 - Git, Python 3, Go, base-devel, and the build dependencies declared by the upstream PKGBUILDs (including the Qt/CMake/Ninja development packages used by Ryoku's QML plugin package).
 - Enough free disk space for the upstream checkout and package artifacts.
 
-The script uses `makepkg --nodeps` and does not install build or runtime dependencies. Install the required build tools in the disposable VM before running it.
+The script creates a detached temporary Git worktree at the pinned commit, applies the overlay there, and removes that worktree after packaging. It does not modify your original upstream clone. It uses `makepkg --nodeps` and does not install build or runtime dependencies; install the required build tools in the disposable VM before running it.
 
 ## Prepare the pinned source
 
