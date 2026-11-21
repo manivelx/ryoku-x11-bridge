@@ -183,6 +183,60 @@ def patch_compositor_service(root: pathlib.Path) -> None:
                  'readonly property bool windowWorkspaceMap: Wm.caps.windowWorkspaceMap === true')
 
 
+def patch_x11_capture(root: pathlib.Path) -> None:
+    p = root / "ryoku/shell/scripts/ryoku-cmd-grim"
+    text = p.read_text()
+    anchor = "runtime=\${XDG_RUNTIME_DIR:-/tmp}"
+    if anchor not in text:
+        raise RuntimeError(f"{p}: expected grim helper header")
+    x11 = '''# X11 uses maim, not the Wayland-only grim protocol.
+if [[ -n ${DISPLAY:-} && -z ${WAYLAND_DISPLAY:-} ]]; then
+  output=""
+  geometry=""
+  destination=""
+  while (($#)); do
+    case "$1" in
+      -o) output=${2:-}; shift 2 ;;
+      -g) geometry=${2:-}; shift 2 ;;
+      -c) shift ;;
+      --) shift; destination=${1:-}; break ;;
+      -*) echo "ryoku-cmd-grim: unsupported X11 option: $1" >&2; exit 2 ;;
+      *) destination=$1; shift ;;
+    esac
+  done
+  if [[ -n "$output" && -z "$geometry" ]]; then
+    geometry="$(xrandr --query 2>/dev/null | awk -v name="$output" '$1 == name && $2 == "connected" { for (i=3; i<=NF; i++) if ($i ~ /^[0-9]+x[0-9]+[+-][0-9]+[+-][0-9]+$/) { print $i; exit } }')"
+    [[ -n "$geometry" ]] || { echo "ryoku-cmd-grim: cannot resolve active output geometry for $output" >&2; exit 1; }
+  fi
+  command -v maim >/dev/null 2>&1 || { echo "ryoku-cmd-grim: install maim for X11 capture" >&2; exit 127; }
+  args=()
+  [[ -n "$geometry" ]] && args+=(-g "$geometry")
+  [[ -n "$destination" ]] && args+=("$destination")
+  exec maim "${args[@]}"
+fi
+
+'''
+    p.write_text(text.replace(anchor, x11 + anchor, 1))
+
+    p = root / "ryoku/shell/quickshell/ryoshot/lib/capture-backend.js"
+    replace_once(p, "function shouldUseGrim(setting, desktop, niriSocket) {\n    if (setting === \"1\") return true;",
+                 "function shouldUseGrim(setting, desktop, niriSocket, display, waylandDisplay) {\n    if (setting === \"1\") return true;\n    if (display && !waylandDisplay) return true;")
+
+    p = root / "ryoku/shell/quickshell/ryoshot/Overlay.qml"
+    replace_once(p, 'Quickshell.env("NIRI_SOCKET"))',
+                 'Quickshell.env("NIRI_SOCKET"), Quickshell.env("DISPLAY"), Quickshell.env("WAYLAND_DISPLAY"))')
+
+    p = root / "ryoku/shell/quickshell/shell/modules/overview/WorkspaceCell.qml"
+    replace_once(p, 'captureSource: (!!cell.ov && cell.ov.active && tile.modelData.tl) ? tile.modelData.tl : null',
+                 'captureSource: (Wm.caps.persistentScreenCapture === true && !!cell.ov && cell.ov.active && tile.modelData.tl) ? tile.modelData.tl : null')
+    replace_once(p, 'visible: tile.modelData.tl !== null',
+                 'visible: Wm.caps.persistentScreenCapture === true && tile.modelData.tl !== null')
+
+    p = root / "ryoku/shell/quickshell/shell/modules/overview/Overview.qml"
+    replace_once(p, 'captureSource: root.dragTl\n                live: false\n                visible: root.dragTl !== null',
+                 'captureSource: Wm.caps.persistentScreenCapture === true ? root.dragTl : null\n                live: false\n                visible: Wm.caps.persistentScreenCapture === true && root.dragTl !== null')
+
+
 def patch_lock_dispatch(root: pathlib.Path) -> None:
     p = root / "ryoku/shell/ipc/actions.go"
     old = '''func lockSession() string {
@@ -280,9 +334,10 @@ def main() -> int:
     patch_wm_qml(root)
     patch_compositor_service(root)
     patch_wayland_consumers(root)
+    patch_x11_capture(root)
     patch_lock_dispatch(root)
     print(f"RXB overlay applied to pinned Ryoku {PIN}")
-    print("Changed: provider registration, Wm.qml i3 bridge, compositor capability flags, X11 lock dispatch")
+    print("Changed: provider/session discovery, QML i3 window bridge, taskbar consumers, capture fallback, X11 lock dispatch")
     print("Note: this is a source overlay, not a completed/validated desktop build.")
     return 0
 
