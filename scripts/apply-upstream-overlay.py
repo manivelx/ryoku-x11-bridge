@@ -538,13 +538,14 @@ def _convert_x11_layer(expr: str) -> str:
 
 def _convert_x11_focus(expr: str) -> str:
     expr = expr.strip()
+    placeholder = "__RXB_KEYBOARD_FOCUS__"
     if "shownKeyboardFocus" in expr:
-        expr = expr.replace("shownKeyboardFocus", "(shownKeyboardFocus !== WlrKeyboardFocus.None)")
+        expr = expr.replace("shownKeyboardFocus", placeholder)
     expr = re.sub(r"\bWlrKeyboardFocus\.(?:Exclusive|OnDemand)\b", "true", expr)
     expr = re.sub(r"\bWlrKeyboardFocus\.None\b", "false", expr)
     if "WlrKeyboardFocus." in expr:
         raise RuntimeError(f"unhandled WlrKeyboardFocus expression in X11 overlay: {expr}")
-    return expr
+    return expr.replace(placeholder, "(shownKeyboardFocus !== WlrKeyboardFocus.None)")
 
 
 def patch_x11_panel_properties(root: pathlib.Path) -> None:
@@ -584,7 +585,9 @@ def patch_x11_panel_properties(root: pathlib.Path) -> None:
                     if not candidate:
                         break
                     parens, questions, colons = _ternary_counts(" ".join(parts))
-                    if parens <= 0 and questions <= colons and not candidate.startswith(("?", ":")):
+                    if (parens <= 0 and questions <= colons
+                            and not candidate.startswith(("?", ":", "||", "&&"))
+                            and not parts[-1].rstrip().endswith(("?", ":", "||", "&&"))):
                         break
                     parts.append(candidate)
                     j += 1
