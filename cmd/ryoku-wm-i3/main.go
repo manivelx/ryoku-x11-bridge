@@ -98,7 +98,20 @@ func runAct(a []string) error {
 		if len(rest)<1{return errors.New("act workspace.focus: missing workspace id")}
 		return runCommand("workspace "+quoteWorkspace(rest[0]))
 	case "workspace.cycle":
-		d:=1; if len(rest)>0 {v,e:=strconv.Atoi(rest[0]);if e!=nil{return fmt.Errorf("invalid delta %q",rest[0])};d=v};dir:="next";if d<0{dir="prev";d=-d};for i:=0;i<d;i++{if e:=runCommand("workspace "+dir);e!=nil{return e}};return nil
+		rawDelta := "1"
+		if len(rest) > 0 {
+			rawDelta = rest[0]
+		}
+		direction, count, err := boundedDelta(rawDelta)
+		if err != nil {
+			return err
+		}
+		for i := 0; i < count; i++ {
+			if err := runCommand("workspace " + direction); err != nil {
+				return err
+			}
+		}
+		return nil
 	case "workspace.moveToOutput":
 		if len(rest) < 2 {
 			return errors.New("act workspace.moveToOutput: expected workspace id and output")
