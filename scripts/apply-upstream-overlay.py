@@ -8,7 +8,7 @@ import re
 import subprocess
 import sys
 
-PIN = "0bf11741b22f69f22ad2733025671c7d0a5e1a47"
+PIN = (pathlib.Path(__file__).resolve().parents[1] / "UPSTREAM_PIN").read_text().strip()
 
 
 def replace_once(path: pathlib.Path, old: str, new: str) -> None:
