@@ -162,13 +162,7 @@ func readStateForKinds(want map[string]bool) (Snapshot, error) {
 			// Preserve the focused-window sentinel for shell consumers. i3 does
 			// not expose authoritative focus history, so non-focused windows all
 			// use 1 and CapFocusHistory remains unadvertised.
-			for index := range treeWindows {
-				if treeWindows[index].Focused {
-					treeWindows[index].FocusOrder = 0
-				} else {
-					treeWindows[index].FocusOrder = 1
-				}
-			}
+			setFocusedWindowSentinel(treeWindows)
 			snapshot.Windows = treeWindows
 		}
 		if want["workspaces"] || all {
@@ -242,5 +236,15 @@ func walkWindows(n *node, ws, out string, wss []Workspace, windows *[]Window) {
 	}
 	for i := range n.FloatingNodes {
 		walkWindows(&n.FloatingNodes[i], ws, out, wss, windows)
+	}
+}
+
+func setFocusedWindowSentinel(windows []Window) {
+	for index := range windows {
+		if windows[index].Focused {
+			windows[index].FocusOrder = 0
+		} else {
+			windows[index].FocusOrder = 1
+		}
 	}
 }
