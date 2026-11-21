@@ -58,6 +58,24 @@ jobs:
       - name: Test upstream CLI
         working-directory: upstream/ryoku/cli
         run: go test -mod=vendor ./...
+      - name: Test upstream Hub backend
+        working-directory: upstream/ryoku/hub/backend
+        run: go test -mod=vendor ./...
+      - name: Test upstream Rashin backend
+        working-directory: upstream/ryoku/rashin/backend
+        run: go test -mod=vendor ./...
+      - name: Test upstream Ryogami daemon
+        working-directory: upstream/ryoku/shell/ryogami/daemon
+        run: go test -mod=vendor ./...
+      - name: Validate non-destructive upstream package overlay
+        run: |
+          bash -n upstream/release/packages/ryoku-desktop/payload.sh
+          bash -n upstream/release/packages/ryoku-desktop/PKGBUILD
+          bash -n upstream/release/packages/ryoku-desktop/ryoku-desktop.install
+          bash -n upstream/release/packages/ryoku-shell/PKGBUILD
+          grep -q 'RYOKU_X11_BRIDGE=1' upstream/release/packages/ryoku-desktop/PKGBUILD
+          grep -q 'RYOKU_X11_BRIDGE' upstream/release/packages/ryoku-desktop/payload.sh
+          ! grep -q 'ryoku-host svc reconcile --system' upstream/release/packages/ryoku-desktop/ryoku-desktop.install
       - name: Test and build RXB i3 provider
         working-directory: cmd/ryoku-wm-i3
         run: |
