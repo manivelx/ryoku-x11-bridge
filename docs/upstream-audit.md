@@ -1,48 +1,76 @@
 # Upstream Ryoku audit
 
-## Pin
+## Pinned source
 - Upstream: https://github.com/Ryoku-dev/ryoku
-- Audited version: 1.1.0
-- Audited main commit: 0bf11741b22f69f22ad2733025671c7d0a5e1a47
-- Commit date: 2026-11-17
-- Commit URL: https://github.com/Ryoku-dev/ryoku/commit/0bf11741b22f69f22ad2733025671c7d0a5e1a47
-- Upstream declares GNU GPL-3.0. Preserve file notices and audit third-party asset licenses before copying code/assets.
+- Audited release: 1.1.0
+- Pin: `0bf11741b22f69f22ad2733025671c7d0a5e1a47`
+- Upstream release commit: https://github.com/Ryoku-dev/ryoku/commit/0bf11741b22f69f22ad2733025671c7d0a5e1a47
+- License: GNU GPL-3.0. Preserve original notices and separately audit third-party assets before redistribution.
 
-## Shared provider seam
-Relevant upstream files:
-- ryoku/wm/caps.go — capability manifest
-- ryoku/wm/state.go — state and frame structures
-- ryoku/wm/action.go — semantic action IDs
-- ryoku/wm/client.go — subprocess protocol and provider discovery
-- ryoku/wm/detect.go — session/environment detection
-- ryoku/wm/hyprland/* — reference provider
-- ryoku/wm/niri/* — socket-driven reference provider
-- ryoku/wm/wayfire/* — IPC/config reference provider
+## Provider contract
 
-The provider is a subprocess protocol, not an in-process Go interface. It includes capability manifests, state snapshots, newline-delimited watch frames, semantic actions, config apply, defaults, schema, keybinds, output layout, session and environment handoff. Match exact upstream schemas and error behavior. Do not branch consumer logic on provider name/version. Capabilities are behavior promises. IDs are opaque. Apply preview must not write.
+Relevant source locations:
+- `ryoku/wm/caps.go` — capability manifest
+- `ryoku/wm/state.go` — state/frame structures
+- `ryoku/wm/action.go` — semantic action IDs
+- `ryoku/wm/client.go` — subprocess protocol and provider discovery
+- `ryoku/wm/detect.go` — session/environment detection
+- `ryoku/wm/hyprland/*`, `ryoku/wm/niri/*`, `ryoku/wm/wayfire/*` — reference providers
 
-## Provider references
-Hyprland provider uses hyprctl and compositor sockets, plus Hyprland-owned config. niri uses its Unix socket and KDL. Wayfire uses its IPC socket and INI composition. None is an existing X11/i3 provider; their architecture is useful, but protocol and configuration cannot be copied blindly.
+The interface is a subprocess protocol. The i3 provider must match the pinned source's JSON field names, optionality, frame ordering, capability names, action IDs and error semantics. Do not claim a capability until its behavior is implemented and tested. Provider IDs are opaque. Watch must emit a full initial state, a ready frame and subsequent valid newline-delimited frames; reconnect behavior must resynchronize rather than silently leave stale state. Apply preview must be side-effect-free.
 
-## QML/Wayland audit leads
-Searches of the pinned tree identified use of:
-- Quickshell.Wayland, WlrLayershell, WlrKeyboardFocus
-- WlSessionLock and WlSessionLockSurface in qylock
-- ScreencopyView in overview, dock previews and capture flows
-- ToplevelManager / foreign-toplevel paths in taskbar and launcher services
-- Quickshell.Hyprland in compositor-specific bridges
-- Wayland-specific capture, keyboard focus and surface behavior
+## Confirmed X11 and Wayland dependency leads
 
-Search results are leads, not a complete dependency proof. Each imported type, usage, conditional and transitive dependency must be inventoried. Search coverage is currently incomplete.
+The original shell tree contains references to:
+- `Quickshell.Wayland`, `WlrLayershell` and `WlrKeyboardFocus`
+- `WlSessionLock` / `WlSessionLockSurface` in the lock UI
+- `ScreencopyView` in overview, dock-preview and capture flows
+- `ToplevelManager` / foreign-toplevel paths in taskbar and launcher services
+- `Quickshell.Hyprland` in compositor-specific bridges
+- Wayland-specific keyboard focus, capture and surface semantics
 
-## Quickshell
-The target host has Quickshell 0.3.2. Its documentation includes X11 windowing and i3 integration for workspace/monitor models, plus PAM, PipeWire, BlueZ, MPRIS and system-tray services. Confirm exact API availability against the installed 0.3.2 package and run QML load tests; current online documentation may differ.
+These references are search leads only. The current RXB repository contains no copied QML tree: the overlay is applied against a pinned checkout during CI/build. A complete inventory must therefore be generated from the pinned upstream source tree, recording each QML file, import, referenced type/property/method, guard condition and feature owner. Search results alone are not proof that an item is safely gated.
 
-## Lock security
-The original qylock depends on Wayland session-lock semantics. X11 cannot provide the same compositor-enforced ext_session_lock_v1 guarantee. Do not port it as a normal fullscreen QML window. Candidate: XSecureLock + PAM as the authoritative locker; QML visual only.
+## Runtime mapping
 
-## Hardware risks
-The GT 740 is Kepler. NVIDIA 470.256.02 is the legacy proprietary stack currently working on Xorg. Test QtQuick/GLX/EGL, Picom interaction, shader/effect support, 1080p capture performance and multi-monitor redraw without changing the driver/kernel. No RXB runtime or hardware validation has yet been performed.
+| Upstream dependency | X11/i3 approach | State |
+|---|---|---|
+| Workspaces and monitors | Quickshell i3 integration / provider state | Candidate; runtime proof pending |
+| Window tree and focus | i3 IPC GET_TREE and event subscriptions | Implemented in Go provider; real session proof pending |
+| Layer-shell panels | Quickshell X11 windows, struts and stacking hints | Adapter required; runtime proof pending |
+| Popup/focus grabs | X11 transient windows and keyboard-grab behavior | Adapter required; runtime proof pending |
+| Screencopy and previews | X11 capture backend | Not implemented / gated |
+| Foreign-toplevel | i3 tree adapter | Provider mapping; UI integration pending |
+| Wayland session lock | Dedicated X11 locker with PAM | Separate security boundary; not accepted |
+| Hyprland-only integrations | Disable/gate | No i3 equivalent |
+| Wayfire-only integrations | Disable/gate | No i3 equivalent |
 
-## Audit completeness
-Initial architecture/provider audit completed. Exhaustive QML import/use inventory, service dependency audit, and installed Quickshell 0.3.2 runtime checks remain open. This document must not be treated as a complete line-by-line certification of the upstream source tree.
+## Quickshell version constraints
+
+Target runtime: Quickshell 0.3.2 on the user's CachyOS LTS setup. Quickshell documentation and QML modules can drift. The only acceptable compatibility proof is loading the actual RXB-adapted QML against the target installed runtime (or an equivalent pinned build), followed by interaction tests. The current repository CI does not yet provide that full-shell proof.
+
+## Lock and suspend security
+
+The original lock UI depends on compositor-enforced Wayland session-lock semantics. A fullscreen QML window on X11 is not a secure replacement. RXB must keep the secure-lock capability unavailable until a dedicated X11 locker with PAM has passed multi-monitor, grab, crash, PAM failure, VT/session and suspend/resume tests. The visual shell must never handle authentication or be able to dismiss the authoritative lock.
+
+## Hardware constraints
+
+The target machine uses a GeForce GT 740 (Kepler) with proprietary driver 470.256.02 under Xorg, Quickshell 0.3.2 and CachyOS LTS kernel 6.18.64-1-cachyos-lts. Test QtQuick rendering, GLX/EGL selection, Picom interoperability, shader support, 1080p capture cost and monitor redraw without altering the installed driver, kernel or boot configuration. No real-hardware RXB runtime validation has been performed by CI.
+
+## Audit completeness and acceptance
+
+Completed:
+- Initial provider seam and architectural comparison.
+- Initial Wayland/X11 feature mapping.
+- Go provider and upstream Go package checks in CI.
+- Overlay unit and non-destructive package checks in CI.
+
+Still required:
+1. Generate a machine-readable QML dependency inventory from the exact pinned checkout.
+2. Trace imports and QML APIs through all shell components, including optional and transitive dependencies.
+3. Map each dependency to an implemented adapter, a safe capability gate or an explicit unsupported state.
+4. Run Quickshell 0.3.2 QML load/lint and interaction tests in isolated X11.
+5. Verify the original Ryoku daemon discovers the i3 provider and consumes its complete state/action contract.
+6. Verify secure-lock and suspend behavior separately before enabling either capability.
+
+This audit is not a line-by-line certification and does not authorize installation on the daily-use host.
