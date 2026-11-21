@@ -37,7 +37,7 @@ func main() {
 }
 func usage(){fmt.Fprintln(os.Stderr,"ryoku-wm-i3: caps|state|watch|act|apply|defaults|schema|binds|outputs|session|environment")}
 func runCaps() error {
-	c:=Caps{Name:"i3",Version:"0.1.0",Instance:socketPath(),Supports:[]string{"workspaces","workspaceMoveToOutput","windowWorkspaceMap","workspaceFullscreenState","windowGeometry","sessionExit"},WorkspaceModel:"dynamic",ForeignAPIs:[]any{},SettingDomains:[]string{},ConfigFiles:[]string{},GeneratedFiles:[]string{}}
+	c:=Caps{Name:"i3",Version:"0.1.0",Instance:socketPath(),Supports:[]string{"workspaces","workspaceMoveToOutput","windowWorkspaceMap","workspaceFullscreenState","windowGeometry","sessionExit"},WorkspaceModel:"dynamic",ForeignAPIs:[]any{},SettingDomains:[]string{},ConfigFiles:[]string{"ryoku-x11/config","ryoku-x11/user.conf"},GeneratedFiles:[]string{"ryoku-x11/generated.conf"}}
 	enc:=json.NewEncoder(out); enc.SetIndent("","  "); return enc.Encode(c)
 }
 func runState() error { s,e:=readState(); if e!=nil{return e}; enc:=json.NewEncoder(out); enc.SetIndent("","  "); return enc.Encode(s) }
