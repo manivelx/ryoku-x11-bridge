@@ -15,6 +15,8 @@ export XDG_CURRENT_DESKTOP=Ryoku
 export RYOKU_WM=i3
 export I3SOCK="$socket"
 
-systemctl --user import-environment DISPLAY XAUTHORITY XDG_SESSION_TYPE XDG_CURRENT_DESKTOP RYOKU_WM I3SOCK
+env_names=(DISPLAY XDG_SESSION_TYPE XDG_CURRENT_DESKTOP RYOKU_WM I3SOCK)
+[[ -n ${XAUTHORITY:-} ]] && env_names+=(XAUTHORITY)
+systemctl --user import-environment "${env_names[@]}"
 systemctl --user start graphical-session.target
 systemctl --user start ryoku-session.target
