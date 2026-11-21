@@ -124,7 +124,7 @@ func runApply(args []string) error {
 	path:="";preview:=false;for _,a:=range args{if a=="--preview"{preview=true}else if path==""{path=a}}
 	if path==""{return errors.New("apply: missing store path")}
 	report:=ApplyReport{Provider:"i3",Unhonored:[]Unhonored{{Key:"desktop.appearance",Reason:"The i3 provider currently does not generate visual decoration settings."},{Key:"desktop.input",Reason:"Input settings are not yet translated into the isolated i3 configuration."},{Key:"desktop.windowRules",Reason:"Window rules are not yet translated by this provider."},{Key:"desktop.keybinds",Reason:"Keybind generation is not yet implemented."}}}
-	_ = preview
+	if !preview { return errors.New("apply: i3 settings writer is not implemented; no config was changed") }
 	enc:=json.NewEncoder(out);enc.SetIndent("","  ");return enc.Encode(report)
 }
 func runOutputs(args []string) error {if len(args)==0{return errors.New("outputs: missing layout file")};rep:=ApplyReport{Provider:"i3",Unhonored:[]Unhonored{{Key:"outputs",Reason:"Live output configuration is not yet implemented; no display settings were changed."}}};enc:=json.NewEncoder(out);enc.SetIndent("","  ");return enc.Encode(rep)}
