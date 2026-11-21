@@ -18,6 +18,7 @@ on:
   pull_request:
     paths:
       - "scripts/**"
+      - "tests/**"
       - "payload/**"
       - "release/packages/ryoku-desktop-i3/**"
       - "docs/**"
