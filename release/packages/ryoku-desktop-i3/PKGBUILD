@@ -19,6 +19,8 @@ optdepends=(
   'xterm: fallback terminal for the starter i3 keybinding'
   'maim: X11 screenshot capture backend'
   'xorg-xrandr: output geometry lookup for X11 screenshots'
+  'xclip: X11 clipboard ownership and clipboard history'
+  'slop: X11 region selection for OCR and QR capture'
 )
 provides=('ryoku-desktop-compositor')
 source=()
