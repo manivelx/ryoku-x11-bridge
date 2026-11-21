@@ -17,7 +17,12 @@ export I3SOCK="$socket"
 
 env_names=(DISPLAY XDG_SESSION_TYPE XDG_CURRENT_DESKTOP RYOKU_WM I3SOCK)
 [[ -n ${XAUTHORITY:-} ]] && env_names+=(XAUTHORITY)
+ryoku materialize || {
+  echo "ryoku-x11-session-init: failed to materialize the packaged Ryoku shell config" >&2
+  exit 1
+}
 systemctl --user unset-environment WAYLAND_DISPLAY
 systemctl --user import-environment "${env_names[@]}"
+systemctl --user enable ryoku-shell.service
 systemctl --user start graphical-session.target
 systemctl --user start ryoku-session.target
