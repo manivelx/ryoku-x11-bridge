@@ -20,7 +20,7 @@ HEAD="$(git -C "$UPSTREAM_SOURCE" rev-parse HEAD)"
 command -v makepkg >/dev/null 2>&1 || { echo "makepkg is required (run on Arch/CachyOS)." >&2; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo "python3 is required." >&2; exit 1; }
 
-VERSION="$(tr -d '[:space:]' < "$UPSTREAM/VERSION")"
+VERSION="$(tr -d '[:space:]' < "$UPSTREAM_SOURCE/VERSION")"
 [[ -n "$VERSION" ]] || { echo "Upstream VERSION is empty." >&2; exit 1; }
 mkdir -p "$OUT"
 OUT="$(cd "$OUT" && pwd)"
