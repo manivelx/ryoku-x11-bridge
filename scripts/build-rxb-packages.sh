@@ -24,6 +24,8 @@ VERSION="$(tr -d '[:space:]' < "$UPSTREAM_SOURCE/VERSION")"
 [[ -n "$VERSION" ]] || { echo "Upstream VERSION is empty." >&2; exit 1; }
 mkdir -p "$OUT"
 OUT="$(cd "$OUT" && pwd)"
+shopt -s nullglob
+find "$OUT" -maxdepth 1 -type f -name '*.pkg.tar.*' -delete
 
 # Work in a disposable detached worktree. Never patch the user's upstream clone.
 WORKTREE="$(mktemp -d "$OUT/.rxb-upstream.XXXXXX")"
