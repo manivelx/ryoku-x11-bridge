@@ -453,10 +453,15 @@ def patch_lock_dispatch(root: pathlib.Path) -> None:
 
 func spawnX11Locker() error {
 	launcher, err := exec.LookPath("xsecurelock")
+	args := []string{}
 	if err != nil {
-		return fmt.Errorf("X11 secure locker unavailable (install xsecurelock): %w", err)
+		launcher, err = exec.LookPath("i3lock")
+		args = []string{"--nofork"}
 	}
-	cmd := exec.Command(launcher)
+	if err != nil {
+		return fmt.Errorf("X11 secure locker unavailable (install xsecurelock or i3lock): %w", err)
+	}
+	cmd := exec.Command(launcher, args...)
 	if err := cmd.Start(); err != nil {
 		return err
 	}
