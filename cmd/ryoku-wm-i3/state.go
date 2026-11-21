@@ -157,8 +157,10 @@ func readStateForKinds(want map[string]bool) (Snapshot, error) {
 		if err := json.Unmarshal(raw, &tree); err != nil {
 			return Snapshot{}, err
 		}
+		var treeWindows []Window
+		walkWindows(&tree, "", "", snapshot.Workspaces, &treeWindows)
 		if all || want["windows"] {
-			walkWindows(&tree, "", "", snapshot.Workspaces, &snapshot.Windows)
+			snapshot.Windows = treeWindows
 			sort.SliceStable(snapshot.Windows, func(i, j int) bool {
 				return snapshot.Windows[i].Focused && !snapshot.Windows[j].Focused
 			})
@@ -169,7 +171,7 @@ func readStateForKinds(want map[string]bool) (Snapshot, error) {
 		if want["workspaces"] || all {
 			for index := range snapshot.Workspaces {
 				snapshot.Workspaces[index].Fullscreen = workspaceHasFullscreen(&tree, snapshot.Workspaces[index].Name)
-				for _, window := range snapshot.Windows {
+				for _, window := range treeWindows {
 					if window.Workspace == snapshot.Workspaces[index].ID {
 						snapshot.Workspaces[index].Windows++
 					}
