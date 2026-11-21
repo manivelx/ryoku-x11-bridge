@@ -701,6 +701,15 @@ def patch_wayland_consumers(root: pathlib.Path) -> None:
                  '(Wm.focusedWindow ? String(Wm.focusedWindow.id) : "") !== root.launchActiveToplevel')
 
 
+def patch_ryogami_package(root: pathlib.Path) -> None:
+    p = root / "release/packages/ryogami/PKGBUILD"
+    replace_once(p, "'qt6-multimedia' 'qt6-imageformats' 'skwd-paper-bin'",
+                 "'qt6-multimedia' 'qt6-imageformats'")
+    replace_once(p, "optdepends=('yt-dlp: YouTube wallpaper source'",
+                 "optdepends=('skwd-paper-bin: optional Wallpaper Engine scene renderer'\\n"
+                 "            'yt-dlp: YouTube wallpaper source'")
+
+
 def patch_x11_package_safety(root: pathlib.Path) -> None:
     # The upstream desktop package normally installs distribution-wide boot,
     # udev, modprobe, polkit, logind and SDDM integration. RXB must not apply
@@ -799,7 +808,7 @@ def main() -> int:
     patch_x11_clipboard(root)
     patch_x11_region_tools(root)
     patch_lock_dispatch(root)
-    patch_x11_package_safety(root)
+    patch_ryogami_package(root)\n    patch_x11_package_safety(root)
     print(f"RXB overlay applied to pinned Ryoku {PIN}")
     print("Changed: provider/session discovery, QML i3 bridge, X11 panel/taskbar/capture/clipboard/lock adapters, and non-destructive package policy")
     print("Note: this is a source overlay, not a completed/validated desktop build.")
