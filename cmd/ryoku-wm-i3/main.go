@@ -37,7 +37,7 @@ func main() {
 }
 func usage(){fmt.Fprintln(os.Stderr,"ryoku-wm-i3: caps|state|watch|act|apply|defaults|schema|binds|outputs|session|environment")}
 func runCaps() error {
-	c:=Caps{Name:"i3",Version:"0.1.0",Instance:socketPath(),Supports:[]string{"workspaces","workspaceMoveToOutput","windowWorkspaceMap","workspaceFullscreenState","windowGeometry","focusHistory","windowFloat"},WorkspaceModel:"dynamic",ForeignAPIs:[]any{},SettingDomains:[]string{"desktop","wm.i3"},ConfigFiles:[]string{"ryoku-x11/i3.conf"},GeneratedFiles:[]string{"ryoku-x11/generated.conf"}}
+	c:=Caps{Name:"i3",Version:"0.1.0",Instance:socketPath(),Supports:[]string{"workspaces","workspaceMoveToOutput","windowWorkspaceMap","workspaceFullscreenState","windowGeometry"},WorkspaceModel:"dynamic",ForeignAPIs:[]any{},SettingDomains:[]string{"desktop","wm.i3"},ConfigFiles:[]string{"ryoku-x11/i3.conf"},GeneratedFiles:[]string{"ryoku-x11/generated.conf"}}
 	enc:=json.NewEncoder(out); enc.SetIndent("","  "); return enc.Encode(c)
 }
 func runState() error { s,e:=readState(); if e!=nil{return e}; enc:=json.NewEncoder(out); enc.SetIndent("","  "); return enc.Encode(s) }
@@ -97,7 +97,6 @@ func runAct(a []string) error {
 	case "output.focusDirection":
 		if len(rest)<1{return errors.New("direction required")};d:=strings.ToLower(rest[0]);if !validDirection(d){return fmt.Errorf("invalid direction %q",d)};return runCommand("focus output "+d)
 	case "window.center": return runCommand("move position center")
-	case "window.maximize": return runCommand("fullscreen toggle")
 	default:return fmt.Errorf("unsupported or unknown action %q",id)
 	}
 }
