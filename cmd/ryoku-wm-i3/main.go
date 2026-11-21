@@ -14,6 +14,7 @@ import (
 )
 
 var out = bufio.NewWriter(os.Stdout)
+var version = "dev"
 
 func main() {
 	if len(os.Args) < 2 { usage(); os.Exit(2) }
@@ -41,7 +42,7 @@ func usage(){fmt.Fprintln(os.Stderr,"ryoku-wm-i3: caps|state|watch|act|apply|def
 func runCaps() error {
 	c := Caps{
 		Name:           "i3",
-		Version:        "0.2.0",
+		Version:        version,
 		Instance:       socketPath(),
 		Supports:       []string{"workspaces", "workspaceMoveToOutput", "windowWorkspaceMap", "workspaceFullscreenState", "windowGeometry", "windowFloat", "sessionExit", "configReload", "tiledLayout"},
 		SettingDomains: []string{},
