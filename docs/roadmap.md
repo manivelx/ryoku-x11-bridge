@@ -21,7 +21,7 @@ Status: documentation baseline committed; audit is not yet exhaustive.
 [x] Sway socket fallback removed; only I3SOCK or sanitized i3 socket discovery is accepted
 [x] Settings apply remains fail-closed; no placeholder generated config is written
 [x] Bind legend returns empty until the upstream catalogue/rebind resolver is ported (no fabricated chords)
-[ ] Provider CI at Go 1.22: gofmt, vet, race tests, build
+[x] Provider CI at Go 1.22: gofmt, vet, race tests, build passed
 [ ] Xvfb Quickshell.I3 + X11 PanelWindow smoke test
 [ ] Full upstream shell daemon runtime test in isolated i3 session
 
@@ -70,8 +70,8 @@ Evidence is deliberately separate. A checked implementation item does not imply 
 
 | Work item | Source inspected | Implemented | Build passed | Unit passed | Xvfb/Xephyr passed | Target hardware passed | Owner confirmed |
 |---|---|---|---|---|---|---|---|
-| i3 IPC provider | Yes | Yes, initial | Pending current branch CI | Pending current branch CI | Pending | No | No |
-| Watch debounce/incremental frames | Yes, upstream frame contract | Yes | Pending current branch CI | Pending current branch CI | Pending | No | No |
+| i3 IPC provider | Yes | Yes, initial | Yes | Yes | Pending | No | No |
+| Watch debounce/incremental frames | Yes, upstream frame contract | Yes | Yes | Yes | Pending | No | No |
 | Quickshell I3/PanelWindow smoke | Quickshell 0.3.2 API reviewed | Smoke harness only | Pending | N/A | Pending | No | No |
 | X11 lock wrapper | XSecureLock/i3lock command paths | Yes, wrapper only | Pending package CI | Wrapper test pending | No | No | No |
 | Settings/keybind translation | Upstream schema inspected | No; fail-closed/empty | N/A | N/A | No | No | No |
