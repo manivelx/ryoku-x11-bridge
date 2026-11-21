@@ -37,25 +37,25 @@ def replace_in_map(path: pathlib.Path, marker: str, old: str, new: str) -> None:
 
 def patch_detect_file(p: pathlib.Path) -> None:
     replace_once(p, 'ProviderWayfire  = "wayfire"',
-                 'ProviderWayfire  = "wayfire"\\n\\tProviderI3       = "i3"')
+                 'ProviderWayfire  = "wayfire"\n\tProviderI3       = "i3"')
     replace_once(p, '{"WAYFIRE_SOCKET", ProviderWayfire, func(h string) []string { return []string{h} }},',
-                 '{"WAYFIRE_SOCKET", ProviderWayfire, func(h string) []string { return []string{h} }},\\n'
-                 '\\t// i3 exports its IPC socket path to clients in the session.\\n'
-                 '\\t{"I3SOCK", ProviderI3, func(h string) []string { return []string{h} }},')
+                 '{"WAYFIRE_SOCKET", ProviderWayfire, func(h string) []string { return []string{h} }},\n'
+                 '\t// i3 exports its IPC socket path to clients in the session.\n'
+                 '\t{"I3SOCK", ProviderI3, func(h string) []string { return []string{h} }},')
     replace_in_map(p, "var configDirs", 'ProviderWayfire:  "wayfire",',
-                   'ProviderWayfire:  "wayfire",\\n\\tProviderI3:       "ryoku-x11",')
+                   'ProviderWayfire:  "wayfire",\n\tProviderI3:       "ryoku-x11",')
     replace_once(p, 'ProviderWayfire:  "wayfire.ini",',
-                 'ProviderWayfire:  "wayfire.ini",\\n\\tProviderI3:       "config",')
+                 'ProviderWayfire:  "wayfire.ini",\n\tProviderI3:       "config",')
     replace_once(p, 'ProviderWayfire: {"monitors.ini", "keyboard.ini", "user.ini"},',
-                 'ProviderWayfire: {"monitors.ini", "keyboard.ini", "user.ini"},\\n\\tProviderI3:      {"config", "generated.conf", "user.conf"},')
+                 'ProviderWayfire: {"monitors.ini", "keyboard.ini", "user.ini"},\n\tProviderI3:      {"config", "generated.conf", "user.conf"},')
     replace_once(p, 'ProviderWayfire:  {"wayfire/user.ini", "wayfire/monitors.ini"},',
-                 'ProviderWayfire:  {"wayfire/user.ini", "wayfire/monitors.ini"},\\n\\tProviderI3:       {"ryoku-x11/user.conf", "ryoku-x11/config"},')
+                 'ProviderWayfire:  {"wayfire/user.ini", "wayfire/monitors.ini"},\n\tProviderI3:       {"ryoku-x11/user.conf", "ryoku-x11/config"},')
     replace_once(p, 'ProviderWayfire:  {"wayfire/wayfire.ini", "ryoku/user_edits/wayfire/wayfire.ini"},',
-                 'ProviderWayfire:  {"wayfire/wayfire.ini", "ryoku/user_edits/wayfire/wayfire.ini"},\\n\\tProviderI3:       {"ryoku-x11/generated.conf"},')
+                 'ProviderWayfire:  {"wayfire/wayfire.ini", "ryoku/user_edits/wayfire/wayfire.ini"},\n\tProviderI3:       {"ryoku-x11/generated.conf"},')
     replace_once(p, 'return []string{ProviderHyprland, ProviderNiri, ProviderWayfire}',
                  'return []string{ProviderHyprland, ProviderNiri, ProviderWayfire, ProviderI3}')
     replace_in_map(p, "var compositorBins", 'ProviderWayfire:  "wayfire",',
-                   'ProviderWayfire:  "wayfire",\\n\\tProviderI3:       "i3",')
+                   'ProviderWayfire:  "wayfire",\n\tProviderI3:       "i3",')
     subprocess.run(["gofmt", "-w", str(p)], check=True)
 
 
