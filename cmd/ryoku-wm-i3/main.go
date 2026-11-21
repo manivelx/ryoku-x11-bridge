@@ -37,7 +37,7 @@ func main() {
 }
 func usage(){fmt.Fprintln(os.Stderr,"ryoku-wm-i3: caps|state|watch|act|apply|defaults|schema|binds|outputs|session|environment")}
 func runCaps() error {
-	c:=Caps{Name:"i3",Version:"0.1.0",Instance:socketPath(),Supports:[]string{"workspaces","workspaceMoveToOutput","windowWorkspaceMap","workspaceFullscreenState","windowGeometry"},WorkspaceModel:"dynamic",ForeignAPIs:[]any{},SettingDomains:[]string{},ConfigFiles:[]string{},GeneratedFiles:[]string{}}
+	c:=Caps{Name:"i3",Version:"0.1.0",Instance:socketPath(),Supports:[]string{"workspaces","workspaceMoveToOutput","windowWorkspaceMap","workspaceFullscreenState","windowGeometry","sessionExit"},WorkspaceModel:"dynamic",ForeignAPIs:[]any{},SettingDomains:[]string{},ConfigFiles:[]string{},GeneratedFiles:[]string{}}
 	enc:=json.NewEncoder(out); enc.SetIndent("","  "); return enc.Encode(c)
 }
 func runState() error { s,e:=readState(); if e!=nil{return e}; enc:=json.NewEncoder(out); enc.SetIndent("","  "); return enc.Encode(s) }
@@ -75,7 +75,7 @@ func runAct(a []string) error {
 		cmd:=fmt.Sprintf("[con_id=%d] ",n)
 		switch id {case "window.focus":cmd+="focus";case "window.close":cmd+="kill";case "window.fullscreen":cmd+="fullscreen toggle";case "window.float":cmd+="floating toggle"}
 		return runCommand(cmd)
-	case "workspace.focus":
+	case "app.focus":\n\t\tif len(rest)<1{return errors.New("act app.focus: missing app id")}\n\t\tsnap,e:=readState();if e!=nil{return e};for _,w:=range snap.Windows{if strings.EqualFold(w.AppID,rest[0]){n,err:=strconv.ParseInt(w.ID,10,64);if err==nil{return runCommand(fmt.Sprintf("[con_id=%d] focus",n))}}};return fmt.Errorf("no window found for app id %q",rest[0])\n\tcase "session.exit": return runCommand("exit")\n\tcase "workspace.focus":
 		if len(rest)<1{return errors.New("act workspace.focus: missing workspace id")}
 		return runCommand("workspace "+quoteWorkspace(rest[0]))
 	case "workspace.cycle":
