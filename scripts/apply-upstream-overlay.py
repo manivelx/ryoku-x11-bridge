@@ -411,7 +411,7 @@ exec wl-copy --type "$mime" "$@"
                  "    command -v \"$command\" >/dev/null 2>&1 || { notify_failure \"$command is not installed\"; exit 1; }\n"
                  "  done\n"
                  "else\n  for command in grim slurp; do")
-    replace_once(p, "\t\tdone\n\tinput_file=$(mktemp",
+    replace_once(p, "\tdone\n\tinput_file=$(mktemp",
                  "\t\tdone\nfi\n\tinput_file=$(mktemp")
     replace_once(p, "geometry=$(slurp 2>/dev/null) || {",
                  "if [[ -n ${DISPLAY:-} && -z ${WAYLAND_DISPLAY:-} ]]; then\n"
