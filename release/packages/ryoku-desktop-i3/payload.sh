@@ -30,6 +30,10 @@ case "$mode" in
 
     install -Dm644 "$RYOKU_SRC/payload/systemd/ryoku-shell.service.d/10-rxb-x11.conf" \
       "$pkgdir/usr/lib/systemd/user/ryoku-shell.service.d/10-rxb-x11.conf"
+
+    # Enable the shell only when the RXB session target is explicitly started.
+    install -d "$pkgdir/usr/lib/systemd/user/ryoku-session.target.wants"
+    ln -sfn ../ryoku-shell.service "$pkgdir/usr/lib/systemd/user/ryoku-session.target.wants/ryoku-shell.service"
     install -Dm644 /dev/stdin "$pkgdir/usr/share/xsessions/ryoku-x11.desktop" <<'EOF'
 [Desktop Entry]
 Name=Ryoku (X11 / i3)
