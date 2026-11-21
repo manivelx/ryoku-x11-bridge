@@ -140,6 +140,46 @@ func TestIPCRequestRejectsMismatchedReplyType(t *testing.T) {
 	}
 }
 
+
+func TestBoundedWorkspaceDelta(t *testing.T) {
+	for _, tc := range []struct {
+		raw string
+		dir string
+		count int
+	}{
+		{raw: "1", dir: "next", count: 1},
+		{raw: "4", dir: "next", count: 4},
+		{raw: "-2", dir: "prev", count: 2},
+		{raw: "-20", dir: "prev", count: 20},
+	} {
+		dir, count, err := boundedDelta(tc.raw)
+		if err != nil || dir != tc.dir || count != tc.count {
+			t.Fatalf("boundedDelta(%q) = %q, %d, %v", tc.raw, dir, count, err)
+		}
+	}
+	for _, raw := range []string{"0", "21", "-21", "next", "1; kill"} {
+		if _, _, err := boundedDelta(raw); err == nil {
+			t.Fatalf("boundedDelta(%q) unexpectedly succeeded", raw)
+		}
+	}
+}
+
+func TestFindWindowIDByExactTitle(t *testing.T) {
+	windows := []Window{
+		{ID: "100", Title: "Terminal"},
+		{ID: "200", Title: "Terminal — project"},
+	}
+	if id, ok := findWindowIDByTitle(windows, "Terminal"); !ok || id != "100" {
+		t.Fatalf("exact title lookup = %q, %v", id, ok)
+	}
+	if id, ok := findWindowIDByTitle(windows, "terminal"); ok {
+		t.Fatalf("case-insensitive title lookup unexpectedly returned %q", id)
+	}
+	if _, ok := findWindowIDByTitle(windows, "missing"); ok {
+		t.Fatal("missing title unexpectedly found")
+	}
+}
+
 func TestWorkspaceAndActionValidation(t *testing.T) {
 	if quoteWorkspace("2") != "2" { t.Fatal("numeric workspace must stay numeric") }
 	if quoteWorkspace("web dev") != `"web dev"` { t.Fatal("workspace names with spaces must be quoted") }
