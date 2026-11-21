@@ -39,8 +39,8 @@ for forbidden in \
   'usr/bin/ryoku-qylock-lock' \
   'usr/lib/systemd/user/ryoku-session.target.wants/ryogami.service' \
   'usr/lib/systemd/user/ryogami.service.d/10-rxb-x11.conf'; do
-  if grep -Fq "$forbidden" <<<"$base_list"; then
-    echo "Forbidden host integration in base package: $forbidden" >&2
+  if grep -Fq "$forbidden" <<<"$base_list" || grep -Fq "$forbidden" <<<"$variant_list"; then
+    echo "Forbidden host integration in RXB package set: $forbidden" >&2
     exit 1
   fi
 done
