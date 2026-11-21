@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strconv"
 )
 
@@ -160,13 +159,10 @@ func readStateForKinds(want map[string]bool) (Snapshot, error) {
 		var treeWindows []Window
 		walkWindows(&tree, "", "", snapshot.Workspaces, &treeWindows)
 		if all || want["windows"] {
+			// The upstream FocusOrder field is reserved for providers with
+			// authoritative focus history. i3 exposes current focus but not the
+			// same history contract, so leave FocusOrder at its zero value.
 			snapshot.Windows = treeWindows
-			sort.SliceStable(snapshot.Windows, func(i, j int) bool {
-				return snapshot.Windows[i].Focused && !snapshot.Windows[j].Focused
-			})
-			for index := range snapshot.Windows {
-				snapshot.Windows[index].FocusOrder = index
-			}
 		}
 		if want["workspaces"] || all {
 			for index := range snapshot.Workspaces {
