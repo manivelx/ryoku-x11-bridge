@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"sort"
 )
 
 type rect struct{X int `json:"x"`;Y int `json:"y"`;Width int `json:"width"`;Height int `json:"height"`}
@@ -19,11 +20,11 @@ func readState()(Snapshot,error){
 	for _,o:=range outs{if !o.Active{continue};x:=Output{Name:o.Name,Width:o.Rect.Width,Height:o.Rect.Height,Scale:1,Focused:false,ActiveWorkspace:o.CurrentWorkspace,Make:o.Make,Model:o.Model,X:o.Rect.X,Y:o.Rect.Y,Mode:fmt.Sprintf("%dx%d@%.0f",o.CurrentMode.Width,o.CurrentMode.Height,o.CurrentMode.Refresh)};for _,m:=range o.Modes{x.Modes=append(x.Modes,fmt.Sprintf("%dx%d@%.0f",m.Width,m.Height,m.Refresh))};s.Outputs=append(s.Outputs,x)}
 	for _,w:=range wss{if w.Focused{s.FocusedOutput=w.Output};s.Workspaces=append(s.Workspaces,Workspace{ID:w.Name,Name:w.Name,Output:w.Output,Index:w.Num,Active:w.Focused,Windows:0})}
 	for i:=range s.Outputs{s.Outputs[i].Focused=s.Outputs[i].Name==s.FocusedOutput}
-	byWS:=map[string]int{};for _,w:=range s.Workspaces{byWS[w.ID]=w.Index}
 	walkWindows(&tree,"","",s.Workspaces,&s.Windows)
+	sort.SliceStable(s.Windows, func(i,j int) bool { return s.Windows[i].Focused && !s.Windows[j].Focused })
+	for i := range s.Windows { s.Windows[i].FocusOrder = i }
 	for i:=range s.Workspaces { s.Workspaces[i].Fullscreen = workspaceHasFullscreen(&tree,s.Workspaces[i].Name) }
 	for i:=range s.Workspaces{for _,w:=range s.Windows{if w.Workspace==s.Workspaces[i].ID{s.Workspaces[i].Windows++}}}
-	_ = byWS
 	return s,nil
 }
 func workspaceHasFullscreen(n *node, workspace string) bool {
@@ -36,7 +37,7 @@ func walkWindows(n *node,ws,out string,wss []Workspace,windows *[]Window){
 	if n.WindowProperties.Title!=""||n.AppID!=nil||n.PID>0{
 		app:=n.WindowProperties.Class;if n.AppID!=nil&&*n.AppID!=""{app=*n.AppID}
 		title:=n.Name;if n.WindowProperties.Title!=""{title=n.WindowProperties.Title}
-		if title!=""{*windows=append(*windows,Window{ID:strconv.FormatInt(n.ID,10),AppID:app,Title:title,Workspace:ws,Output:out,Pid:n.PID,FocusOrder:len(*windows),Floating:n.Floating=="user_on"||n.Floating=="auto_on",X:n.Rect.X,Y:n.Rect.Y,Width:n.Rect.Width,Height:n.Rect.Height})}
+		if title!=""{*windows=append(*windows,Window{ID:strconv.FormatInt(n.ID,10),AppID:app,Title:title,Workspace:ws,Output:out,Pid:n.PID,Focused:n.Focused,Floating:n.Floating=="user_on"||n.Floating=="auto_on",X:n.Rect.X,Y:n.Rect.Y,Width:n.Rect.Width,Height:n.Rect.Height})}
 	}
 	for i:=range n.Nodes{walkWindows(&n.Nodes[i],ws,out,wss,windows)}
 	for i:=range n.FloatingNodes{walkWindows(&n.FloatingNodes[i],ws,out,wss,windows)}
