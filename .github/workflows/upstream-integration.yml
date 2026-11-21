@@ -47,6 +47,7 @@ jobs:
               builder_uid="$(stat -c %u /workspace)"
               useradd -m -u "$builder_uid" builder
               su builder -c "bash /workspace/scripts/build-rxb-packages.sh /workspace/upstream /workspace/dist"
+              su builder -c "bash /workspace/scripts/test-rxb-package-safety.sh /workspace/dist"
               su builder -c "bash /workspace/scripts/test-quickshell-i3-smoke.sh"
             '
       - name: Upload built Arch packages
