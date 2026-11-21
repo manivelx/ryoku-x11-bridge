@@ -75,7 +75,26 @@ func runAct(a []string) error {
 		cmd:=fmt.Sprintf("[con_id=%d] ",n)
 		switch id {case "window.focus":cmd+="focus";case "window.close":cmd+="kill";case "window.fullscreen":cmd+="fullscreen toggle";case "window.float":cmd+="floating toggle"}
 		return runCommand(cmd)
-	case "app.focus":\n\t\tif len(rest)<1{return errors.New("act app.focus: missing app id")}\n\t\tsnap,e:=readState();if e!=nil{return e};for _,w:=range snap.Windows{if strings.EqualFold(w.AppID,rest[0]){n,err:=strconv.ParseInt(w.ID,10,64);if err==nil{return runCommand(fmt.Sprintf("[con_id=%d] focus",n))}}};return fmt.Errorf("no window found for app id %q",rest[0])\n\tcase "session.exit": return runCommand("exit")\n\tcase "workspace.focus":
+	case "app.focus":
+		if len(rest) < 1 {
+			return errors.New("act app.focus: missing app id")
+		}
+		snap, err := readState()
+		if err != nil {
+			return err
+		}
+		for _, w := range snap.Windows {
+			if strings.EqualFold(w.AppID, rest[0]) {
+				n, parseErr := strconv.ParseInt(w.ID, 10, 64)
+				if parseErr == nil {
+					return runCommand(fmt.Sprintf("[con_id=%d] focus", n))
+				}
+			}
+		}
+		return fmt.Errorf("no window found for app id %q", rest[0])
+	case "session.exit":
+		return runCommand("exit")
+	case "workspace.focus":
 		if len(rest)<1{return errors.New("act workspace.focus: missing workspace id")}
 		return runCommand("workspace "+quoteWorkspace(rest[0]))
 	case "workspace.cycle":
