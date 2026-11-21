@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -230,3 +231,42 @@ var (
 type testError struct{ message string }
 
 func (e *testError) Error() string { return e.message }
+
+func TestIPCCommandPayloadIsRawText(t *testing.T) {
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+
+	done := make(chan error, 1)
+	go func() {
+		header := make([]byte, 14)
+		if _, err := io.ReadFull(server, header); err != nil {
+			done <- err
+			return
+		}
+		length := binary.LittleEndian.Uint32(header[6:10])
+		body := make([]byte, length)
+		if _, err := io.ReadFull(server, body); err != nil {
+			done <- err
+			return
+		}
+		if got := string(body); got != "workspace 2" {
+			done <- fmt.Errorf("RUN_COMMAND payload = %q, want raw command text", got)
+			return
+		}
+		replyBody := []byte(`[{"success":true}]`)
+		reply := make([]byte, 14)
+		copy(reply, ipcMagic)
+		binary.LittleEndian.PutUint32(reply[6:10], uint32(len(replyBody)))
+		binary.LittleEndian.PutUint32(reply[10:14], msgCommand)
+		_, err := server.Write(append(reply, replyBody...))
+		done <- err
+	}()
+
+	if _, err := (&ipcConn{c: client}).request(msgCommand, "workspace 2"); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+}
