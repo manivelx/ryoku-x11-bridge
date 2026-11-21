@@ -66,11 +66,16 @@ jobs:
               su builder -c "bash /workspace/scripts/test-rxb-package-safety.sh /workspace/dist"
               su builder -c "bash /workspace/scripts/test-quickshell-i3-smoke.sh"
             '
+      - name: Bundle Arch packages for artifact upload
+        run: |
+          mapfile -t packages < <(find dist -maxdepth 1 -type f -name '*.pkg.tar.*' -printf '%f\\n' | sort)
+          (("${#packages[@]}" > 0)) || { echo "No built Arch packages to upload." >&2; exit 1; }
+          tar -czf dist/rxb-arch-packages.tar.gz -C dist "${packages[@]}"
       - name: Upload built Arch packages
         uses: actions/upload-artifact@v4
         with:
           name: rxb-arch-packages
-          path: dist/*.pkg.tar.*
+          path: dist/rxb-arch-packages.tar.gz
           if-no-files-found: error
           retention-days: 14
 
