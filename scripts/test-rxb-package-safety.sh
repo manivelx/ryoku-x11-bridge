@@ -21,6 +21,10 @@ if ! grep -Fq 'EnvironmentFile=%t/ryoku-x11-session.env' "$root/payload/systemd/
   echo "Ryoku shell must consume a session-scoped environment file." >&2
   exit 1
 fi
+if grep -Fq 'ExecStartPre=-/usr/bin/ryoku-shell quit' "$root/payload/systemd/ryoku-shell.service.d/10-rxb-x11.conf"; then
+  echo "X11 unit must not terminate a shell daemon from another session." >&2
+  exit 1
+fi
 if ! grep -Fq 'systemctl --user stop ryoku-session.target' "$root/payload/bin/ryoku-x11-session"; then
   echo "X11 session wrapper must stop its target on exit." >&2
   exit 1
