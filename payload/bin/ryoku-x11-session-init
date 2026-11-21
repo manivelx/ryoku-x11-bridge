@@ -31,7 +31,6 @@ ryoku materialize || {
 systemctl --user unset-environment WAYLAND_DISPLAY
 systemctl --user import-environment "${env_names[@]}"
 systemctl --user daemon-reload
-systemctl --user enable ryoku-shell.service
-systemctl --user start graphical-session.target
+# The package links ryoku-shell.service into ryoku-session.target.wants.
+# Starting the RXB target is sufficient and avoids persistent user-level enablement.
 systemctl --user start ryoku-session.target
-systemctl --user restart ryoku-shell.service
