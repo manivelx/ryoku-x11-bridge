@@ -32,10 +32,13 @@ case "$mode" in
 
     install -Dm644 "$RYOKU_SRC/payload/systemd/ryoku-shell.service.d/10-rxb-x11.conf" \
       "$pkgdir/usr/lib/systemd/user/ryoku-shell.service.d/10-rxb-x11.conf"
+    install -Dm644 "$RYOKU_SRC/payload/systemd/ryogami.service.d/10-rxb-x11.conf" \
+      "$pkgdir/usr/lib/systemd/user/ryogami.service.d/10-rxb-x11.conf"
 
     # Link the shell only to the RXB session target, never to a default user target.
     install -d "$pkgdir/usr/lib/systemd/user/ryoku-session.target.wants"
     ln -sfn ../ryoku-shell.service "$pkgdir/usr/lib/systemd/user/ryoku-session.target.wants/ryoku-shell.service"
+    ln -sfn ../ryogami.service "$pkgdir/usr/lib/systemd/user/ryoku-session.target.wants/ryogami.service"
     install -Dm644 /dev/stdin "$pkgdir/usr/share/xsessions/ryoku-x11.desktop" <<'EOF'
 [Desktop Entry]
 Name=Ryoku (X11 / i3)
