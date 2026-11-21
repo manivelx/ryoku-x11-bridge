@@ -163,7 +163,7 @@ def patch_wm_qml(root: pathlib.Path) -> None:
     }'''
     replace_once(p, old, new)
     replace_once(p, "const tl = (arr && at < arr.length) ? arr[at] : null;",
-                 "const entry = (arr && at < arr.length) ? arr[at] : null;\\n"
+                 "const entry = (arr && at < arr.length) ? arr[at] : null;\n"
                  "            const tl = entry ? (entry.toplevel ?? entry) : null;")
     old = '''                id: s.name,
                 name: s.name,
