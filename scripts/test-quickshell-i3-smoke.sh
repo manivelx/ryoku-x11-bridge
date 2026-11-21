@@ -61,6 +61,7 @@ mkdir -p "$tmp/qml"
 cat >"$tmp/qml/shell.qml" <<'EOF'
 import Quickshell
 import Quickshell.I3
+import QtQuick
 
 ShellRoot {
     PanelWindow {
@@ -72,11 +73,28 @@ ShellRoot {
         visible: true
     }
 
-    Component.onCompleted: {
-        console.log("RXB_I3_SMOKE socket=" + I3.socketPath
-                    + " workspaceCount=" + I3.workspaces.count
-                    + " panelAbove=" + smokePanel.aboveWindows);
-        Qt.quit();
+    Connections {
+        target: I3
+        function onConnected() {
+            if (!I3.socketPath) {
+                console.error("RXB_I3_SMOKE connected without a socket path");
+                Qt.exit(1);
+                return;
+            }
+            console.log("RXB_I3_SMOKE socket=" + I3.socketPath
+                        + " workspaceCount=" + I3.workspaces.values.length
+                        + " panelAbove=" + smokePanel.aboveWindows);
+            Qt.quit();
+        }
+    }
+
+    Timer {
+        interval: 10000
+        running: true
+        onTriggered: {
+            console.error("RXB_I3_SMOKE timed out waiting for Quickshell.I3");
+            Qt.exit(1);
+        }
     }
 }
 EOF
