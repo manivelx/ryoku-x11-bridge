@@ -166,6 +166,49 @@ func spawnX11Locker() error {
     replace_once(p, old, new)
 
 
+def patch_wayland_consumers(root: pathlib.Path) -> None:
+    # The original taskbar/dock paths used Wayland foreign-toplevel objects.
+    # RXB's Wm singleton now supplies provider-backed wrappers with activate/close.
+    p = root / "ryoku/shell/quickshell/inir/services/TaskbarApps.qml"
+    replace_once(p, "target: ToplevelManager.toplevels\n        function onValuesChanged()",
+                 "target: Wm\n        function onWindowsChanged()")
+    replace_once(p, "(ToplevelManager.toplevels?.values ?? [])", "(Wm.toplevels ?? [])")
+
+    p = root / "ryoku/shell/quickshell/inir/services/TrayService.qml"
+    text = p.read_text()
+    if "import Ryoku.Ui.Singletons" not in text:
+        replace_once(p, "import Quickshell.Wayland\n", "import Quickshell.Wayland\nimport Ryoku.Ui.Singletons\n")
+    text = p.read_text()
+    if "ToplevelManager.toplevels.values" not in text:
+        raise RuntimeError(f"{p}: expected foreign-toplevel iteration")
+    p.write_text(text.replace("ToplevelManager.toplevels.values", "Wm.toplevels"))
+
+    p = root / "ryoku/shell/quickshell/stage/services/TaskbarApps.qml"
+    replace_once(p, "import Quickshell.Wayland\n", "import Quickshell.Wayland\nimport Ryoku.Ui.Singletons as RyokuUi\n")
+    replace_once(p, "ToplevelManager.toplevels.values", "RyokuUi.Wm.toplevels")
+
+    p = root / "ryoku/shell/quickshell/shell/modules/dock/ii/services/TaskbarApps.qml"
+    replace_once(p, "ToplevelManager.toplevels.values", "RyokuUi.Wm.toplevels")
+
+    p = root / "ryoku/shell/quickshell/shell/modules/dock/ii/services/DockLivePreviewService.qml"
+    replace_once(p, "(ToplevelManager.toplevels?.values ?? [])", "(Wm.toplevels ?? [])")
+    replace_once(p, "target: ToplevelManager\n\n        function onActiveToplevelChanged()", "target: Wm\n\n        function onFocusedWindowChanged()")
+
+    p = root / "ryoku/shell/quickshell/shell/modules/bar/barstyles/nomarchy/services/AppLibrary.qml"
+    replace_once(p, "try { return ToplevelManager.toplevels.values.length } catch (e) { return 0 }",
+                 "return Wm.windows.length")
+    replace_once(p, "root.launchActiveToplevel = ToplevelManager.activeToplevel",
+                 'root.launchActiveToplevel = Wm.focusedWindow ? String(Wm.focusedWindow.id) : ""')
+    replace_once(p, "ToplevelManager.activeToplevel === root.launchActiveToplevel",
+                 '(Wm.focusedWindow ? String(Wm.focusedWindow.id) : "") === root.launchActiveToplevel')
+    replace_once(p, "target: ToplevelManager.toplevels\n    function onValuesChanged()",
+                 "target: Wm\n    function onWindowsChanged()")
+    replace_once(p, "target: ToplevelManager\n    function onActiveToplevelChanged()",
+                 "target: Wm\n    function onFocusedWindowChanged()")
+    replace_once(p, "ToplevelManager.activeToplevel !== root.launchActiveToplevel",
+                 '(Wm.focusedWindow ? String(Wm.focusedWindow.id) : "") !== root.launchActiveToplevel')
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("ryoku_checkout", type=pathlib.Path)
@@ -179,6 +222,7 @@ def main() -> int:
     patch_detect(root)
     patch_wm_qml(root)
     patch_compositor_service(root)
+    patch_wayland_consumers(root)
     patch_lock_dispatch(root)
     print(f"RXB overlay applied to pinned Ryoku {PIN}")
     print("Changed: provider registration, Wm.qml i3 bridge, compositor capability flags, X11 lock dispatch")
