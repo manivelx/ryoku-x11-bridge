@@ -79,7 +79,11 @@ func runWatch(args []string) error {
 		c.close(); time.Sleep(500*time.Millisecond)
 	}
 }
-func runAct(a []string) error {\n\treturn runAction(a)\n}\n\nfunc runCommand(command string) error { c,e:=dial(socketPath());if e!=nil{return e};defer c.close();raw,e:=c.request(msgCommand,command);if e!=nil{return e};var replies []struct{Success bool `json:"success"`;Error bool `json:"error"`;ParseError bool `json:"parse_error"`;ErrorMessage string `json:"error_message"`};if e=json.Unmarshal(raw,&replies);e!=nil{return e};for _,r:=range replies{if !r.Success{return fmt.Errorf("i3 rejected command %q: %s",command,r.ErrorMessage)}};return nil }
+func runAct(a []string) error {
+	return runAction(a)
+}
+
+func runCommand(command string) error { c,e:=dial(socketPath());if e!=nil{return e};defer c.close();raw,e:=c.request(msgCommand,command);if e!=nil{return e};var replies []struct{Success bool `json:"success"`;Error bool `json:"error"`;ParseError bool `json:"parse_error"`;ErrorMessage string `json:"error_message"`};if e=json.Unmarshal(raw,&replies);e!=nil{return e};for _,r:=range replies{if !r.Success{return fmt.Errorf("i3 rejected command %q: %s",command,r.ErrorMessage)}};return nil }
 func runOutputs(args []string) error {if len(args)==0{return errors.New("outputs: missing layout file")};rep:=ApplyReport{Provider:"i3",Unhonored:[]Unhonored{{Key:"outputs",Reason:"Live output configuration is not yet implemented; no display settings were changed."}}};enc:=json.NewEncoder(out);enc.SetIndent("","  ");return enc.Encode(rep)}
 func runSession() error {_,e:=fmt.Fprint(out,"[Desktop Entry]\nName=Ryoku (X11 / i3)\nComment=Ryoku desktop on Xorg with i3\nTryExec=i3\nExec=ryoku-x11-session\nType=Application\nDesktopNames=Ryoku;\n");return e}
 func runEnvironment(args []string) error {if len(args)!=1{return errors.New("environment: expected one process id")};pid,e:=strconv.Atoi(args[0]);if e!=nil||pid<=0{return errors.New("environment: invalid process id")};b,e:=os.ReadFile(fmt.Sprintf("/proc/%d/environ",pid));if e!=nil{return e};sock:=envValue(b,"I3SOCK");if sock==""{return nil};if !alive(sock){return nil};_,e=fmt.Fprintf(out,"I3SOCK=%s%c",sock,byte(0));return e}
