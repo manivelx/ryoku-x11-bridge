@@ -46,7 +46,7 @@ The build order is:
 4. The original Ryoku desktop payload, built from the patched checkout.
 5. `ryoku-desktop-i3`, which provides the upstream `ryoku-desktop-compositor` virtual package.
 
-The upstream desktop package's `.install` script is replaced in the patched checkout with a non-destructive scriptlet. The X11 variant does not depend on the umbrella desktop package, avoiding a package dependency cycle.
+The upstream desktop package's `.install` script is replaced in the patched checkout with a non-destructive scriptlet. The i3 variant follows the same provider/base dependency pattern as the upstream Hyprland and niri variants: it depends on the matching `ryoku-desktop` base and provides `ryoku-desktop-compositor`. Treat the base and variant as one package transaction in the disposable test environment; do not try to install them one at a time.
 
 ## Verify package artifacts
 
