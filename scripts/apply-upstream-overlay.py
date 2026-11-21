@@ -237,6 +237,122 @@ fi
                  'captureSource: Wm.caps.persistentScreenCapture === true ? root.dragTl : null\n                live: false\n                visible: Wm.caps.persistentScreenCapture === true && root.dragTl !== null')
 
 
+def patch_x11_clipboard(root: pathlib.Path) -> None:
+    p = root / "ryoku/shell/ipc/clipboard.go"
+    text = p.read_text()
+    old = 'cmd := exec.Command("wl-copy", "--type", mime)'
+    if text.count(old) != 2:
+        raise RuntimeError(f"{p}: expected two Wayland clipboard writers, found {text.count(old)}")
+    text = text.replace(old, "cmd := selectionCopyCommand(mime)")
+    insert = '''func selectionCopyCommand(mime string) *exec.Cmd {
+	if os.Getenv("WAYLAND_DISPLAY") == "" && os.Getenv("DISPLAY") != "" {
+		return exec.Command("xclip", "-selection", "clipboard", "-t", mime, "-i")
+	}
+	return exec.Command("wl-copy", "--type", mime)
+}
+
+'''
+    anchor = "func (s *clipState) copy(id uint64) error {"
+    if text.count(anchor) != 1:
+        raise RuntimeError(f"{p}: clipboard copy function anchor missing")
+    text = text.replace(anchor, insert + anchor, 1)
+    keep = "func (s *clipState) keepSelection() {\n\treapStrayClipPersist()"
+    keep_new = "func (s *clipState) keepSelection() {\n\tif os.Getenv(\"WAYLAND_DISPLAY\") == \"\" && os.Getenv(\"DISPLAY\") != \"\" { return }\n\treapStrayClipPersist()"
+    if keep not in text:
+        raise RuntimeError(f"{p}: selection keeper anchor missing")
+    p.write_text(text.replace(keep, keep_new, 1))
+
+    p = root / "ryoku/shell/ipc/clipwatch.go"
+    text = p.read_text()
+    text = text.replace('import (\n', 'import (\n\t"context"\n', 1)
+    text = text.replace('\t"os"\n', '\t"os"\n\t"os/exec"\n', 1)
+    old = '''func (s *clipState) watch() {
+	if self, err := os.Executable(); err == nil {'''
+    new = '''func (s *clipState) watch() {
+	if os.Getenv("WAYLAND_DISPLAY") == "" && os.Getenv("DISPLAY") != "" {
+		s.watchX11()
+		return
+	}
+	if self, err := os.Executable(); err == nil {'''
+    if old not in text:
+        raise RuntimeError(f"{p}: watcher entry point not found")
+    text = text.replace(old, new, 1)
+    add = '''func (s *clipState) watchX11() {
+	if _, err := exec.LookPath("xclip"); err != nil {
+		log.Printf("ryoku-shell: X11 clipboard history disabled: xclip is not installed")
+		return
+	}
+	var lastHash uint64
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		targets, err := exec.CommandContext(ctx, "xclip", "-selection", "clipboard", "-o", "-t", "TARGETS").Output()
+		cancel()
+		if err == nil {
+			mime := x11ClipboardMime(strings.Fields(string(targets)))
+			if mime == "" {
+				lastHash = 0
+			} else {
+				data, readErr := readX11Selection(mime)
+				if readErr == nil && len(data) > 0 && len(data) <= clipMaxEntryBytes {
+					hash := clipHash(data)
+					if hash != lastHash {
+						s.ingest(normalizeX11Mime(mime), data)
+						lastHash = hash
+					}
+				}
+			}
+		} else {
+			lastHash = 0
+		}
+		time.Sleep(900 * time.Millisecond)
+	}
+}
+
+func x11ClipboardMime(offered []string) string {
+	filtered := make([]string, 0, len(offered))
+	for _, mime := range offered {
+		switch strings.ToUpper(mime) {
+		case "TARGETS", "MULTIPLE", "TIMESTAMP", "SAVE_TARGETS":
+			continue
+		}
+		filtered = append(filtered, mime)
+	}
+	return pickBestMime(filtered)
+}
+
+func normalizeX11Mime(mime string) string {
+	switch mime {
+	case "UTF8_STRING", "TEXT", "STRING":
+		return "text/plain;charset=utf-8"
+	default:
+		return mime
+	}
+}
+
+func readX11Selection(mime string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "xclip", "-selection", "clipboard", "-o", "-t", mime)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil { return nil, err }
+	if err := cmd.Start(); err != nil { return nil, err }
+	data, readErr := io.ReadAll(io.LimitReader(stdout, clipMaxEntryBytes+1))
+	waitErr := cmd.Wait()
+	if ctx.Err() != nil { return nil, ctx.Err() }
+	if readErr != nil { return nil, readErr }
+	if waitErr != nil { return nil, waitErr }
+	if len(data) > clipMaxEntryBytes { return nil, fmt.Errorf("clipboard selection exceeds %d bytes", clipMaxEntryBytes) }
+	return data, nil
+}
+
+'''
+    anchor = "func dialWayland() (*net.UnixConn, error) {"
+    if text.count(anchor) != 1:
+        raise RuntimeError(f"{p}: Wayland dial anchor missing")
+    text = text.replace(anchor, add + anchor, 1)
+    p.write_text(text)
+
+
 def patch_lock_dispatch(root: pathlib.Path) -> None:
     p = root / "ryoku/shell/ipc/actions.go"
     old = '''func lockSession() string {
@@ -335,9 +451,10 @@ def main() -> int:
     patch_compositor_service(root)
     patch_wayland_consumers(root)
     patch_x11_capture(root)
+    patch_x11_clipboard(root)
     patch_lock_dispatch(root)
     print(f"RXB overlay applied to pinned Ryoku {PIN}")
-    print("Changed: provider/session discovery, QML i3 window bridge, taskbar consumers, capture fallback, X11 lock dispatch")
+    print("Changed: provider/session discovery, QML i3 bridge, taskbar/capture adapters, X11 clipboard and lock dispatch")
     print("Note: this is a source overlay, not a completed/validated desktop build.")
     return 0
 
