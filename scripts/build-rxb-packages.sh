@@ -9,7 +9,8 @@ fi
 RXB_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 UPSTREAM_SOURCE="${1:?usage: build-rxb-packages.sh /path/to/pinned/ryoku-checkout [output-dir]}"
 OUT="${2:-$RXB_ROOT/dist}"
-PIN="0bf11741b22f69f22ad2733025671c7d0a5e1a47"
+PIN="$(tr -d '[:space:]' < "$RXB_ROOT/UPSTREAM_PIN")"
+RXB_VERSION="$(tr -d '[:space:]' < "$RXB_ROOT/RXB_VERSION")"
 
 [[ -d "$UPSTREAM_SOURCE/.git" || -f "$UPSTREAM_SOURCE/.git" ]] || { echo "Not a git checkout: $UPSTREAM_SOURCE" >&2; exit 1; }
 HEAD="$(git -C "$UPSTREAM_SOURCE" rev-parse HEAD)"
@@ -61,7 +62,7 @@ done
 echo "[3/3] Building the RXB i3 provider/session package..."
 (
   cd "$RXB_ROOT/release/packages/ryoku-desktop-i3"
-  RYOKU_PKGVER="$VERSION" makepkg --nodeps --clean --noconfirm --force
+  RYOKU_PKGVER="$VERSION" RYOKU_BRIDGE_VERSION="$RXB_VERSION" makepkg --nodeps --clean --noconfirm --force
 )
 artifact="$(find "$RXB_ROOT/release/packages/ryoku-desktop-i3" -maxdepth 1 -type f -name '*.pkg.tar.*' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
 [[ -n "$artifact" && -f "$artifact" ]] || { echo "No ryoku-desktop-i3 package artifact produced." >&2; exit 1; }
