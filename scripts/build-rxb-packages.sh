@@ -7,12 +7,12 @@ if [[ ${EUID} -eq 0 ]]; then
 fi
 
 RXB_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-UPSTREAM="${1:?usage: build-rxb-packages.sh /path/to/pinned/ryoku-checkout [output-dir]}"
+UPSTREAM_SOURCE="${1:?usage: build-rxb-packages.sh /path/to/pinned/ryoku-checkout [output-dir]}"
 OUT="${2:-$RXB_ROOT/dist}"
 PIN="0bf11741b22f69f22ad2733025671c7d0a5e1a47"
 
-[[ -d "$UPSTREAM/.git" ]] || { echo "Not a git checkout: $UPSTREAM" >&2; exit 1; }
-HEAD="$(git -C "$UPSTREAM" rev-parse HEAD)"
+[[ -d "$UPSTREAM_SOURCE/.git" || -f "$UPSTREAM_SOURCE/.git" ]] || { echo "Not a git checkout: $UPSTREAM_SOURCE" >&2; exit 1; }
+HEAD="$(git -C "$UPSTREAM_SOURCE" rev-parse HEAD)"
 [[ "$HEAD" == "$PIN" ]] || {
   echo "Expected upstream $PIN, got $HEAD. Refusing to build against an unreviewed revision." >&2
   exit 1
@@ -23,8 +23,16 @@ command -v python3 >/dev/null 2>&1 || { echo "python3 is required." >&2; exit 1;
 VERSION="$(tr -d '[:space:]' < "$UPSTREAM/VERSION")"
 [[ -n "$VERSION" ]] || { echo "Upstream VERSION is empty." >&2; exit 1; }
 mkdir -p "$OUT"
+OUT="$(cd "$OUT" && pwd)"
 
-echo "[1/3] Applying the pinned RXB X11 overlay..."
+# Work in a disposable detached worktree. Never patch the user's upstream clone.
+WORKTREE="$(mktemp -d "$OUT/.rxb-upstream.XXXXXX")"
+rmdir "$WORKTREE"
+git -C "$UPSTREAM_SOURCE" worktree add --detach "$WORKTREE" "$PIN"
+trap 'git -C "$UPSTREAM_SOURCE" worktree remove --force "$WORKTREE" >/dev/null 2>&1 || rm -rf "$WORKTREE"' EXIT
+UPSTREAM="$WORKTREE"
+
+echo "[1/3] Applying the pinned RXB X11 overlay in the disposable worktree..."
 python3 "$RXB_ROOT/scripts/apply-upstream-overlay.py" "$UPSTREAM"
 
 build_package() {
