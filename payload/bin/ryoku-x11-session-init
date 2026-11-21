@@ -4,9 +4,16 @@ set -euo pipefail
 [[ -n ${DISPLAY:-} ]] || exit 1
 [[ -z ${WAYLAND_DISPLAY:-} ]] || exit 1
 
-socket="$(i3 --get-socketpath)"
-[[ -S "$socket" ]] || {
-  echo "ryoku-x11-session-init: i3 IPC socket is not ready: $socket" >&2
+socket=""
+for _ in $(seq 1 50); do
+  socket="$(i3 --get-socketpath 2>/dev/null || true)"
+  if [[ -n "$socket" && -S "$socket" ]]; then
+    break
+  fi
+  sleep 0.1
+done
+[[ -n "$socket" && -S "$socket" ]] || {
+  echo "ryoku-x11-session-init: i3 IPC socket did not become ready" >&2
   exit 1
 }
 
@@ -22,6 +29,7 @@ ryoku materialize || {
   exit 1
 }
 systemctl --user unset-environment WAYLAND_DISPLAY
+systemctl --user daemon-reload
 systemctl --user import-environment "${env_names[@]}"
 systemctl --user enable ryoku-shell.service
 systemctl --user start graphical-session.target
