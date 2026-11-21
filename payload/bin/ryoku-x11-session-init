@@ -26,15 +26,34 @@ export XDG_CURRENT_DESKTOP=Ryoku
 export RYOKU_WM=i3
 export I3SOCK="$socket"
 
-env_names=(DISPLAY XDG_SESSION_TYPE XDG_CURRENT_DESKTOP RYOKU_WM I3SOCK)
-[[ -n ${XAUTHORITY:-} ]] && env_names+=(XAUTHORITY)
 ryoku materialize || {
   echo "ryoku-x11-session-init: failed to materialize the packaged Ryoku shell config" >&2
   exit 1
 }
-systemctl --user unset-environment WAYLAND_DISPLAY
-systemctl --user import-environment "${env_names[@]}"
+
+# Keep X11 session variables local to the Ryoku shell unit. Importing them into
+# the shared systemd user manager would leak DISPLAY/I3SOCK into BSPWM sessions.
+runtime_dir=${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required for a systemd user session}
+env_file="$runtime_dir/ryoku-x11-session.env"
+write_env() {
+  local key="$1" value="$2"
+  if [[ "$value" == *
+\\n'* || "$value" == *'"'* || "$value" == *'\\\\'* ]]; then
+    echo "ryoku-x11-session-init: unsafe value for $key in systemd EnvironmentFile" >&2
+    exit 1
+  fi
+  printf '%s="%s"\\n' "$key" "$value"
+}
+umask 077
+{
+  write_env DISPLAY "$DISPLAY"
+  write_env XDG_SESSION_TYPE x11
+  write_env XDG_CURRENT_DESKTOP Ryoku
+  write_env RYOKU_WM i3
+  write_env I3SOCK "$socket"
+  [[ -z ${XAUTHORITY:-} ]] || write_env XAUTHORITY "$XAUTHORITY"
+} > "$env_file"
+
 systemctl --user daemon-reload
-# The package links ryoku-shell.service into ryoku-session.target.wants.
-# Starting the RXB target is sufficient and avoids persistent user-level enablement.
+# The package links ryoku-shell.service only into ryoku-session.target.wants.
 systemctl --user start ryoku-session.target
