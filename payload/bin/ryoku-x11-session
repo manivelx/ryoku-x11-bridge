@@ -16,7 +16,7 @@ export RYOKU_WM=i3
 
 config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
 config_dir="$config_home/ryoku-x11"
-ryoku_config_dir="$config_dir/config"
+ryoku_config_dir="$config_dir/ryoku-config"
 quickshell_dir="$ryoku_config_dir/quickshell"
 if [[ -L "$config_dir" || -L "$ryoku_config_dir" || -L "$quickshell_dir" ]]; then
   echo "ryoku-x11-session: refusing symlinked RXB config paths." >&2
