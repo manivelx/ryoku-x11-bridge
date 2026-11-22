@@ -3,8 +3,8 @@ name: pinned upstream integration
 concurrency:
   # Keep each commit's validation result; newer pushes must not cancel an active run.
   group: rxb-${{ github.workflow }}-${{ github.ref }}
-  # Serialize builds on this branch without cancelling the active validation.
-  cancel-in-progress: false
+  # A newer commit supersedes stale integration runs; validate the current branch head.
+  cancel-in-progress: true
 on:
   push:
     paths:
