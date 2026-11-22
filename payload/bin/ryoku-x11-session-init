@@ -66,6 +66,10 @@ umask 077
   write_env RYOKU_X11_BRIDGE "$RYOKU_X11_BRIDGE"
   write_env RYOKU_CONFIG_HOME "$RYOKU_CONFIG_HOME"
   write_env RYOKU_QUICKSHELL_CONFIG_HOME "$RYOKU_QUICKSHELL_CONFIG_HOME"
+  [[ -z ${XDG_CONFIG_HOME:-} ]] || write_env XDG_CONFIG_HOME "$XDG_CONFIG_HOME"
+  [[ -z ${XDG_DATA_HOME:-} ]] || write_env XDG_DATA_HOME "$XDG_DATA_HOME"
+  [[ -z ${XDG_CACHE_HOME:-} ]] || write_env XDG_CACHE_HOME "$XDG_CACHE_HOME"
+  [[ -z ${XDG_STATE_HOME:-} ]] || write_env XDG_STATE_HOME "$XDG_STATE_HOME"
   [[ -z ${XAUTHORITY:-} ]] || write_env XAUTHORITY "$XAUTHORITY"
 } > "$env_file"
 
