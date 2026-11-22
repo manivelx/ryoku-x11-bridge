@@ -151,6 +151,7 @@ func TestFamilySpecificLegacyRebindOverridesFamilyRebind(t *testing.T) {
 		t.Fatalf("member-specific rebind must override family rebind: %+v", binds)
 	}
 }
+
 func TestReadKeybindStoreUsesIsolatedRyokuDesktopStorePath(t *testing.T) {
 	root := t.TempDir()
 	storeDir := filepath.Join(root, "ryoku")
