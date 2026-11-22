@@ -23,6 +23,7 @@ if [[ -L "$config_dir" || -L "$ryoku_config_dir" || -L "$quickshell_dir" ]]; the
   exit 1
 fi
 install -d -m 700 "$config_dir" "$ryoku_config_dir" "$quickshell_dir"
+export RYOKU_X11_BRIDGE=1
 export RYOKU_CONFIG_HOME="$ryoku_config_dir"
 export RYOKU_QUICKSHELL_CONFIG_HOME="$quickshell_dir"
 
