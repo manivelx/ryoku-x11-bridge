@@ -62,7 +62,7 @@ Automated Go/QML/build tests, protocol tests, Xephyr/Xvfb, visual tests, real ha
 Acceptance: all evidence recorded separately; hardware and user confirmation cannot be inferred.
 
 ## Validation discipline
-On every failure: capture logs, diagnose root cause, fix, rerun failing test and regressions, document result. Do not call build success runtime success. Hardware tests require user-run collection scripts. No host install without explicit approval.
+Each branch commit retains its own CI result; newer pushes do not cancel an in-progress validation run. On every failure: capture logs, diagnose root cause, fix, rerun failing test and regressions, document result. Do not call build success runtime success. Hardware tests require user-run collection scripts. No host install without explicit approval.
 
 ## Evidence ledger
 
