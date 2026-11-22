@@ -19,7 +19,7 @@ The original Ryoku desktop, brought to X11.
 
 </div>
 
-> **Installable release candidate — target-hardware acceptance remains pending.** The release bundle is produced only after the disposable Arch package install/upgrade/rejected-transaction/rollback/removal checks and the Xvfb+i3 shell/lock smoke pass. X11 suspend and hibernate are intentionally disabled until a secure lock-before-suspend handoff is proven; live window previews remain gated. Real PAM unlock, multi-monitor behavior, and rendering on the target GT 740 / NVIDIA 470 / Picom desktop still require owner validation.
+> **Installable release candidate for isolated evaluation — not ready for installation on a daily-use machine until target-hardware acceptance.** The release bundle is produced only after the disposable Arch package install/upgrade/rejected-transaction/rollback/removal checks and the Xvfb+i3 shell/lock smoke pass. X11 suspend and hibernate are intentionally disabled until a secure lock-before-suspend handoff is proven; live window previews remain gated. Real PAM unlock, multi-monitor behavior, and rendering on the target GT 740 / NVIDIA 470 / Picom desktop still require owner validation.
 
 <div align="center">
   <img src="https://raw.githubusercontent.com/Ryoku-dev/ryoku/main/docs/media/showroom/blue-hour.webp" alt="Original Ryoku desktop visual reference" width="100%" />

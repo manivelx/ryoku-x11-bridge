@@ -58,7 +58,7 @@ Acceptance: repeatable frame/resource measurements on target hardware.
 ## Phase 8 — Packaging and installer
 [x] Non-installing package build pipeline and X11 session payload passed in Arch CI
 [x] Package safety checks protect SDDM, Orbital, Quickshell lockscreen, boot and GPU integration
-[x] Disposable Arch package install/upgrade/rejected-transaction/rollback/removal is exercised through the same RXB installer and ownership-manifest removal scripts shipped in the bundle; host rollback remains separate
+[~] Disposable Arch package install/upgrade/rejected-transaction/rollback/removal is exercised through the same RXB installer and ownership-manifest removal scripts shipped in the bundle; current-head validation pending, host rollback remains separate
 Acceptance: package transaction/removal passes in disposable Arch; session tests prove shared XDG and Quickshell config are not overwritten. Host dependency resolution and actual login-session behavior remain target-machine checks.
 
 ## Phase 9 — Release validation
