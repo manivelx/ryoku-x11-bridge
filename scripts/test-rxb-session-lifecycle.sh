@@ -52,8 +52,8 @@ cat > "$fakebin/ryoku" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ ${1:-} == materialize ]] || exit 2
-expected="$XDG_CONFIG_HOME/ryoku-x11/config/quickshell"
-expected_config="$XDG_CONFIG_HOME/ryoku-x11/config"
+expected="$XDG_CONFIG_HOME/ryoku-x11/ryoku-config/quickshell"
+expected_config="$XDG_CONFIG_HOME/ryoku-x11/ryoku-config"
 [[ ${RYOKU_CONFIG_HOME:-} == "$expected_config" ]] || {
   echo "materializer did not receive the RXB config root" >&2
   exit 1
@@ -79,7 +79,7 @@ case "$*" in
     env_file="$XDG_RUNTIME_DIR/ryoku-x11-session.env"
     [[ -f "$env_file" ]] || { echo "session EnvironmentFile missing" >&2; exit 1; }
     grep -Fqx "RYOKU_CONFIG_HOME=\"$XDG_CONFIG_HOME/ryoku-x11/config\"" "$env_file"
-    grep -Fqx "RYOKU_QUICKSHELL_CONFIG_HOME=\"$XDG_CONFIG_HOME/ryoku-x11/config/quickshell\"" "$env_file"
+    grep -Fqx "RYOKU_QUICKSHELL_CONFIG_HOME=\"$XDG_CONFIG_HOME/ryoku-x11/ryoku-config/quickshell\"" "$env_file"
     grep -Fqx 'XDG_SESSION_TYPE="x11"' "$env_file"
     ;;
 esac
@@ -112,11 +112,11 @@ done
 bash "$repo_root/payload/bin/ryoku-x11-session"
 
 [[ ! -e "$runtime/ryoku-x11-session.env" ]]
-grep -Fqx 'i3 config seed' "$config_home/ryoku-x11/config"
+grep -Fqx 'i3 config seed' "$config_home/ryoku-x11/ryoku-config"
 grep -Fqx 'generated seed' "$config_home/ryoku-x11/generated.conf"
 grep -Fqx 'my own keybinds' "$config_home/ryoku-x11/user.conf"
 grep -Fqx 'preserve this desktop config' "$config_home/quickshell/keep.qml"
-grep -Fqx 'isolated RXB shell config' "$config_home/ryoku-x11/config/quickshell/shell/shell.qml"
+grep -Fqx 'isolated RXB shell config' "$config_home/ryoku-x11/ryoku-config/quickshell/shell/shell.qml"
 grep -Fq -- '--user start ryoku-session.target' "$TEST_SYSTEMCTL_LOG"
 grep -Fq -- '--user stop ryoku-session.target' "$TEST_SYSTEMCTL_LOG"
 ! grep -Fq 'import-environment' "$TEST_SYSTEMCTL_LOG"
