@@ -28,6 +28,7 @@ ROOTS = {
     "hub": Path("ryoku/hub/quickshell"),
     "ryogami_picker": Path("ryoku/shell/ryogami/picker/qml"),
     "key_hint_app": Path("ryoku/shell/quickshell/keys"),
+    "key_hint_overlay": Path("ryoku/shell/quickshell/keys-hint"),
     "screenshot_app": Path("ryoku/shell/quickshell/ryoshot"),
     "reload_cover": Path("ryoku/shell/quickshell/reload-cover"),
     "pin_app": Path("ryoku/shell/quickshell/ryopin"),
