@@ -904,6 +904,23 @@ def patch_quickshell_config_isolation(root: pathlib.Path) -> None:
 		return
 	}''')
 
+    p = root / "ryoku/shell/ipc/matugen.go"
+    replace_once(p, '''func matugenReload(mode string, emitter kdePaletteSignalEmitter) {
+	scheme := "prefer-dark"''',
+                 '''func matugenReload(mode string, emitter kdePaletteSignalEmitter) {
+	if os.Getenv("RYOKU_X11_BRIDGE") == "1" {
+		nudgePalette()
+		return
+	}
+	scheme := "prefer-dark"''')
+
+    p = root / "ryoku/shell/quickshell/inir/scripts/colors/sync-system-fonts.sh"
+    replace_once(p, "set -euo pipefail\n",
+                 "set -euo pipefail\n\n# RXB keeps host GTK/Qt font settings untouched.\n[[ \${RYOKU_X11_BRIDGE:-0} != 1 ]] || exit 0\n")
+    p = root / "ryoku/shell/scripts/ryoku-cmd-folders"
+    replace_once(p, "set -u\n",
+                 "set -u\n\n# RXB does not change the host icon-theme setting or shared icon tree.\n[ \${RYOKU_X11_BRIDGE:-0} != 1 ] || exit 0\n")
+
     p = root / "ryoku/shell/ipc/widgetwatch.go"
     replace_once(p, '''// ryokuConfigDir is ~/.config/ryoku (honouring XDG_CONFIG_HOME), the dir the
 // Ryoku Settings sections write. Empty only when the home dir is unknowable.
