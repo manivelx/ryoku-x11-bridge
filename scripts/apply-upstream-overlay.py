@@ -796,31 +796,31 @@ post_remove() { _refresh; }
     for dep in ("'xorg-xwayland'", "'qt6-wayland'", "'qt5-wayland'", "'weston'",
                 "'wl-clipboard'", "'wl-clip-persist'", "'grim'", "'slurp'",
                 "'wtype'", "'hypridle'", "'hyprpicker'", "'dkms'"):
-        text = re.sub(r"(?m)^  " + re.escape(dep) + r"(?:[ \\t]+#.*)?\\n", "", text)
+        text = re.sub(r"(?m)^  " + re.escape(dep) + r"(?:[ \t]+#.*)?\n", "", text)
 
     text = text.replace(
-        "  # Two clients the Hyprland variant used to own that are protocol-neutral, not\\n"
-        "  # Hyprland-specific: niri serves ext-idle-notify-v1 and wlr-screencopy/layer-\\n"
-        "  # shell just the same. Shipping only with the Hyprland variant left a niri box\\n"
-        "  # with no idle management and a dead color picker everywhere; base reaches both.\\n",
-        "  # RXB deliberately does not install Wayland idle or color-picker helpers.\\n"
-        "  # Those features remain gated in the X11 session.\\n",
+        "  # Two clients the Hyprland variant used to own that are protocol-neutral, not\n"
+        "  # Hyprland-specific: niri serves ext-idle-notify-v1 and wlr-screencopy/layer-\n"
+        "  # shell just the same. Shipping only with the Hyprland variant left a niri box\n"
+        "  # with no idle management and a dead color picker everywhere; base reaches both.\n",
+        "  # RXB deliberately does not install Wayland idle or color-picker helpers.\n"
+        "  # Those features remain gated in the X11 session.\n",
     )
     text = text.replace(
-        "  # Game controllers: xpadneo-dkms (Xbox One/Series Bluetooth pads, from the AUR\\n"
-        "  # step) needs DKMS and headers for every installed kernel. The installer pairs\\n"
-        "  # each shipped kernel with its headers, and doctor fills a missing\\n"
-        "  # <kernel>-headers package on existing Arch and CachyOS boxes. Keeping only\\n"
-        "  # dkms here avoids forcing stock linux-headers onto a box that has no stock\\n"
-        "  # linux kernel.\\n",
-        "  # DKMS is optional in RXB: it is only needed for the separate xpadneo\\n"
-        "  # Xbox controller driver and must not trigger kernel-module rebuild hooks\\n"
-        "  # merely because an X11 desktop session is installed.\\n",
+        "  # Game controllers: xpadneo-dkms (Xbox One/Series Bluetooth pads, from the AUR\n"
+        "  # step) needs DKMS and headers for every installed kernel. The installer pairs\n"
+        "  # each shipped kernel with its headers, and doctor fills a missing\n"
+        "  # <kernel>-headers package on existing Arch and CachyOS boxes. Keeping only\n"
+        "  # dkms here avoids forcing stock linux-headers onto a box that has no stock\n"
+        "  # linux kernel.\n",
+        "  # DKMS is optional in RXB: it is only needed for the separate xpadneo\n"
+        "  # Xbox controller driver and must not trigger kernel-module rebuild hooks\n"
+        "  # merely because an X11 desktop session is installed.\n",
     )
     text = text.replace(
-        "optdepends=(\\n",
-        "optdepends=(\\n"
-        "  'dkms: optional xpadneo-dkms Xbox controller driver support'\\n",
+        "optdepends=(\n",
+        "optdepends=(\n"
+        "  'dkms: optional xpadneo-dkms Xbox controller driver support'\n",
         1,
     )
     old = '  RYOKU_SRC="$_repo" ' + chr(92) + "\n"
