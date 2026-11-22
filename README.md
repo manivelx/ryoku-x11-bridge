@@ -17,7 +17,7 @@ An X11 compatibility port for Ryoku using **Xorg, i3 and Quickshell**.
 
 </div>
 
-> **Development build — do not install on your daily-use PC yet.** The exact current commit has passed CI provider, upstream Go tests, Arch package build, Quickshell/Xvfb shell smoke, and disposable Arch install/removal. This is package and integration evidence, not proof that every desktop feature works. Secure locking, feature interactions, multi-monitor behavior and your GT 740 / NVIDIA 470 desktop have not passed acceptance.
+> **Development build — not ready for installation on a daily-use machine.** Do not install on your daily-use PC yet. The exact current commit has passed CI provider, upstream Go tests, Arch package build, Quickshell/Xvfb shell smoke, and disposable Arch install/removal. This is package and integration evidence, not proof that every desktop feature works. Secure locking, feature interactions, multi-monitor behavior and your GT 740 / NVIDIA 470 desktop have not passed acceptance.
 
 <img src="https://raw.githubusercontent.com/Ryoku-dev/ryoku/main/docs/media/showroom/blue-hour.webp" alt="Ryoku upstream desktop visual reference. RXB has not yet reproduced or validated this complete appearance on X11." width="100%" />
 
