@@ -38,6 +38,12 @@ for pkg in "${packages[@]}"; do
   done < <(sed -n 's/^depend = //p' <<<"$metadata")
 done
 
+ryogami_metadata="$(bsdtar -xOf "$dist"/ryogami-*.pkg.tar.* .PKGINFO)"
+if grep -Fqx 'depend = skwd-paper-bin' <<<"$ryogami_metadata"; then
+  echo "Optional Paper wallpaper provider must not be a hard install dependency" >&2
+  exit 1
+fi
+
 cleanup() {
   local status=$?
   trap - EXIT
