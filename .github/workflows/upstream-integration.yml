@@ -63,7 +63,7 @@ jobs:
                 qt6-shadertools qt6-quick3d qt6-svg qt6-5compat \
                 qt6-imageformats qt6-wayland vulkan-headers \
                 imagemagick quickshell i3-wm i3lock xorg-server-xvfb \
-                xorg-xrandr maim xclip slop dbus
+                xorg-xrandr maim xclip slop dbus mesa
               builder_uid="$(stat -c %u /workspace)"
               useradd -m -u "$builder_uid" builder
               su builder -c "bash /workspace/scripts/build-rxb-packages.sh /workspace/upstream /workspace/dist"
