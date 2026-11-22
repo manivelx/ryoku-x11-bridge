@@ -281,14 +281,27 @@ shopt -s nullglob
 packages=(dist/*.pkg.tar.*)
 (("${#packages[@]}" > 0)) || { echo "No RXB packages found in dist/"; exit 1; }
 
+mapfile -t local_provides < <(
+  for package in "${packages[@]}"; do
+    bsdtar -xOf "$package" .PKGINFO |
+      sed -n -e 's/^pkgname = //p' -e 's/^provides = //p'
+  done |
+    sed -E 's/[<>=].*$//' |
+    sort -u
+)
+
 mapfile -t external_dependencies < <(
   for package in "${packages[@]}"; do
-    bsdtar -xOf "$package" .PKGINFO
+    bsdtar -xOf "$package" .PKGINFO |
+      sed -n 's/^depend = //p'
   done |
-    sed -n 's/^depend = //p' |
     sed -E 's/[<>=].*$//' |
     sort -u |
-    grep -Ev '^(ryoku|gpk)' || true
+    while IFS= read -r dependency; do
+      if ! printf '%s\n' "${local_provides[@]}" | grep -Fxq "$dependency"; then
+        printf '%s\n' "$dependency"
+      fi
+    done
 )
 
 sudo pacman -S --needed "${external_dependencies[@]}"
