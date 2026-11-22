@@ -343,6 +343,10 @@ func resolveShippedBinds(store keybindStore) ([]resolvedI3Bind, []bindRow, []Unh
 			report = append(report, Unhonored{Key: fmt.Sprintf("desktop.keybinds[%d]", index), Reason: reason})
 			continue
 		}
+		// A syntactically valid custom chord overrides the shipped default even
+		// when its action cannot be translated. Otherwise an unsupported custom
+		// action would silently fall through and execute the old default action.
+		claimed[chord] = true
 		command, reason := customI3Action(custom)
 		row := bindRow{ID: fmt.Sprintf("custom.%d", index), Category: "Custom", Label: custom.Action, Keys: strings.Split(chord, "+"), Default: custom.Keys, Chord: chord, Kind: "custom", Rebindable: false, Unhonored: reason}
 		rows = append(rows, row)
@@ -352,7 +356,6 @@ func resolveShippedBinds(store keybindStore) ([]resolvedI3Bind, []bindRow, []Unh
 		}
 		if command != "" {
 			binds = append(binds, resolvedI3Bind{chord: chord, command: command, id: row.ID, release: custom.Release})
-			claimed[chord] = true
 		}
 	}
 
