@@ -809,9 +809,20 @@ post_remove() { _refresh; }
 
 
 def patch_quickshell_config_isolation(root: pathlib.Path) -> None:
-    # Keep Ryoku's QML tree under the RXB session's own config directory.
-    # Upstream materialize intentionally converges ~/.config/quickshell, which
-    # is unsafe on a host that already has another Quickshell desktop/config.
+    # Keep all Ryoku-managed user configuration in a session-owned subtree.
+    # Standard XDG_CONFIG_HOME remains unchanged for applications launched by
+    # the session, and the user's existing ~/.config/quickshell is never owned.
+    p = root / "ryoku/cli/internal/sys/paths.go"
+    replace_once(p, 'func ConfigHome() string { return Xdg("XDG_CONFIG_HOME", ".config") }',
+                 '''func ConfigHome() string {
+	if d := os.Getenv("RYOKU_CONFIG_HOME"); d != "" {
+		return d
+	}
+	return Xdg("XDG_CONFIG_HOME", ".config")
+}''')
+    replace_once(p, 'filepath.Join(ConfigHome(), "user-dirs.dirs")',
+                 'filepath.Join(Xdg("XDG_CONFIG_HOME", ".config"), "user-dirs.dirs")')
+
     p = root / "ryoku/cli/internal/updater/materialize.go"
     old = '''func Materialize() error {
 	base := sys.BaseConfigDir()
@@ -823,14 +834,12 @@ def patch_quickshell_config_isolation(root: pathlib.Path) -> None:
 	dest := sys.ConfigHome()
 	quickshellRoot := filepath.Join(dest, "quickshell")
 	if override := os.Getenv("RYOKU_QUICKSHELL_CONFIG_HOME"); override != "" {
-		expected := filepath.Join(dest, "ryoku-x11", "quickshell")
+		expected := filepath.Join(dest, "quickshell")
 		if !filepath.IsAbs(dest) || filepath.Clean(override) != filepath.Clean(expected) {
-			return fmt.Errorf("RYOKU_QUICKSHELL_CONFIG_HOME must be the RXB-owned path %s", expected)
+			return fmt.Errorf("RYOKU_QUICKSHELL_CONFIG_HOME must be %s", expected)
 		}
-		for _, path := range []string{filepath.Join(dest, "ryoku-x11"), expected} {
-			if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeSymlink != 0 {
-				return fmt.Errorf("refusing symlinked RXB Quickshell config path: %s", path)
-			}
+		if info, err := os.Lstat(expected); err == nil && info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("refusing symlinked RXB Quickshell config path: %s", expected)
 		}
 		quickshellRoot = expected
 	}
@@ -862,6 +871,141 @@ def patch_quickshell_config_isolation(root: pathlib.Path) -> None:
     replace_once(p, 'os.ReadFile(filepath.Join(dest, rel)); err == nil {',
                  'os.ReadFile(materializedPath(rel)); err == nil {')
 
+    # QML reads and Go services must use the RXB config root for Ryoku-owned
+    # settings, while external applications keep the ordinary XDG config home.
+    for qml in root.rglob("*.qml"):
+        if not qml.is_file():
+            continue
+        text = qml.read_text()
+        patched = text.replace(
+            'Quickshell.env("XDG_CONFIG_HOME")',
+            '(Quickshell.env("RYOKU_CONFIG_HOME") || Quickshell.env("XDG_CONFIG_HOME"))',
+        )
+        if patched != text:
+            qml.write_text(patched)
+
+    p = root / "ryoku/shell/ipc/widgetwatch.go"
+    replace_once(p, '''// ryokuConfigDir is ~/.config/ryoku (honouring XDG_CONFIG_HOME), the dir the
+// Ryoku Settings sections write. Empty only when the home dir is unknowable.
+func ryokuConfigDir() string {
+	dir := os.Getenv("XDG_CONFIG_HOME")''',
+                 '''// ryokuConfigHome is the RXB-scoped Ryoku config root when present;
+// ordinary XDG_CONFIG_HOME remains the app config root.
+func ryokuConfigHome() string {
+	if dir := os.Getenv("RYOKU_CONFIG_HOME"); dir != "" {
+		return dir
+	}
+	if dir := os.Getenv("XDG_CONFIG_HOME"); dir != "" {
+		return dir
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".config")
+}
+
+// ryokuConfigDir is the directory the Ryoku Settings sections write.
+func ryokuConfigDir() string {
+	dir := ryokuConfigHome()''')
+    replace_once(p, '''	if dir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return ""
+		}
+		dir = filepath.Join(home, ".config")
+	}
+	return filepath.Join(dir, "ryoku")
+}''',
+                 '''	if dir == "" {
+		return ""
+	}
+	return filepath.Join(dir, "ryoku")
+}''')
+
+    # Shell IPC paths that belong to Ryoku state use the session root. GTK's
+    # icon-theme reader deliberately remains on standard XDG_CONFIG_HOME.
+    for rel, old, new in (
+        ("ryoku/shell/ipc/updates.go",
+         'base := os.Getenv("XDG_CONFIG_HOME")\n\tif base == "" {\n\t\tbase = filepath.Join(os.Getenv("HOME"), ".config")\n\t}',
+         'base := ryokuConfigHome()'),
+        ("ryoku/shell/ipc/record.go",
+         'dir := os.Getenv("XDG_CONFIG_HOME")\n\tif dir == "" {\n\t\tif home, err := os.UserHomeDir(); err == nil {\n\t\t\tdir = filepath.Join(home, ".config")\n\t\t}',
+         'dir := ryokuConfigHome()\n\tif dir == "" {\n\t\treturn ""\n\t}'),
+        ("ryoku/shell/ipc/theming.go",
+         'base := os.Getenv("XDG_CONFIG_HOME")\n\tif base == "" {\n\t\tbase = filepath.Join(os.Getenv("HOME"), ".config")\n\t}',
+         'base := ryokuConfigHome()'),
+        ("ryoku/shell/ipc/bar.go",
+         'configRoot := os.Getenv("XDG_CONFIG_HOME")\n\t\tif configRoot == "" {\n\t\t\thome, _ := os.UserHomeDir()\n\t\t\tconfigRoot = filepath.Join(home, ".config")\n\t\t}',
+         'configRoot := ryokuConfigHome()'),
+        ("ryoku/shell/ipc/music.go",
+         'base := os.Getenv("XDG_CONFIG_HOME")\n\tif base == "" {\n\t\tbase = filepath.Join(os.Getenv("HOME"), ".config")\n\t}',
+         'base := ryokuConfigHome()'),
+        ("ryoku/shell/ipc/matugen.go",
+         'if d := os.Getenv("XDG_CONFIG_HOME"); d != "" {\n\t\treturn d\n\t}\n\treturn filepath.Join(os.Getenv("HOME"), ".config")',
+         'return ryokuConfigHome()'),
+    ):
+        replace_once(root / rel, old, new)
+
+    # The Hub already centralizes many config paths through configHome(); make
+    # that helper RXB-aware and route the remaining per-feature paths through it.
+    p = root / "ryoku/hub/backend/voxtype.go"
+    replace_once(p, '''func configHome() string {
+	if b := os.Getenv("XDG_CONFIG_HOME"); b != "" {''',
+                 '''func configHome() string {
+	if b := os.Getenv("RYOKU_CONFIG_HOME"); b != "" {
+		return b
+	}
+	if b := os.Getenv("XDG_CONFIG_HOME"); b != "" {''')
+    for p in (root / "ryoku/hub/backend").glob("*.go"):
+        if p.name.endswith("_test.go") or p == root / "ryoku/hub/backend/voxtype.go":
+            continue
+        text = p.read_text()
+        text = re.sub(
+            r'base := os.Getenv\\("XDG_CONFIG_HOME"\\)\\n\\s*if base == "" \\{\\n\\s*base = filepath.Join\\(os.Getenv\\("HOME"\\), "\\.config"\\)\\n\\s*\\}',
+            'base := configHome()',
+            text,
+        )
+        text = text.replace('xdgHome("XDG_CONFIG_HOME", ".config")', "configHome()")
+        text = re.sub(
+            r'if d := os.Getenv\\("XDG_CONFIG_HOME"\\); d != "" \\{\\n\\s*return d\\n\\s*\\}\\n\\s*return filepath.Join\\(os.Getenv\\("HOME"\\), "\\.config"\\)',
+            'return configHome()',
+            text,
+        )
+        p.write_text(text)
+
+    p = root / "ryoku/rashin/backend/paths.go"
+    replace_once(p, 'cfg := os.Getenv("XDG_CONFIG_HOME")',
+                 'cfg := os.Getenv("RYOKU_CONFIG_HOME")\n\tif cfg == "" {\n\t\tcfg = os.Getenv("XDG_CONFIG_HOME")\n\t}')
+    p = root / "ryoku/rashin/backend/user.go"
+    replace_once(p, 'if v := os.Getenv("XDG_CONFIG_HOME"); v != "" {',
+                 'if v := os.Getenv("RYOKU_CONFIG_HOME"); v != "" {\n\t\treturn v\n\t}\n\tif v := os.Getenv("XDG_CONFIG_HOME"); v != "" {')
+
+    p = root / "ryoku/shell/ryogami/daemon/config.go"
+    replace_once(p, 'func ryokuConfigDir() string {\n\tif d := os.Getenv("XDG_CONFIG_HOME"); d != "" {',
+                 'func ryokuConfigDir() string {\n\tif d := os.Getenv("RYOKU_CONFIG_HOME"); d != "" {\n\t\treturn filepath.Join(d, "ryoku")\n\t}\n\tif d := os.Getenv("XDG_CONFIG_HOME"); d != "" {')
+    replace_once(p, 'if d := os.Getenv("XDG_CONFIG_HOME"); d != "" {\n\t\treturn filepath.Join(d, "ryogami-wall")',
+                 'if d := os.Getenv("RYOKU_CONFIG_HOME"); d != "" {\n\t\treturn filepath.Join(d, "ryogami-wall")\n\t}\n\tif d := os.Getenv("XDG_CONFIG_HOME"); d != "" {\n\t\treturn filepath.Join(d, "ryogami-wall")')
+
+    p = root / "ryoku/apps/ryostore/backend/provider_plugins.go"
+    replace_once(p, 'func configHome() string {\n\tif base := os.Getenv("XDG_CONFIG_HOME"); base != "" {',
+                 'func configHome() string {\n\tif base := os.Getenv("RYOKU_CONFIG_HOME"); base != "" {\n\t\treturn base\n\t}\n\tif base := os.Getenv("XDG_CONFIG_HOME"); base != "" {')
+
+    p = root / "ryoku/palette-bridge/main.go"
+    replace_once(p, 'config := os.Getenv("XDG_CONFIG_HOME")',
+                 'config := os.Getenv("RYOKU_CONFIG_HOME")\n\tif config == "" {\n\t\tconfig = os.Getenv("XDG_CONFIG_HOME")\n\t}')
+
+    p = root / "ryoku/i18n/i18n.go"
+    replace_once(p, 'home := os.Getenv("XDG_CONFIG_HOME")',
+                 'home := os.Getenv("RYOKU_CONFIG_HOME")\n\tif home == "" {\n\t\thome = os.Getenv("XDG_CONFIG_HOME")\n\t}')
+    # The same config-root selection is used by both shellConfigLanguage and userOverlayDir.
+    replace_once(p, 'home := os.Getenv("XDG_CONFIG_HOME")',
+                 'home := os.Getenv("RYOKU_CONFIG_HOME")\n\tif home == "" {\n\t\thome = os.Getenv("XDG_CONFIG_HOME")\n\t}')
+
+    p = root / "ryoku/cli/internal/securitykey/config.go"
+    replace_once(p, 'if v := strings.TrimSpace(os.Getenv("XDG_CONFIG_HOME")); v != "" {',
+                 'if v := strings.TrimSpace(os.Getenv("RYOKU_CONFIG_HOME")); v != "" {\n\t\treturn v\n\t}\n\tif v := strings.TrimSpace(os.Getenv("XDG_CONFIG_HOME")); v != "" {')
+
     p = root / "ryoku/shell/ipc/actions.go"
     replace_once(p, '''	if shellDir != "" {
 		return []string{"-p", filepath.Join(shellDir, "quickshell", name)}
@@ -876,39 +1020,44 @@ def patch_quickshell_config_isolation(root: pathlib.Path) -> None:
 	return []string{"-c", name}''')
 
     p = root / "ryoku/shell/ipc/daemon.go"
-    replace_once(p, '''	shellRoot := filepath.Join(configRoot, "quickshell")
-	if shellDir != "" {
-		shellRoot = filepath.Join(shellDir, "quickshell")
-	}''',
-                 '''	shellRoot := filepath.Join(configRoot, "quickshell")
-	if root := os.Getenv("RYOKU_QUICKSHELL_CONFIG_HOME"); root != "" {
-		shellRoot = root
+    replace_once(p, '''	configRoot := os.Getenv("XDG_CONFIG_HOME")
+	if configRoot == "" {
+		home, _ := os.UserHomeDir()
+		configRoot = filepath.Join(home, ".config")
 	}
-	if shellDir != "" {
-		shellRoot = filepath.Join(shellDir, "quickshell")
-	}''')
+	shellRoot := filepath.Join(configRoot, "quickshell")''',
+                 '''	configRoot := os.Getenv("RYOKU_CONFIG_HOME")
+	if configRoot == "" {
+		configRoot = os.Getenv("XDG_CONFIG_HOME")
+	}
+	if configRoot == "" {
+		home, _ := os.UserHomeDir()
+		configRoot = filepath.Join(home, ".config")
+	}
+	shellRoot := filepath.Join(configRoot, "quickshell")''')
     replace_once(p, '''	myCfg := os.Getenv("XDG_CONFIG_HOME")
 	if myCfg == "" {
 		myCfg = myHome + "/.config"
 	}
-	var out []int''',
+	myQuickshell := os.Getenv("RYOKU_QUICKSHELL_CONFIG_HOME")''',
                  '''	myCfg := os.Getenv("XDG_CONFIG_HOME")
 	if myCfg == "" {
 		myCfg = myHome + "/.config"
 	}
-	myQuickshell := os.Getenv("RYOKU_QUICKSHELL_CONFIG_HOME")
-	var out []int''')
-    replace_once(p, "if !sameSessionEnv(string(envRaw), myHome, myCfg) {",
-                 "if !sameSessionEnv(string(envRaw), myHome, myCfg, myQuickshell) {")
-    replace_once(p, "func sameSessionEnv(environ, home, cfgDir string) bool {",
-                 "func sameSessionEnv(environ, home, cfgDir, quickshellDir string) bool {")
-    replace_once(p, '''	return c == cfgDir
-}''',
-                 '''	if c != cfgDir {
+	myRyokuCfg := os.Getenv("RYOKU_CONFIG_HOME")
+	myQuickshell := os.Getenv("RYOKU_QUICKSHELL_CONFIG_HOME")''')
+    replace_once(p, "if !sameSessionEnv(string(envRaw), myHome, myCfg, myQuickshell) {",
+                 "if !sameSessionEnv(string(envRaw), myHome, myCfg, myRyokuCfg, myQuickshell) {")
+    replace_once(p, "func sameSessionEnv(environ, home, cfgDir, quickshellDir string) bool {",
+                 "func sameSessionEnv(environ, home, cfgDir, ryokuCfgDir, quickshellDir string) bool {")
+    replace_once(p, '''	if c != cfgDir {
 		return false
 	}
-	return env["RYOKU_QUICKSHELL_CONFIG_HOME"] == quickshellDir
-}''')
+	return env["RYOKU_QUICKSHELL_CONFIG_HOME"] == quickshellDir''',
+                 '''	if c != cfgDir || env["RYOKU_CONFIG_HOME"] != ryokuCfgDir {
+		return false
+	}
+	return env["RYOKU_QUICKSHELL_CONFIG_HOME"] == quickshellDir''')
 
     test = root / "ryoku/cli/internal/updater/materialize_rxb_test.go"
     test.write_text("""package updater
@@ -920,24 +1069,26 @@ import (
 )
 
 func TestMaterializeIsolatesRXBQuickshellConfig(t *testing.T) {
-	base, dest := t.TempDir(), t.TempDir()
-	quickshell := filepath.Join(dest, "ryoku-x11", "quickshell")
+	base, xdg := t.TempDir(), t.TempDir()
+	configHome := filepath.Join(xdg, "ryoku-x11", "config")
+	quickshell := filepath.Join(configHome, "quickshell")
 	t.Setenv("RYOKU_CONFIG_BASE", base)
-	t.Setenv("XDG_CONFIG_HOME", dest)
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+	t.Setenv("RYOKU_CONFIG_HOME", configHome)
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	t.Setenv("RYOKU_QUICKSHELL_CONFIG_HOME", quickshell)
 
 	writeFile(t, filepath.Join(base, "quickshell/shell/shell.qml"), "RXB shell")
 	writeFile(t, filepath.Join(base, "quickshell/shell/old.qml"), "old RXB file")
-	writeFile(t, filepath.Join(dest, "quickshell/shell/shell.qml"), "existing desktop shell")
-	writeFile(t, filepath.Join(dest, "quickshell/keep.qml"), "existing user config")
+	writeFile(t, filepath.Join(xdg, "quickshell/shell/shell.qml"), "existing desktop shell")
+	writeFile(t, filepath.Join(xdg, "quickshell/keep.qml"), "existing user config")
 
 	if err := Materialize(); err != nil {
 		t.Fatalf("materialize isolated RXB config: %v", err)
 	}
 	wantFile(t, filepath.Join(quickshell, "shell/shell.qml"), "RXB shell")
-	wantFile(t, filepath.Join(dest, "quickshell/shell/shell.qml"), "existing desktop shell")
-	wantFile(t, filepath.Join(dest, "quickshell/keep.qml"), "existing user config")
+	wantFile(t, filepath.Join(xdg, "quickshell/shell/shell.qml"), "existing desktop shell")
+	wantFile(t, filepath.Join(xdg, "quickshell/keep.qml"), "existing user config")
 
 	if err := os.Remove(filepath.Join(base, "quickshell/shell/old.qml")); err != nil {
 		t.Fatal(err)
@@ -948,15 +1099,17 @@ func TestMaterializeIsolatesRXBQuickshellConfig(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(quickshell, "shell/old.qml")); !os.IsNotExist(err) {
 		t.Fatalf("stale RXB QML was not pruned from the isolated tree: %v", err)
 	}
-	wantFile(t, filepath.Join(dest, "quickshell/shell/shell.qml"), "existing desktop shell")
+	wantFile(t, filepath.Join(xdg, "quickshell/shell/shell.qml"), "existing desktop shell")
 }
 
 func TestMaterializeRejectsSharedQuickshellRootOverride(t *testing.T) {
-	base, dest := t.TempDir(), t.TempDir()
+	base, xdg := t.TempDir(), t.TempDir()
+	configHome := filepath.Join(xdg, "ryoku-x11", "config")
 	t.Setenv("RYOKU_CONFIG_BASE", base)
-	t.Setenv("XDG_CONFIG_HOME", dest)
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+	t.Setenv("RYOKU_CONFIG_HOME", configHome)
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
-	t.Setenv("RYOKU_QUICKSHELL_CONFIG_HOME", filepath.Join(dest, "quickshell"))
+	t.Setenv("RYOKU_QUICKSHELL_CONFIG_HOME", filepath.Join(xdg, "quickshell"))
 
 	if err := Materialize(); err == nil {
 		t.Fatal("materialize accepted the shared ~/.config/quickshell path for RXB")
@@ -974,20 +1127,58 @@ import (
 
 func TestRXBQuickshellConfigSelector(t *testing.T) {
 	activeShimaRoot.Store("")
-	t.Setenv("RYOKU_QUICKSHELL_CONFIG_HOME", "/tmp/rxb/quickshell")
+	t.Setenv("RYOKU_QUICKSHELL_CONFIG_HOME", "/tmp/rxb/config/quickshell")
 	got := qsSelect("shell")
-	if len(got) != 2 || got[0] != "-p" || got[1] != filepath.Join("/tmp/rxb/quickshell", "shell") {
+	if len(got) != 2 || got[0] != "-p" || got[1] != filepath.Join("/tmp/rxb/config/quickshell", "shell") {
 		t.Fatalf("RXB Quickshell selector = %#v", got)
 	}
 }
 
-func TestRXBSameSessionEnvIncludesQuickshellRoot(t *testing.T) {
-	env := "HOME=/home/test\\x00XDG_CONFIG_HOME=/home/test/.config\\x00RYOKU_QUICKSHELL_CONFIG_HOME=/home/test/.config/ryoku-x11/quickshell\\x00"
-	if !sameSessionEnv(env, "/home/test", "/home/test/.config", "/home/test/.config/ryoku-x11/quickshell") {
-		t.Fatal("same RXB Quickshell root was not recognized as the same session")
+func TestRXBSameSessionEnvIncludesRyokuConfigRoots(t *testing.T) {
+	env := "HOME=/home/test\\x00XDG_CONFIG_HOME=/home/test/.config\\x00RYOKU_CONFIG_HOME=/home/test/.config/ryoku-x11/config\\x00RYOKU_QUICKSHELL_CONFIG_HOME=/home/test/.config/ryoku-x11/config/quickshell\\x00"
+	if !sameSessionEnv(env, "/home/test", "/home/test/.config", "/home/test/.config/ryoku-x11/config", "/home/test/.config/ryoku-x11/config/quickshell") {
+		t.Fatal("same RXB config roots were not recognized as the same session")
 	}
-	if sameSessionEnv(env, "/home/test", "/home/test/.config", "/home/test/.config/quickshell") {
+	if sameSessionEnv(env, "/home/test", "/home/test/.config", "/home/test/.config/ryoku-x11/config", "/home/test/.config/quickshell") {
 		t.Fatal("different Quickshell roots were treated as the same session")
+	}
+}
+""")
+
+    test = root / "ryoku/cli/internal/sys/paths_rxb_test.go"
+    test.write_text("""package sys
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestConfigHomePrefersRXBRoot(t *testing.T) {
+	xdg := t.TempDir()
+	rxb := filepath.Join(xdg, "ryoku-x11", "config")
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+	t.Setenv("RYOKU_CONFIG_HOME", rxb)
+	if got := ConfigHome(); got != rxb {
+		t.Fatalf("ConfigHome() = %q, want RXB root %q", got, rxb)
+	}
+}
+
+func TestPicturesDirStillUsesStandardXDGConfig(t *testing.T) {
+	xdg := t.TempDir()
+	rxb := filepath.Join(xdg, "ryoku-x11", "config")
+	pictures := filepath.Join(t.TempDir(), "Pictures")
+	if err := os.MkdirAll(pictures, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(xdg, "user-dirs.dirs"), []byte("XDG_PICTURES_DIR=\\""+pictures+"\\"\\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+	t.Setenv("RYOKU_CONFIG_HOME", rxb)
+	t.Setenv("XDG_PICTURES_DIR", "")
+	if got := PicturesDir(); got != pictures {
+		t.Fatalf("PicturesDir() = %q, want standard XDG path %q", got, pictures)
 	}
 }
 """)
