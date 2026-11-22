@@ -27,6 +27,7 @@ packages=("$dist"/*.pkg.tar.*)
 
 declare -a package_names=()
 declare -A local_provides=()
+declare -A package_versions=()
 for pkg in "${packages[@]}"; do
   metadata="$(bsdtar -xOf "$pkg" .PKGINFO)"
   name="$(sed -n 's/^pkgname = //p' <<<"$metadata" | head -n1)"
@@ -40,6 +41,7 @@ for pkg in "${packages[@]}"; do
     exit 1
   fi
   package_names+=("$name")
+  package_versions["$name"]="$(sed -n 's/^pkgver = //p' <<<"$metadata" | head -n1)"
   local_provides["$name"]=1
   while IFS= read -r provided; do
     provided_name="${provided%%[<>=]*}"
@@ -113,10 +115,110 @@ if (("${#external_dependency_specs[@]}" > 0)); then
   }
 fi
 
+# Create a second, metadata-only pkgrel for each package so pacman exercises
+# a real version upgrade and downgrade while the payload remains byte-identical.
+upgrade_dir="$(mktemp -d)"
+mkdir -p "$upgrade_dir/upgrade" "$upgrade_dir/protected"
+declare -a upgrade_packages=()
+declare -A upgrade_versions=()
+for pkg in "${packages[@]}"; do
+  metadata="$(bsdtar -xOf "$pkg" .PKGINFO)"
+  name="$(sed -n 's/^pkgname = //p' <<<"$metadata" | head -n1)"
+  current_version="${package_versions[$name]}"
+  current_rel="${current_version##*-}"
+  version_base="${current_version%-*}"
+  [[ "$current_rel" =~ ^[0-9]+$ ]] || {
+    echo "Cannot create deterministic pkgrel upgrade for $name: $current_version" >&2
+    exit 1
+  }
+  next_version="$version_base-$((current_rel + 1))"
+  stage="$upgrade_dir/stage-$name"
+  mkdir -p "$stage"
+  bsdtar -xpf "$pkg" -C "$stage"
+  sed -i "s|^pkgver = .*|pkgver = $next_version|" "$stage/.PKGINFO"
+  upgraded_pkg="$upgrade_dir/upgrade/$name-$next_version-x86_64.pkg.tar.zst"
+  bsdtar --zstd -cf "$upgraded_pkg" -C "$stage" .
+  upgrade_packages+=("$upgraded_pkg")
+  upgrade_versions["$name"]="$next_version"
+  rm -rf "$stage"
+done
+
+test_home="$(mktemp -d)"
+export HOME="$test_home"
+declare -a protected_paths=()
+declare -a protected_snapshots=()
+declare -a protected_created=()
+protect_path() {
+  local path="$1" snapshot="$upgrade_dir/protected/${#protected_paths[@]}"
+  mkdir -p "$(dirname "$path")"
+  if [[ -e "$path" ]]; then
+    cp -a -- "$path" "$snapshot"
+    protected_created+=(0)
+  else
+    printf 'RXB protected sentinel: %s\n' "$path" > "$path"
+    protected_created+=(1)
+  fi
+  protected_paths+=("$path")
+  protected_snapshots+=("$snapshot")
+}
+verify_protected() {
+  local index path snapshot
+  for index in "${!protected_paths[@]}"; do
+    path="${protected_paths[$index]}"
+    snapshot="${protected_snapshots[$index]}"
+    if [[ "${protected_created[$index]}" == 1 ]]; then
+      grep -Fqx "RXB protected sentinel: $path" "$path" || {
+        echo "RXB changed a protected host configuration path: $path" >&2
+        return 1
+      }
+    elif ! cmp -s "$snapshot" "$path"; then
+      echo "RXB changed a pre-existing protected host configuration path: $path" >&2
+      return 1
+    fi
+  done
+}
+cleanup_protected() {
+  local index path snapshot
+  for index in "${!protected_paths[@]}"; do
+    path="${protected_paths[$index]}"
+    snapshot="${protected_snapshots[$index]}"
+    if [[ "${protected_created[$index]}" == 1 ]]; then
+      rm -f -- "$path"
+    else
+      rm -f -- "$path"
+      cp -a -- "$snapshot" "$path"
+    fi
+  done
+}
+
+# Model the protected desktop files from a disposable owner's existing system.
+# Existing files are snapshotted and restored on failure; absent paths receive
+# unique sentinels. No live machine configuration is involved in this test.
+for protected in \
+  /etc/sddm.conf \
+  /etc/sddm.conf.d/99-rxb-protected.conf \
+  /usr/share/sddm/themes/ryoku-orbital/rxb-protected.marker \
+  /usr/share/xsessions/bspwm.desktop \
+  /etc/X11/xorg.conf.d/99-rxb-protected.conf \
+  /etc/modprobe.d/99-rxb-protected.conf \
+  /etc/kernel/cmdline \
+  /etc/default/grub \
+  /boot/grub/grub.cfg \
+  "$HOME/.config/bspwm/bspwmrc" \
+  "$HOME/.config/quickshell/lockscreen.qml" \
+  "$HOME/.local/share/quickshell-lockscreen/shell.qml" \
+  "$HOME/.config/picom/picom.conf" \
+  "$HOME/.config/ryoku-x11/user.conf"; do
+  protect_path "$protected"
+done
+
 cleanup() {
   local status=$?
   trap - EXIT
   if [[ -n ${verify_root:-} ]]; then rm -rf "$verify_root"; fi
+  cleanup_protected
+  [[ -z ${upgrade_dir:-} ]] || rm -rf "$upgrade_dir"
+  [[ -z ${test_home:-} ]] || rm -rf "$test_home"
   local -a present=()
   for name in "${package_names[@]}"; do
     if pacman -Q "$name" >/dev/null 2>&1; then present+=("$name"); fi
@@ -135,6 +237,29 @@ pacman -U --noconfirm "${packages[@]}"
 for name in "${package_names[@]}"; do
   pacman -Q "$name" >/dev/null || { echo "Package was not registered after install: $name" >&2; exit 1; }
 done
+verify_protected
+
+echo "[install-test] Upgrading every RXB package from pkgrel 1 to the synthetic pkgrel 2."
+pacman -U --noconfirm "${upgrade_packages[@]}"
+for name in "${package_names[@]}"; do
+  actual_version="$(pacman -Q "$name" | awk '{print $2}')"
+  [[ "$actual_version" == "${upgrade_versions[$name]}" ]] || {
+    echo "Package upgrade did not reach expected version for $name: $actual_version" >&2
+    exit 1
+  }
+done
+verify_protected
+
+echo "[install-test] Rolling back every RXB package to its original built version."
+pacman -U --noconfirm "${packages[@]}"
+for name in "${package_names[@]}"; do
+  actual_version="$(pacman -Q "$name" | awk '{print $2}')"
+  [[ "$actual_version" == "${package_versions[$name]}" ]] || {
+    echo "Package rollback did not restore original version for $name: $actual_version" >&2
+    exit 1
+  }
+done
+verify_protected
 
 # A fresh disposable Arch container must not acquire these Wayland-only tools
 # or DKMS as a side effect of installing the RXB X11 runtime. qt6-wayland is
@@ -231,7 +356,10 @@ done
 for path in "${required_files[@]}"; do
   [[ ! -e "$path" ]] || { echo "Package-owned path remains after removal: $path" >&2; exit 1; }
 done
+verify_protected
 
+cleanup_protected
+rm -rf "$upgrade_dir" "$test_home"
 cleanup_test_config
 trap - EXIT
 echo "RXB disposable install/uninstall transaction passed."
