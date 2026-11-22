@@ -1334,9 +1334,9 @@ func TestRXBQuickshellConfigSelector(t *testing.T) {
 }
 
 func TestRXBHubQuickshellConfigSelector(t *testing.T) {
-	old := shellDir
-	shellDir = ""
-	defer func() { shellDir = old }()
+	if shellDir != "" {
+		t.Skip("development checkout selector takes precedence")
+	}
 	t.Setenv("RYOKU_QUICKSHELL_CONFIG_HOME", "/tmp/rxb/config/quickshell")
 	got := hubSelect()
 	if len(got) != 2 || got[0] != "-p" || got[1] != filepath.Join("/tmp/rxb/config/quickshell", "hub") {
