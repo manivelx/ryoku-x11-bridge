@@ -37,7 +37,7 @@ bash scripts/build-rxb-packages.sh /path/to/ryoku-checkout
 
 Artifacts are written to `RXB/dist/` by default. An optional second argument selects another output directory.
 
-The pinned upstream revision is read from `UPSTREAM_PIN`. The RXB provider version is read from `RXB_VERSION` and injected with Go linker flags. The Arch package `pkgver` deliberately follows the upstream `VERSION` so its dependency versions match the Ryoku base packages; it is not the RXB bridge version. The RXB provider module declares Go 1.22, its CI tests that minimum, and upstream integration uses Go 1.26.5 because the pinned shell/Hub modules declare that toolchain.
+The pinned upstream revision is read from `UPSTREAM_PIN`. The RXB provider version is read from `RXB_VERSION` and injected with Go linker flags. The Arch package `pkgver` for `ryoku-desktop-i3` follows the pinned upstream `VERSION`, while upstream packages such as `ryoku-desktop` and `ryogami` keep their own independent `pkgver`/`pkgrel` values. The i3 variant therefore depends on those package names without imposing a false version equality. The RXB provider version is maintained separately in `RXB_VERSION` and injected with Go linker flags. The RXB provider module declares Go 1.22, its CI tests that minimum, and upstream integration uses Go 1.26.5 because the pinned shell/Hub modules declare that toolchain.
 
 The build order is:
 1. GPK and Ryoku keyring.
