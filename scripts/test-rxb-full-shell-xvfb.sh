@@ -50,6 +50,7 @@ cleanup_quickshell_processes() {
   while IFS= read -r pid; do
     [[ -n "$pid" ]] && kill -KILL "$pid" 2>/dev/null || true
   done <<<"$pids"
+  sleep 0.1
 }
 cleanup() {
   local status=$?
@@ -59,12 +60,12 @@ cleanup() {
   [[ -z "$xvfb_pid" ]] || kill "$xvfb_pid" 2>/dev/null || true
   [[ -z "$i3_pid" ]] || wait "$i3_pid" 2>/dev/null || true
   [[ -z "$xvfb_pid" ]] || wait "$xvfb_pid" 2>/dev/null || true
-  sleep 0.2
-  rm -rf "$tmp" || {
-    sleep 0.2
-    rm -rf "$tmp"
-  }
-  exit "$status"
+  for _ in 1 2 3 4 5; do
+    rm -rf -- "$tmp" 2>/dev/null && return "$status"
+    sleep 0.3
+  done
+  echo "warning: could not fully remove $tmp" >&2
+  return "$status"
 }
 trap cleanup EXIT
 

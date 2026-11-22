@@ -20,10 +20,35 @@ export QT_OPENGL=software
 
 xvfb_pid=""
 i3_pid=""
+cleanup_quickshell_processes() {
+  local pass pids pid
+  for pass in $(seq 1 50); do
+    pids="$(ps -eo pid=,comm=,args= | awk -v root="$tmp" '$2 ~ /^(quickshell|qmlcachegen|qmlcachegen6)$/ && index($0, root) > 0 { print $1 }')"
+    [[ -z "$pids" ]] && return 0
+    while IFS= read -r pid; do
+      [[ -n "$pid" ]] && kill -TERM "$pid" 2>/dev/null || true
+    done <<<"$pids"
+    sleep 0.1
+  done
+  pids="$(ps -eo pid=,comm=,args= | awk -v root="$tmp" '$2 ~ /^(quickshell|qmlcachegen|qmlcachegen6)$/ && index($0, root) > 0 { print $1 }')"
+  while IFS= read -r pid; do
+    [[ -n "$pid" ]] && kill -KILL "$pid" 2>/dev/null || true
+  done <<<"$pids"
+}
 cleanup() {
+  local status=$?
+  trap - EXIT
+  cleanup_quickshell_processes
   [[ -z "$i3_pid" ]] || kill "$i3_pid" 2>/dev/null || true
   [[ -z "$xvfb_pid" ]] || kill "$xvfb_pid" 2>/dev/null || true
-  rm -rf "$tmp"
+  [[ -z "$i3_pid" ]] || wait "$i3_pid" 2>/dev/null || true
+  [[ -z "$xvfb_pid" ]] || wait "$xvfb_pid" 2>/dev/null || true
+  for _ in 1 2 3 4 5; do
+    rm -rf -- "$tmp" 2>/dev/null && return "$status"
+    sleep 0.3
+  done
+  echo "warning: could not fully remove $tmp" >&2
+  return "$status"
 }
 trap cleanup EXIT
 

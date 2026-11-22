@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -110,10 +111,7 @@ func parseI3BindRows(config string) ([]bindRow, error) {
 		if index >= len(fields)-1 {
 			continue
 		}
-		chord := fields[index]
-		for key, value := range variables {
-			chord = strings.ReplaceAll(chord, key, value)
-		}
+		chord := expandI3Variables(fields[index], variables)
 		keys := displayI3Chord(chord)
 		if len(keys) == 0 {
 			continue
@@ -132,6 +130,26 @@ func parseI3BindRows(config string) ([]bindRow, error) {
 		return nil, err
 	}
 	return rows, nil
+}
+
+// expandI3Variables substitutes i3 "set $name value" variables, longest name
+// first, so "$mod2" is never corrupted by an earlier "$mod" replacement and the
+// result does not depend on Go's randomized map iteration order.
+func expandI3Variables(s string, variables map[string]string) string {
+	names := make([]string, 0, len(variables))
+	for name := range variables {
+		names = append(names, name)
+	}
+	sort.Slice(names, func(i, j int) bool {
+		if len(names[i]) != len(names[j]) {
+			return len(names[i]) > len(names[j])
+		}
+		return names[i] < names[j]
+	})
+	for _, name := range names {
+		s = strings.ReplaceAll(s, name, variables[name])
+	}
+	return s
 }
 
 func displayI3Chord(chord string) []string {
