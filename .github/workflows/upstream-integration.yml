@@ -122,6 +122,7 @@ jobs:
           bash -n payload/bin/ryoku-x11-lock
           bash -n scripts/test-x11-lock-wrapper.sh
           bash -n scripts/test-rxb-session-lifecycle.sh
+          bash -n scripts/test-rxb-full-shell-xvfb.sh
           bash scripts/test-x11-lock-wrapper.sh
           bash scripts/test-rxb-session-lifecycle.sh
           bash -n release/packages/ryoku-desktop-i3/PKGBUILD
