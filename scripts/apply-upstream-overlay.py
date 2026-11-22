@@ -1168,7 +1168,7 @@ import (
 
 func TestMaterializeIsolatesRXBQuickshellConfig(t *testing.T) {
 	base, xdg := t.TempDir(), t.TempDir()
-	configHome := filepath.Join(xdg, "ryoku-x11", "config")
+	configHome := filepath.Join(xdg, "ryoku-x11", "ryoku-config")
 	quickshell := filepath.Join(configHome, "quickshell")
 	t.Setenv("RYOKU_CONFIG_BASE", base)
 	t.Setenv("XDG_CONFIG_HOME", xdg)
@@ -1202,7 +1202,7 @@ func TestMaterializeIsolatesRXBQuickshellConfig(t *testing.T) {
 
 func TestMaterializeRejectsSharedQuickshellRootOverride(t *testing.T) {
 	base, xdg := t.TempDir(), t.TempDir()
-	configHome := filepath.Join(xdg, "ryoku-x11", "config")
+	configHome := filepath.Join(xdg, "ryoku-x11", "ryoku-config")
 	t.Setenv("RYOKU_CONFIG_BASE", base)
 	t.Setenv("XDG_CONFIG_HOME", xdg)
 	t.Setenv("RYOKU_CONFIG_HOME", configHome)
@@ -1233,11 +1233,11 @@ func TestRXBQuickshellConfigSelector(t *testing.T) {
 }
 
 func TestRXBSameSessionEnvIncludesRyokuConfigRoots(t *testing.T) {
-	env := "HOME=/home/test\\x00XDG_CONFIG_HOME=/home/test/.config\\x00RYOKU_CONFIG_HOME=/home/test/.config/ryoku-x11/config\\x00RYOKU_QUICKSHELL_CONFIG_HOME=/home/test/.config/ryoku-x11/config/quickshell\\x00"
-	if !sameSessionEnv(env, "/home/test", "/home/test/.config", "/home/test/.config/ryoku-x11/config", "/home/test/.config/ryoku-x11/config/quickshell") {
+	env := "HOME=/home/test\\x00XDG_CONFIG_HOME=/home/test/.config\\x00RYOKU_CONFIG_HOME=/home/test/.config/ryoku-x11/ryoku-config\\x00RYOKU_QUICKSHELL_CONFIG_HOME=/home/test/.config/ryoku-x11/ryoku-config/quickshell\\x00"
+	if !sameSessionEnv(env, "/home/test", "/home/test/.config", "/home/test/.config/ryoku-x11/ryoku-config", "/home/test/.config/ryoku-x11/ryoku-config/quickshell") {
 		t.Fatal("same RXB config roots were not recognized as the same session")
 	}
-	if sameSessionEnv(env, "/home/test", "/home/test/.config", "/home/test/.config/ryoku-x11/config", "/home/test/.config/quickshell") {
+	if sameSessionEnv(env, "/home/test", "/home/test/.config", "/home/test/.config/ryoku-x11/ryoku-config", "/home/test/.config/quickshell") {
 		t.Fatal("different Quickshell roots were treated as the same session")
 	}
 }
@@ -1254,7 +1254,7 @@ import (
 
 func TestConfigHomePrefersRXBRoot(t *testing.T) {
 	xdg := t.TempDir()
-	rxb := filepath.Join(xdg, "ryoku-x11", "config")
+	rxb := filepath.Join(xdg, "ryoku-x11", "ryoku-config")
 	t.Setenv("XDG_CONFIG_HOME", xdg)
 	t.Setenv("RYOKU_CONFIG_HOME", rxb)
 	if got := ConfigHome(); got != rxb {
@@ -1264,7 +1264,7 @@ func TestConfigHomePrefersRXBRoot(t *testing.T) {
 
 func TestPicturesDirStillUsesStandardXDGConfig(t *testing.T) {
 	xdg := t.TempDir()
-	rxb := filepath.Join(xdg, "ryoku-x11", "config")
+	rxb := filepath.Join(xdg, "ryoku-x11", "ryoku-config")
 	pictures := filepath.Join(t.TempDir(), "Pictures")
 	if err := os.MkdirAll(pictures, 0o755); err != nil {
 		t.Fatal(err)
