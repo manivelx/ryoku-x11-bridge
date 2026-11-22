@@ -125,7 +125,7 @@ A source adapter, a successful build, an Xvfb smoke test and real desktop accept
 | Package transaction | Install/remove transaction passed in disposable Arch CI on the recorded successful baseline |
 | Full interactive Ryoku shell | Not accepted |
 | Active-profile QML / Wayland audit | Partial; exhaustive inventory remains open |
-| Keybinding translation | Not implemented; no custom RXB keybindings are shipped |
+| Keybinding translation | Full 105-action upstream catalogue is visible; no default shortcuts are installed yet and all untranslated actions are explicitly marked unsupported |
 | Secure lock / PAM / lock-before-suspend | Not security-validated; suspend handoff remains disabled |
 | Multi-monitor, capture and previews | Not accepted |
 | GT 740 / NVIDIA 470 / Picom rendering | Not tested to acceptance on target hardware |
@@ -188,7 +188,7 @@ The privileged package transaction/removal check runs in disposable Arch CI. It 
 
 Not available yet. The original shell daemon can start in the isolated Xvfb+i3 smoke environment, but the user-facing workflows have not been accepted for everyday use.
 
-RXB does not add custom keybindings. The upstream Ryoku binding catalogue and faithful i3 translation/rebinding are still work in progress. The current binding view reports only bindings actually present in the active i3 configuration.
+RXB does not add custom keybindings. The complete pinned upstream catalogue (105 actions) is now shown in the Ryoku binding legend, with every action explicitly marked unsupported until a tested i3 semantic mapping exists. Existing i3-only bindings are listed separately as custom rows. No default shortcuts are installed yet; faithful i3 translation and settings-driven persistence remain work in progress.
 
 ## Hardware
 
