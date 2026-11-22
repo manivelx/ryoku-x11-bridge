@@ -68,18 +68,26 @@ done
 export I3SOCK="$socket"
 
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME"
-ryoku materialize
 shell_root="$RYOKU_QUICKSHELL_CONFIG_HOME/shell"
+
+# Materialization and the QML runtime share one disposable D-Bus session, as
+# they would in the real login session.
+set +e
+dbus-run-session -- bash -c '
+  set -euo pipefail
+  ryoku materialize
+  [[ -f "$1/shell.qml" ]]
+  timeout --signal=TERM --kill-after=3s 20s qs -p "$1"
+' _ "$shell_root" >"$tmp/quickshell.log" 2>&1
+status=$?
+set -e
+
 [[ -f "$shell_root/shell.qml" ]] || {
+  cat "$tmp/quickshell.log"
   echo "Ryoku materializer did not create the RXB shell entry point: $shell_root/shell.qml" >&2
   find "$RYOKU_CONFIG_HOME" -maxdepth 4 -type f -print >&2 || true
   exit 1
 }
-
-set +e
-dbus-run-session -- timeout --signal=TERM --kill-after=3s 20s qs -p "$shell_root" >"$tmp/quickshell.log" 2>&1
-status=$?
-set -e
 
 if [[ $status -ne 124 && $status -ne 143 ]]; then
   cat "$tmp/quickshell.log"
