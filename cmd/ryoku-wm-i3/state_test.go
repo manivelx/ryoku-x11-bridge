@@ -308,3 +308,29 @@ func TestFormatModeNormalizesMillihertzAndOmitsMissingData(t *testing.T) {
 		})
 	}
 }
+
+
+func TestSnapshotAlwaysSerializesCollectionArrays(t *testing.T) {
+	snapshot := Snapshot{
+		Outputs:    []Output{},
+		Workspaces: []Workspace{},
+		Windows:    []Window{},
+	}
+	raw, err := json.Marshal(snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"outputs", "workspaces", "windows"} {
+		value, ok := fields[key]
+		if !ok {
+			t.Fatalf("snapshot omitted %q: %s", key, raw)
+		}
+		if string(value) != "[]" {
+			t.Fatalf("snapshot %q = %s, want []", key, value)
+		}
+	}
+}
