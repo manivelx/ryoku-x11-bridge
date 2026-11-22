@@ -149,3 +149,23 @@ func TestFamilySpecificLegacyRebindOverridesFamilyRebind(t *testing.T) {
 		t.Fatalf("member-specific rebind must override family rebind: %+v", binds)
 	}
 }
+func TestReadKeybindStoreUsesIsolatedRyokuDesktopStorePath(t *testing.T) {
+	root := t.TempDir()
+	storeDir := filepath.Join(root, "ryoku")
+	if err := os.MkdirAll(storeDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	storePath := filepath.Join(storeDir, "desktop.json")
+	if err := os.WriteFile(storePath, []byte(`{"desktop":{"keybindRebinds":{"SUPER + Q":"SUPER + X"}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("RYOKU_CONFIG_HOME", root)
+	store, err := readKeybindStore("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if store.KeybindRebinds["SUPER + Q"] != "SUPER + X" {
+		t.Fatalf("provider did not read the isolated Ryoku desktop store: %+v", store.KeybindRebinds)
+	}
+}
+

@@ -46,7 +46,9 @@ func readKeybindStore(path string) (keybindStore, error) {
 		if root == "" {
 			return keybindStore{}, nil
 		}
-		path = filepath.Join(root, "desktop.json")
+		// The pinned Ryoku settings backend stores the neutral desktop.json
+		// beneath its ryoku/ config subtree, which RXB isolates under this root.
+		path = filepath.Join(root, "ryoku", "desktop.json")
 	}
 	info, err := os.Stat(path)
 	if err != nil {

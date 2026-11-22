@@ -83,7 +83,7 @@ cat > "$fakebin/ryoku-wm-i3" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ ${1:-} == apply ]] || { echo "unexpected provider command: $*" >&2; exit 2; }
-[[ ${2:-} == "$RYOKU_CONFIG_HOME/desktop.json" ]] || {
+[[ ${2:-} == "$RYOKU_CONFIG_HOME/ryoku/desktop.json" ]] || {
   echo "provider did not receive the isolated neutral desktop store path" >&2
   exit 1
 }

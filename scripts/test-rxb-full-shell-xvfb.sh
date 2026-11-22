@@ -58,7 +58,7 @@ export DISPLAY=":$display_number"
 # Generate the original Ryoku keybinding catalogue before i3 starts, exactly
 # as the installed session wrapper does. Validate the actual generated include
 # with i3's own config parser before starting the compositor.
-ryoku-wm-i3 apply "$RYOKU_CONFIG_HOME/desktop.json" >/dev/null
+ryoku-wm-i3 apply "$RYOKU_CONFIG_HOME/ryoku/desktop.json" >/dev/null
 cat >"$tmp/i3.conf" <<'EOF'
 font pango:monospace 8
 focus_follows_mouse no

@@ -46,7 +46,7 @@ done
 
 # Generate the pinned upstream Ryoku keybinding catalogue before i3 reads its
 # config. This writes only RXB's generated.conf; the user's user.conf is untouched.
-ryoku-wm-i3 apply "$RYOKU_CONFIG_HOME/desktop.json" >/dev/null
+ryoku-wm-i3 apply "$RYOKU_CONFIG_HOME/ryoku/desktop.json" >/dev/null
 
 runtime_dir=${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required for a systemd user session}
 env_file="$runtime_dir/ryoku-x11-session.env"
