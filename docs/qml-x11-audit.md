@@ -102,7 +102,7 @@ Do not treat the search census or successful source rewrite as runtime compatibi
 
 ## Reproducible CI source inventory
 
-RXB now includes `scripts/audit-rxb-qml.py`. After applying the overlay to the pinned upstream checkout, CI inventories every QML file under these three source roots:
+RXB now includes `scripts/audit-rxb-qml.py`. After applying the overlay to the pinned upstream checkout, CI inventories every QML file under the main shell, Hub, picker and companion-app source roots:
 
 - `ryoku/shell/quickshell/shell` — the main shell tree, including optional styles and modules.
 - `ryoku/hub/quickshell` — the Hub and its settings/control pages.
