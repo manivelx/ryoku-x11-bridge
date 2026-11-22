@@ -138,7 +138,12 @@ for pkg in "${packages[@]}"; do
   bsdtar -xpf "$pkg" -C "$stage"
   sed -i "s|^pkgver = .*|pkgver = $next_version|" "$stage/.PKGINFO"
   upgraded_pkg="$upgrade_dir/upgrade/$name-$next_version-$package_arch.pkg.tar.zst"
-  bsdtar --zstd -cf "$upgraded_pkg" -C "$stage" .
+  # Pacman requires package metadata entries at archive root. Archiving "."
+  # prefixes entries with "./", which makes pacman reject the synthetic upgrade
+  # as missing .PKGINFO. Enumerate every root entry (including dotfiles) and
+  # archive those names directly instead.
+  mapfile -d '' -t archive_entries < <(find "$stage" -mindepth 1 -maxdepth 1 -printf '%f\\0' | sort -z)
+  bsdtar --zstd -cf "$upgraded_pkg" -C "$stage" -- "${archive_entries[@]}"
   upgrade_packages+=("$upgraded_pkg")
   upgrade_versions["$name"]="$next_version"
   rm -rf "$stage"
