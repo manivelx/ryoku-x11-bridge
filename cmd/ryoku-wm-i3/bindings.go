@@ -28,6 +28,8 @@ type neutralKeybindStore struct {
 	Desktop keybindStore `json:"desktop"`
 }
 
+const i3NativeBinding = "__RXB_I3_NATIVE__"
+
 type resolvedI3Bind struct {
 	chord   string
 	command string
@@ -249,10 +251,10 @@ func i3Action(id string, workspace int) (string, string) {
 		return shellExec("ryoku-cmd-brightness +5"), ""
 	case "hardware.brightnessDown":
 		return shellExec("ryoku-cmd-brightness -5"), ""
-	case "mouse.move":
-		return "move", ""
-	case "mouse.resize":
-		return "resize", ""
+	case "mouse.move", "mouse.resize":
+		// payload/ryoku-x11/config sets floating_modifier $mod; i3 handles
+		// the original Mod+mouse move/resize gestures natively.
+		return i3NativeBinding, ""
 	case "window.resize":
 		return "", "The original Ryoku resize submap has no faithful i3 mode translation yet."
 	case "window.focusPrevious":
@@ -371,7 +373,7 @@ func resolveShippedBinds(store keybindStore) ([]resolvedI3Bind, []bindRow, []Unh
 		}
 
 		rows = append(rows, row)
-		if row.Disabled || reason != "" {
+		if row.Disabled || reason != "" || actionCommand == i3NativeBinding {
 			continue
 		}
 		if cb.Family {
