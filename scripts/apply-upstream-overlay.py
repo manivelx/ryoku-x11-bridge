@@ -969,6 +969,36 @@ func ryokuConfigDir() string {
 
     # Keep Ryoku-owned Hub state isolated, but leave external app configuration
     # (GTK, Qt, Kitty, Starship, Voxtype, Fastfetch, etc.) on normal XDG paths.
+    p = root / "ryoku/hub/backend/icon_theme.go"
+    replace_once(p, "func applyIconTheme(theme string) error {",
+                 '''func applyIconTheme(theme string) error {
+	if os.Getenv("RYOKU_X11_BRIDGE") == "1" {
+		return fmt.Errorf("icon theme changes are disabled in the RXB session")
+	}''')
+    p = root / "ryoku/hub/backend/lock.go"
+    replace_once(p, '''func runLock(args []string) error {
+	if len(args) == 0 {''',
+                 '''func runLock(args []string) error {
+	if os.Getenv("RYOKU_X11_BRIDGE") == "1" && (len(args) == 0 || args[0] != "list") {
+		return fmt.Errorf("upstream lock theme and greeter management is disabled in the RXB session")
+	}
+	if len(args) == 0 {''')
+    p = root / "ryoku/hub/backend/starship.go"
+    replace_once(p, "func applyStarship(state starshipState, persist bool) error {",
+                 '''func applyStarship(state starshipState, persist bool) error {
+	if os.Getenv("RYOKU_X11_BRIDGE") == "1" {
+		return fmt.Errorf("Starship config changes are disabled in the RXB session")
+	}''')
+    p = root / "ryoku/hub/backend/fastfetch.go"
+    replace_once(p, '''func runFastfetch(args []string) error {
+	if len(args) == 0 {''',
+                 '''func runFastfetch(args []string) error {
+	if os.Getenv("RYOKU_X11_BRIDGE") == "1" && (len(args) == 0 ||
+		(args[0] != "get" && args[0] != "preview" && args[0] != "effective")) {
+		return fmt.Errorf("Fastfetch config changes are disabled in the RXB session")
+	}
+	if len(args) == 0 {''')
+
     p = root / "ryoku/hub/backend/config.go"
     replace_once(p, 'func configPath() string {',
                  '''func ryokuConfigHome() string {
