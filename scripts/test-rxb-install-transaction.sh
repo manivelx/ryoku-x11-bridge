@@ -116,6 +116,15 @@ for name in "${package_names[@]}"; do
   pacman -Q "$name" >/dev/null || { echo "Package was not registered after install: $name" >&2; exit 1; }
 done
 
+# A fresh disposable Arch container must not acquire these Wayland-only tools
+# or DKMS as a side effect of installing the RXB X11 runtime.
+for forbidden in dkms hypridle hyprpicker wtype wl-clipboard wl-clip-persist grim slurp weston xorg-xwayland qt5-wayland qt6-wayland; do
+  if pacman -Q "$forbidden" >/dev/null 2>&1; then
+    echo "RXB X11 install unexpectedly installed forbidden dependency: $forbidden" >&2
+    exit 1
+  fi
+done
+
 required_files=(
   /usr/share/xsessions/ryoku-x11.desktop
   /usr/bin/ryoku-x11-session
