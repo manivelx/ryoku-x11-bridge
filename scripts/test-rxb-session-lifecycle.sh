@@ -44,6 +44,10 @@ if [[ ${1:-} == --get-socketpath ]]; then
   exit 0
 fi
 if [[ ${1:-} == -c ]]; then
+  [[ -z ${I3SOCK:-} && -z ${SWAYSOCK:-} ]] || {
+    echo "session wrapper leaked an inherited i3/Sway socket" >&2
+    exit 1
+  }
   [[ -f ${2:-} ]] || { echo "i3 config missing" >&2; exit 1; }
   exec bash "$(command -v ryoku-x11-session-init)"
 fi
