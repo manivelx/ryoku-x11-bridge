@@ -99,14 +99,18 @@ SH
 done
 chmod +x "$fakebin"/*
 
-python3 - "$TEST_I3_SOCKET" <<'PY' &
-import socket, sys, time
-s = socket.socket(socket.AF_UNIX)
-s.bind(sys.argv[1])
-s.listen()
+python3 - "$TEST_I3_SOCKET" "$TEST_STALE_I3_SOCKET" <<'PY' &
+import select, socket, sys
+servers = []
+for path in sys.argv[1:]:
+    server = socket.socket(socket.AF_UNIX)
+    server.bind(path)
+    server.listen()
+    servers.append(server)
 while True:
-    conn, _ = s.accept()
-    conn.close()
+    for server in select.select(servers, [], [])[0]:
+        conn, _ = server.accept()
+        conn.close()
 PY
 socket_pid=$!
 for _ in $(seq 1 50); do
