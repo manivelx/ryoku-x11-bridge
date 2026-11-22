@@ -284,6 +284,132 @@ fi
                  'captureSource: Wm.caps.persistentScreenCapture === true ? root.dragTl : null\n                live: false\n                visible: Wm.caps.persistentScreenCapture === true && root.dragTl !== null')
 
 
+def patch_x11_suspend(root: pathlib.Path) -> None:
+    p = root / "ryoku/shell/quickshell/shell/services/SessionActions.qml"
+    replace_once(p, '''        if (action === "lock" || action === "suspend") {
+            Quickshell.execDetached(["ryoku-shell", action]);
+            return;
+        }''',
+        '''        if (action === "lock") {
+            Quickshell.execDetached(["ryoku-x11-lock"]);
+            return;
+        }
+        if (action === "suspend") {
+            Quickshell.execDetached(["ryoku-x11-suspend"]);
+            return;
+        }''')
+
+    p = root / "ryoku/shell/quickshell/inir/modules/common/functions/Session.qml"
+    replace_once(p, '''    function powerAction(args: var): void {
+        Quickshell.execDetached(["/bin/sh", "-c", root.powerActionScript, "sh"].concat(args))
+    }''',
+        '''    function powerAction(args: var): void {
+        if (Quickshell.env("DISPLAY") && !Quickshell.env("WAYLAND_DISPLAY")
+                && (args[0] === "suspend" || args[0] === "hibernate")) {
+            Quickshell.execDetached(["ryoku-x11-suspend", args[0]]);
+            return;
+        }
+        Quickshell.execDetached(["/bin/sh", "-c", root.powerActionScript, "sh"].concat(args))
+    }''')
+    replace_once(p, '''    function lock() {
+        Quickshell.execDetached(["ryoku-shell", "lock"]);
+    }
+
+    function suspend() {
+        if (Config.options?.idle?.lockBeforeSleep !== false) {
+            lock()
+            _suspendTimer.restart()
+        } else {
+            powerAction(["suspend"])
+        }
+    }''',
+        '''    function lock() {
+        Quickshell.execDetached(["ryoku-x11-lock"]);
+    }
+
+    function suspend() {
+        if (Quickshell.env("DISPLAY") && !Quickshell.env("WAYLAND_DISPLAY")) {
+            Quickshell.execDetached(["ryoku-x11-suspend"]);
+            return;
+        }
+        if (Config.options?.idle?.lockBeforeSleep !== false) {
+            lock()
+            _suspendTimer.restart()
+        } else {
+            powerAction(["suspend"])
+        }
+    }''')
+    replace_once(p, '''    function hibernate() {
+        if (hibernateCapabilityKnown && !canHibernate) {
+            root.refreshSleepCapabilities()
+            root._notifyHibernateUnavailable()
+            return
+        }
+
+        lock();
+        _hibernateTimer.restart();
+    }''',
+        '''    function hibernate() {
+        if (Quickshell.env("DISPLAY") && !Quickshell.env("WAYLAND_DISPLAY")) {
+            Quickshell.execDetached(["ryoku-x11-suspend", "hibernate"]);
+            return;
+        }
+        if (hibernateCapabilityKnown && !canHibernate) {
+            root.refreshSleepCapabilities()
+            root._notifyHibernateUnavailable()
+            return
+        }
+
+        lock();
+        _hibernateTimer.restart();
+    }''')
+
+    p = root / "ryoku/shell/quickshell/stage/services/Battery.qml"
+    replace_once(p, "readonly property bool allowAutomaticSuspend: Config.options.battery.automaticSuspend",
+                 "readonly property bool allowAutomaticSuspend: Config.options.battery.automaticSuspend && !(Quickshell.env(\\\"DISPLAY\\\") && !Quickshell.env(\\\"WAYLAND_DISPLAY\\\"))")
+    tick = chr(96)
+    old = 'Quickshell.execDetached(["bash", "-c", ' + tick + 'systemctl suspend || loginctl suspend' + tick + ']);'
+    replace_once(p, old, 'Quickshell.execDetached(["ryoku-x11-suspend"]);')
+
+    p = root / "ryoku/shell/quickshell/shell/modules/bar/barstyles/python/syspanel/SystemPanelPowerActions.qml"
+    replace_once(p, 'Quickshell.execDetached(["ryoku-shell", "lock"]);',
+                 'Quickshell.execDetached(["ryoku-x11-lock"]);')
+    replace_once(p, 'Quickshell.execDetached(["ryoku-host", "power", "suspend"]);',
+                 'Quickshell.execDetached(["ryoku-x11-suspend"]);')
+    replace_once(p, 'Quickshell.execDetached(["ryoku-host", "power", "hibernate"]);',
+                 'Quickshell.execDetached(["ryoku-x11-suspend", "hibernate"]);')
+
+    p = root / "ryoku/shell/quickshell/shell/modules/bar/barstyles/python/widgets/faces/user/UserFace.qml"
+    replace_once(p, 'Quickshell.execDetached(["ryoku-shell", "lock"])',
+                 'Quickshell.execDetached(["ryoku-x11-lock"])')
+    replace_once(p, 'Quickshell.execDetached(["ryoku-host", "power", "suspend"])',
+                 'Quickshell.execDetached(["ryoku-x11-suspend"])')
+
+    p = root / "ryoku/shell/quickshell/shell/modules/phone/scripts/phone/kdeconnect_runcommands.py"
+    replace_once(p, '"ryoku-lock": ("PC: lock the screen", f"{IPC} lock activate"),',
+                 '"ryoku-lock": ("PC: lock the screen", "ryoku-x11-lock"),')
+    replace_once(p, '"ryoku-suspend": ("PC: suspend", "systemctl suspend"),',
+                 '"ryoku-suspend": ("PC: suspend (disabled on X11 until secure handoff)", "ryoku-x11-suspend"),')
+
+    p = root / "ryoku/shell/quickshell/keys/commands/catalog/linux.json"
+    text = p.read_text()
+    text = text.replace('"command": "systemctl suspend"', '"command": "ryoku-x11-suspend"')
+    text = text.replace('"command": "loginctl suspend"', '"command": "ryoku-x11-suspend"')
+    p.write_text(text)
+
+    for p in (root / "ryoku/shell/nomarchy/bin").glob("*"):
+        if not p.is_file():
+            continue
+        try:
+            text = p.read_text()
+        except (UnicodeDecodeError, OSError):
+            continue
+        updated = text.replace("ryoku-qylock-lock", "ryoku-x11-lock")
+        updated = updated.replace("ryoku-shell suspend", "ryoku-x11-suspend")
+        if updated != text:
+            p.write_text(updated)
+
+
 def patch_x11_clipboard(root: pathlib.Path) -> None:
     p = root / "ryoku/shell/ipc/clipboard.go"
     text = p.read_text()
@@ -503,16 +629,20 @@ exec wl-copy --type "$mime" "$@"
 
 def patch_lock_dispatch(root: pathlib.Path) -> None:
     p = root / "ryoku/shell/ipc/actions.go"
-    old = '''func lockSession() string {
+    old = '''// lockSession locks the screen with qylock, the in-session lock Ryoku ships.
+func lockSession() string {
 	if err := ensureSessionLocked(time.Now().Add(lockWait)); err != nil {
 		return "err lock: " + err.Error()
 	}
 	return "ok"
 }'''
-    new = '''func lockSession() string {
-	// X11 has no ext_session_lock_v1. Use a dedicated X11 locker with PAM;
-	// never launch the Wayland qylock surface on an X11 session.
+    new = '''// lockSession dispatches to a PAM-backed X11 locker on Xorg. X11 has no
+// compositor-confirmed lock proof, so it is never accepted for suspend.
+func lockSession() string {
 	if os.Getenv("WAYLAND_DISPLAY") == "" && os.Getenv("DISPLAY") != "" {
+		if isLocked() {
+			return "ok"
+		}
 		if err := spawnX11Locker(); err != nil {
 			return "err lock: " + err.Error()
 		}
@@ -525,16 +655,11 @@ def patch_lock_dispatch(root: pathlib.Path) -> None:
 }
 
 func spawnX11Locker() error {
-	launcher, err := exec.LookPath("xsecurelock")
-	args := []string{}
+	launcher, err := exec.LookPath("ryoku-x11-lock")
 	if err != nil {
-		launcher, err = exec.LookPath("i3lock")
-		args = []string{"--nofork"}
+		return fmt.Errorf("X11 lock wrapper unavailable: %w", err)
 	}
-	if err != nil {
-		return fmt.Errorf("X11 secure locker unavailable (install xsecurelock or i3lock): %w", err)
-	}
-	cmd := exec.Command(launcher, args...)
+	cmd := exec.Command(launcher)
 	if err := cmd.Start(); err != nil {
 		return err
 	}
@@ -542,7 +667,167 @@ func spawnX11Locker() error {
 	return nil
 }'''
     replace_once(p, old, new)
+    old_guard = '''func ensureSessionLocked(deadline time.Time) error {
+	lockRequestMu.Lock()'''
+    new_guard = '''func ensureSessionLocked(deadline time.Time) error {
+	// X11 has no accepted compositor-secure lock-before-suspend handshake.
+	// Fail closed even if a stale Wayland qylock marker or process exists.
+	if os.Getenv("WAYLAND_DISPLAY") == "" && os.Getenv("DISPLAY") != "" {
+		return fmt.Errorf("secure lock-before-suspend is not available on X11; suspend and hibernate are disabled")
+	}
+	lockRequestMu.Lock()'''
+    replace_once(p, old_guard, new_guard)
 
+    p = root / "ryoku/shell/ipc/lockrecovery.go"
+    text = p.read_text()
+    old = '''func (d *daemon) confirmLockRecovery() {
+	if d.lockRecovery != nil {'''
+    new = '''func (d *daemon) confirmLockRecovery() {
+	// qylock recovery watches Wayland proof generations. The X11 locker has
+	// its own process lifetime and must not arm a qylock restart loop.
+	if os.Getenv("WAYLAND_DISPLAY") == "" && os.Getenv("DISPLAY") != "" {
+		return
+	}
+	if d.lockRecovery != nil {'''
+    replace_once(p, old, new)
+    if '"os"' not in text.split("import (",1)[1].split(")",1)[0]:
+        text = text.replace('import (\n', 'import (\n\t"os"\n', 1)
+    p.write_text(text)
+
+    p = root / "ryoku/shell/ipc/control.go"
+    text = p.read_text()
+    text = text.replace('import (\n\t"os"\n', 'import (\n\t"os"\n\t"strconv"\n\t"strings"\n\t"syscall"\n', 1)
+    old = '''// isLocked accepts only generation- and session-bound compositor proof. A
+// marker from a killed or different-session locker is stale and removed.
+func isLocked() bool {
+	marker := lockMarker()'''
+    new = '''// x11LockerProcessMatches accepts only a PAM locker on this exact X display.
+func x11LockerProcessMatches(comm string, environ []byte, display string) bool {
+	name := strings.TrimSpace(comm)
+	return display != "" && (name == "i3lock" || name == "xsecurelock") &&
+		processEnvironmentValue(environ, "DISPLAY") == display
+}
+
+// isLocked uses a live locker process for X11 and generation-bound compositor
+// proof for Wayland. A fullscreen QML surface is never considered a lock.
+func isLocked() bool {
+	if os.Getenv("WAYLAND_DISPLAY") == "" && os.Getenv("DISPLAY") != "" {
+		entries, err := os.ReadDir("/proc")
+		if err != nil {
+			return false
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			if _, err := strconv.Atoi(entry.Name()); err != nil {
+				continue
+			}
+			processDir := filepath.Join("/proc", entry.Name())
+			info, err := os.Stat(processDir)
+			if err != nil {
+				continue
+			}
+			owner, ok := info.Sys().(*syscall.Stat_t)
+			if !ok || int(owner.Uid) != os.Getuid() {
+				continue
+			}
+			comm, err := os.ReadFile(filepath.Join(processDir, "comm"))
+			if err != nil {
+				continue
+			}
+			environ, err := os.ReadFile(filepath.Join(processDir, "environ"))
+			if err != nil {
+				continue
+			}
+			if x11LockerProcessMatches(string(comm), environ, os.Getenv("DISPLAY")) {
+				return true
+			}
+		}
+		return false
+	}
+	marker := lockMarker()'''
+    replace_once(p, old, new)
+
+    test = root / "ryoku/shell/ipc/rxb_x11_lock_test.go"
+    test.write_text("""package main
+
+import "testing"
+
+func TestRXBX11LockerProcessMatchesExactDisplayAndLocker(t *testing.T) {
+	env := []byte("HOME=/home/test\\x00DISPLAY=:99\\x00")
+	if !x11LockerProcessMatches("i3lock\\n", env, ":99") {
+		t.Fatal("i3lock on the current display was not recognized")
+	}
+	if !x11LockerProcessMatches("xsecurelock\\n", env, ":99") {
+		t.Fatal("xsecurelock on the current display was not recognized")
+	}
+	if x11LockerProcessMatches("i3lock\\n", env, ":0") {
+		t.Fatal("locker on a different display was accepted")
+	}
+	if x11LockerProcessMatches("bash\\n", env, ":99") {
+		t.Fatal("non-locker process was accepted")
+	}
+}
+""")
+
+    test = root / "ryoku/shell/ipc/rxb_x11_suspend_guard_test.go"
+    test.write_text("""package main
+
+import (
+	"strings"
+	"testing"
+	"time"
+)
+
+func TestRXBX11SecureSuspendFailsClosed(t *testing.T) {
+	t.Setenv("DISPLAY", ":99")
+	t.Setenv("WAYLAND_DISPLAY", "")
+	err := ensureSessionLocked(time.Now().Add(time.Second))
+	if err == nil || !strings.Contains(err.Error(), "disabled") {
+		t.Fatalf("X11 suspend lock gate error = %v, want fail-closed disabled error", err)
+	}
+}
+""")
+
+    p = root / "ryoku/cli/internal/host/power.go"
+    text = p.read_text()
+    if '"os"' not in text.split("import (",1)[1].split(")",1)[0]:
+        text = text.replace('package host\n\n', 'package host\n\nimport "os"\n\n', 1)
+    old = '''	case "poweroff", "reboot", "suspend", "hibernate":
+		if len(args) != 1 {
+			return ExitUsage
+		}'''
+    new = '''	case "poweroff", "reboot", "suspend", "hibernate":
+		if len(args) != 1 {
+			return ExitUsage
+		}
+		if args[0] == "suspend" || args[0] == "hibernate" {
+			if os.Getenv("WAYLAND_DISPLAY") == "" && os.Getenv("DISPLAY") != "" {
+				return a.failf("suspend and hibernate are disabled on X11 until secure lock-before-suspend is implemented")
+			}
+		}'''
+    replace_once(p, old, new)
+    test = root / "ryoku/cli/internal/host/rxb_x11_power_guard_test.go"
+    test.write_text("""package host
+
+import "testing"
+
+func TestRXBHostPowerRejectsSuspendAndHibernateOnX11(t *testing.T) {
+	t.Setenv("DISPLAY", ":99")
+	t.Setenv("WAYLAND_DISPLAY", "")
+	for _, action := range []string{"suspend", "hibernate"} {
+		runner := &fakeRunner{}
+		app, _, _ := testApp(runner, map[string]string{"RYOKU_HOST_INIT": "systemd", "RYOKU_HOST_PKGMGR": "pacman"})
+		if code := app.Power([]string{action}); code == ExitOK {
+			t.Fatalf("%s unexpectedly succeeded on X11", action)
+		}
+		if len(runner.commands) != 0 {
+			t.Fatalf("%s invoked a host power command: %#v", action, runner.commands)
+		}
+	}
+}
+""")
 
 def _ternary_counts(expr: str) -> tuple[int, int, int]:
     parens = expr.count("(") - expr.count(")")
@@ -1494,6 +1779,7 @@ def main() -> int:
     patch_x11_clipboard(root)
     patch_x11_region_tools(root)
     patch_lock_dispatch(root)
+    patch_x11_suspend(root)
     patch_ryogami_package(root)
     patch_x11_package_safety(root)
     patch_quickshell_config_isolation(root)
