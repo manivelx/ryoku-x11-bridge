@@ -53,9 +53,11 @@ for pkg in "${packages[@]}"; do
   metadata="$(bsdtar -xOf "$pkg" .PKGINFO)"
   while IFS= read -r dependency; do
     dependency_name="${dependency%%[<>=]*}"
-    case "$dependency_name" in
-      ryoku*|gpk) continue ;;
-    esac
+    # Skip every package name and virtual provide supplied by this artifact set,
+    # including upstream names such as ryogami that do not share the ryoku prefix.
+    if [[ -n "${local_provides[$dependency_name]:-}" ]]; then
+      continue
+    fi
     if [[ -z "${seen_external_dependencies[$dependency]:-}" ]]; then
       seen_external_dependencies["$dependency"]=1
       external_dependencies+=("$dependency")
