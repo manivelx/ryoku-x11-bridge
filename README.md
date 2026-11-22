@@ -290,21 +290,32 @@ mapfile -t local_provides < <(
     sort -u
 )
 
-mapfile -t external_dependencies < <(
+mapfile -t external_dependency_specs < <(
   for package in "${packages[@]}"; do
     bsdtar -xOf "$package" .PKGINFO |
       sed -n 's/^depend = //p'
   done |
-    sed -E 's/[<>=].*$//' |
-    sort -u |
     while IFS= read -r dependency; do
-      if ! printf '%s\n' "${local_provides[@]}" | grep -Fxq "$dependency"; then
+      dependency_name="${dependency%%[<>=]*}"
+      if ! printf '%s\n' "${local_provides[@]}" | grep -Fxq "$dependency_name"; then
         printf '%s\n' "$dependency"
       fi
-    done
+    done |
+    sort -u
 )
 
-sudo pacman -S --needed "${external_dependencies[@]}"
+# Check installed versions first. This avoids upgrading an already-installed
+# dependency such as Quickshell when it already satisfies the package metadata.
+mapfile -t unresolved_specs < <(pacman -T "${external_dependency_specs[@]}" 2>/dev/null || true)
+if (("${#unresolved_specs[@]}" > 0)); then
+  mapfile -t missing_dependencies < <(
+    printf '%s\n' "${unresolved_specs[@]}" |
+      sed -E 's/[<>=].*$//' |
+      sort -u
+  )
+  sudo pacman -S --needed "${missing_dependencies[@]}"
+fi
+pacman -T "${external_dependency_specs[@]}" >/dev/null
 sudo pacman -U "${packages[@]}"
 ```
 
