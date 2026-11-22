@@ -25,8 +25,14 @@ API_PATTERNS = {
 }
 ROOTS = {
     "main_shell": Path("ryoku/shell/quickshell/shell"),
+    "hub": Path("ryoku/hub/quickshell"),
+    "ryogami_picker": Path("ryoku/shell/ryogami/picker/qml"),
     "key_hint_app": Path("ryoku/shell/quickshell/keys"),
     "screenshot_app": Path("ryoku/shell/quickshell/ryoshot"),
+    "reload_cover": Path("ryoku/shell/quickshell/reload-cover"),
+    "pin_app": Path("ryoku/shell/quickshell/ryopin"),
+    "store_app": Path("ryoku/apps/ryostore/quickshell"),
+    "vm_app": Path("ryoku/apps/ryovm/quickshell"),
 }
 
 
