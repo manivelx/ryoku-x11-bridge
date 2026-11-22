@@ -53,6 +53,35 @@ class QmlGraphAuditTests(unittest.TestCase):
             report = MODULE.graph(root, root / "shell.qml")
             self.assertIn("services/AudioService.qml", report["reachable_qml_files"])
 
+    def test_follows_literal_dynamic_qml_paths_and_reports_profiles(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "shell"
+            pages = root / "pages"
+            pages.mkdir(parents=True)
+            (root / "shell.qml").write_text(
+                'Loader { source: Qt.resolvedUrl("pages/Settings.qml") }\\n'
+                'property string activeProfile: "desktop"\\n',
+                encoding="utf-8",
+            )
+            (pages / "Settings.qml").write_text("Item { }\\n", encoding="utf-8")
+            report = MODULE.graph(root, root / "shell.qml")
+            self.assertIn("pages/Settings.qml", report["reachable_qml_files"])
+            self.assertEqual(report["dynamic_references"][0]["resolution"], "resolved-local")
+            self.assertIn("shell.qml", report["profile_dependent_files"])
+
+    def test_reports_non_literal_dynamic_sources_and_external_modules(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "shell"
+            root.mkdir(parents=True)
+            (root / "shell.qml").write_text(
+                'import Quickshell.Services.Pipewire\\n'
+                'Loader { source: Config.profilePage }\\n',
+                encoding="utf-8",
+            )
+            report = MODULE.graph(root, root / "shell.qml")
+            self.assertEqual(len(report["unresolved_dynamic_references"]), 1)
+            self.assertIn("Quickshell.Services.Pipewire", report["external_module_imports"])
+
     def test_reports_dynamic_loading_as_a_caveat(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "shell"

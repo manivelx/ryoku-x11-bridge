@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Build a conservative, static QML dependency graph for the pinned Ryoku shell.
+"""Conservative static QML dependency and dynamic-loading audit for pinned Ryoku.
 
-This follows explicit local directory/module imports and QML component types used
-in object declarations. It is intentionally conservative: dynamic Loader sources,
-JavaScript-created components, plugin-provided QML and runtime profile selection
-cannot be resolved statically and are reported as caveats.
+The graph follows explicit imports, component types and literal dynamic QML
+paths. Non-literal Loader/source expressions and profile-dependent references
+are reported separately; this remains a source audit, not runtime proof.
 """
 from __future__ import annotations
 
@@ -14,9 +13,16 @@ import re
 from collections import deque
 from pathlib import Path
 
-# Keep module URI parsing separate from quoted directory imports.
 MODULE_IMPORT_RE = re.compile(r'^\s*import\s+([A-Za-z_][\w.]*)', re.M)
 TYPE_RE = re.compile(r'\b([A-Z][A-Za-z0-9_]*)\s*\{')
+DYNAMIC_RE = re.compile(r'\b(?:Loader|Component)\s*\{|\bsource\s*:\s*(?:Qt\.resolvedUrl|[A-Za-z_$])')
+DYNAMIC_EXPR_RE = re.compile(
+    r'\bsource\s*:\s*([^\n;]+)|\bQt\.(?:createComponent|include)\s*\(([^)]*)\)',
+    re.M,
+)
+INLINE_QML_RE = re.compile(r'\bQt\.createQmlObject\s*\(')
+LITERAL_PATH_RE = re.compile(r'["\']([^"\']+\.(?:qml|js|mjs))["\']', re.I)
+PROFILE_RE = re.compile(r'\b(?:profile|barStyle|shellProfile|shellVariant|activeProfile|profileName)\b', re.I)
 API_PATTERNS = {
     "Quickshell.Wayland": re.compile(r'\bimport\s+Quickshell\.Wayland\b'),
     "WlrLayershell": re.compile(r'\bWlrLayershell\b'),
@@ -27,7 +33,6 @@ API_PATTERNS = {
     "Quickshell.Niri": re.compile(r'\bimport\s+Quickshell\.Niri\b'),
     "Quickshell.I3": re.compile(r'\bimport\s+Quickshell\.I3\b'),
 }
-DYNAMIC_RE = re.compile(r'\b(?:Loader|Component)\s*\{|\bsource\s*:\s*(?:Qt\.resolvedUrl|[A-Za-z_$])')
 
 
 def qml_files(root: Path) -> list[Path]:
@@ -47,6 +52,7 @@ def module_map(root: Path) -> dict[str, Path]:
 
 
 def graph(root: Path, entry: Path) -> dict:
+    root = root.resolve()
     files = qml_files(root)
     by_dir: dict[Path, dict[str, list[Path]]] = {}
     for path in files:
@@ -57,19 +63,25 @@ def graph(root: Path, entry: Path) -> dict:
     edges: dict[str, list[str]] = {}
     unresolved: set[str] = set()
     non_qml_imports: set[str] = set()
-    dynamic: set[str] = set()
+    dynamic_files: set[str] = set()
+    dynamic_references: list[dict] = []
+    unresolved_dynamic: list[dict] = []
+    profile_references: list[dict] = []
+    imported_modules: dict[str, set[str]] = {}
 
     while pending:
         path = pending.popleft()
         if path in visited or not path.is_file():
             continue
         try:
-            path.relative_to(root.resolve())
+            path.relative_to(root)
         except ValueError:
             continue
         visited.add(path)
         source = path.read_text(encoding="utf-8", errors="replace")
+        rel = str(path.relative_to(root))
         visible_dirs = {path.parent}
+
         for match in re.finditer(r'^\s*import\s+"([^"]+)"(?:\s+as\s+\w+)?', source, re.M):
             target = (path.parent / match.group(1)).resolve()
             if target.is_dir():
@@ -78,10 +90,12 @@ def graph(root: Path, entry: Path) -> dict:
                 if target.suffix == ".qml":
                     pending.append(target)
                 else:
-                    non_qml_imports.add(f"{path.relative_to(root)}: {match.group(1)}")
+                    non_qml_imports.add(f"{rel}: {match.group(1)}")
             else:
-                unresolved.add(f"{path.relative_to(root)}: {match.group(1)}")
+                unresolved.add(f"{rel}: {match.group(1)}")
+
         for uri in MODULE_IMPORT_RE.findall(source):
+            imported_modules.setdefault(uri, set()).add(rel)
             target = modules.get(uri)
             if target:
                 visible_dirs.add(target)
@@ -92,10 +106,75 @@ def graph(root: Path, entry: Path) -> dict:
                 for candidate in by_dir.get(directory, {}).get(type_name, []):
                     if candidate != path:
                         targets.add(candidate.resolve())
-        edges[str(path.relative_to(root))] = sorted(str(p.relative_to(root)) for p in targets)
+        edges[rel] = sorted(str(p.relative_to(root)) for p in targets)
         pending.extend(sorted(targets))
+
         if DYNAMIC_RE.search(source):
-            dynamic.add(str(path.relative_to(root)))
+            dynamic_files.add(rel)
+
+        for match in DYNAMIC_EXPR_RE.finditer(source):
+            expression = (match.group(1) or match.group(2) or "").strip()
+            line = source.count("\n", 0, match.start()) + 1
+            kind = "loader-source" if match.group(1) is not None else "qml-or-js-factory"
+            reference = {
+                "file": rel,
+                "line": line,
+                "kind": kind,
+                "expression": expression,
+                "targets": [],
+                "resolution": "unresolved",
+            }
+            literals = LITERAL_PATH_RE.findall(expression)
+            if literals:
+                resolved_targets = []
+                external_targets = []
+                for literal in literals:
+                    if literal.startswith(("qrc:/", "file:/", "http:/", "https:/")):
+                        external_targets.append(literal)
+                        continue
+                    target = (path.parent / literal).resolve()
+                    try:
+                        target.relative_to(root)
+                    except ValueError:
+                        external_targets.append(literal)
+                        continue
+                    if target.is_file():
+                        resolved_targets.append(str(target.relative_to(root)))
+                        if target.suffix.lower() == ".qml":
+                            pending.append(target)
+                        else:
+                            non_qml_imports.add(f"{rel}: {literal}")
+                    else:
+                        unresolved.add(f"{rel}: {literal}")
+                reference["targets"] = sorted(set(resolved_targets + external_targets))
+                if resolved_targets and not external_targets:
+                    reference["resolution"] = "resolved-local"
+                elif external_targets and not resolved_targets:
+                    reference["resolution"] = "external"
+                elif resolved_targets and external_targets:
+                    reference["resolution"] = "mixed"
+            dynamic_references.append(reference)
+            if reference["resolution"] == "unresolved":
+                unresolved_dynamic.append(reference)
+
+        if INLINE_QML_RE.search(source):
+            line = source.count("\n", 0, INLINE_QML_RE.search(source).start()) + 1
+            dynamic_references.append({
+                "file": rel,
+                "line": line,
+                "kind": "inline-qml",
+                "expression": "Qt.createQmlObject(...)",
+                "targets": [],
+                "resolution": "inline-source",
+            })
+
+        for number, line_text in enumerate(source.splitlines(), 1):
+            if PROFILE_RE.search(line_text):
+                profile_references.append({
+                    "file": rel,
+                    "line": number,
+                    "text": line_text.strip()[:240],
+                })
 
     api_counts = {name: 0 for name in API_PATTERNS}
     api_files = {name: [] for name in API_PATTERNS}
@@ -111,19 +190,29 @@ def graph(root: Path, entry: Path) -> dict:
     reachable = {str(p.relative_to(root)) for p in visited}
     all_files = {str(p.relative_to(root)) for p in files}
     return {
-        "entry": str(entry.resolve().relative_to(root.resolve())),
+        "entry": str(entry.resolve().relative_to(root)),
         "reachable_qml_files": sorted(reachable),
         "unreachable_qml_files": sorted(all_files - reachable),
         "dependency_edges": edges,
         "api_occurrences": api_counts,
         "api_files": api_files,
-        "dynamic_loading_files": sorted(dynamic),
+        "module_imports": {
+            uri: sorted(paths) for uri, paths in sorted(imported_modules.items())
+        },
+        "external_module_imports": sorted(uri for uri in imported_modules if uri not in modules),
+        "dynamic_loading_files": sorted(dynamic_files),
+        "dynamic_references": sorted(dynamic_references, key=lambda item: (item["file"], item["line"])),
+        "unresolved_dynamic_references": sorted(unresolved_dynamic, key=lambda item: (item["file"], item["line"])),
         "non_qml_local_imports": sorted(non_qml_imports),
         "unresolved_local_imports": sorted(unresolved),
+        "profile_dependent_files": sorted({item["file"] for item in profile_references}),
+        "profile_dependent_references": profile_references,
         "limitations": [
             "Static component-reference resolution is conservative and is not a QML compiler.",
-            "Dynamic Loader/source paths, JavaScript-created components, plugins and profile-dependent runtime selection may add dependencies.",
-            "Reachability is a source-level candidate graph; runtime tracing and interactive acceptance remain required."
+            "Literal dynamic QML paths are followed; non-literal Loader/source expressions and inline JavaScript-created QML are reported but cannot be fully resolved statically.",
+            "External module imports identify runtime-provided Qt/Quickshell/plugin dependencies; the graph does not prove that their binaries are installed.",
+            "Profile references are source-level candidates; active profile selection and runtime-loaded modules still require runtime tracing.",
+            "Reachability is a source-level candidate graph; runtime tracing and interactive acceptance remain required.",
         ],
     }
 
