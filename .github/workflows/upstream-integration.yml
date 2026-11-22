@@ -12,6 +12,7 @@ on:
       - "payload/**"
       - "release/packages/ryoku-desktop-i3/**"
       - "docs/**"
+      - "README.md"
       - "UPSTREAM_PIN"
       - "RXB_VERSION"
       - "cmd/ryoku-wm-i3/**"
@@ -112,6 +113,7 @@ jobs:
         run: |
           python3 -m py_compile scripts/apply-upstream-overlay.py
           python3 -m unittest discover -s tests
+          python3 scripts/test-rxb-readme.py
       - name: Validate RXB package scripts
         run: |
           bash -n payload/bin/ryoku-x11-session
