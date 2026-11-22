@@ -42,6 +42,30 @@ for pkg in "${packages[@]}"; do
   done < <(sed -n 's/^depend = //p' <<<"$metadata")
 done
 
+# Install every external dependency from the official Arch repositories before
+# testing the local package transaction. pacman -U does not download missing
+# dependencies from sync repositories; relying on the build container's package
+# list made this test accidentally incomplete.
+declare -a external_dependencies=()
+declare -A seen_external_dependencies=()
+for pkg in "${packages[@]}"; do
+  metadata="$(bsdtar -xOf "$pkg" .PKGINFO)"
+  while IFS= read -r dependency; do
+    dependency_name="${dependency%%[<>=]*}"
+    case "$dependency_name" in
+      ryoku*|gpk) continue ;;
+    esac
+    if [[ -z "${seen_external_dependencies[$dependency]:-}" ]]; then
+      seen_external_dependencies["$dependency"]=1
+      external_dependencies+=("$dependency")
+    fi
+  done < <(sed -n 's/^depend = //p' <<<"$metadata")
+done
+if (("${#external_dependencies[@]}" > 0)); then
+  echo "[install-test] Resolving external runtime dependencies from the Arch repositories."
+  pacman -S --needed --noconfirm "${external_dependencies[@]}"
+fi
+
 cleanup() {
   local status=$?
   trap - EXIT
