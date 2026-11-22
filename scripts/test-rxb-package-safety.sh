@@ -86,6 +86,26 @@ done
 base_list="$(bsdtar -tf "$base_pkg")"
 variant_list="$(bsdtar -tf "$variant_pkg")"
 
+# The RXB package must carry the project license and the complete pinned
+# upstream notice tree, including iNiR's additional terms and font licenses.
+for required_notice in \
+  'usr/share/licenses/ryoku-desktop-i3/LICENSE' \
+  'usr/share/licenses/ryoku-desktop-i3/NOTICE' \
+  'usr/share/licenses/ryoku-desktop-i3/upstream/NOTICE' \
+  'usr/share/licenses/ryoku-desktop-i3/upstream/ryoku/shell/quickshell/inir/NOTICE' \
+  'usr/share/licenses/ryoku-desktop-i3/upstream/ryoku/shell/quickshell/inir/LICENSE' \
+  'usr/share/licenses/ryoku-desktop-i3/upstream/ryoku/shell/quickshell/inir/assets/fonts/inter/OFL.txt' \
+  'usr/share/doc/ryoku-desktop-i3/THIRD_PARTY_NOTICES.md'; do
+  grep -Fq "$required_notice" <<<"$variant_list" || {
+    echo "RXB package is missing required license/notice: $required_notice" >&2
+    exit 1
+  }
+done
+bsdtar -xOf "$variant_pkg" ./usr/share/licenses/ryoku-desktop-i3/upstream/ryoku/shell/quickshell/inir/NOTICE | grep -Fq "Additional terms (GNU GPL version 3, section 7)" || {
+  echo "RXB package did not preserve the iNiR section 7 terms." >&2
+  exit 1
+}
+
 for forbidden in \
   'usr/share/ryoku/services.tsv' \
   'usr/share/ryoku/lockscreen/' \

@@ -83,7 +83,7 @@ i3_package_dir="$RXB_ROOT/release/packages/ryoku-desktop-i3"
 find "$i3_package_dir" -maxdepth 1 -type f -name '*.pkg.tar.*' -delete
 (
   cd "$i3_package_dir"
-  RYOKU_PKGVER="$VERSION" RYOKU_BRIDGE_VERSION="$RXB_VERSION" makepkg --nodeps --clean --noconfirm --force
+  RYOKU_UPSTREAM_DIR="$UPSTREAM" RYOKU_PKGVER="$VERSION" RYOKU_BRIDGE_VERSION="$RXB_VERSION" makepkg --nodeps --clean --noconfirm --force
 )
 mapfile -t i3_artifacts < <(find "$i3_package_dir" -maxdepth 1 -type f -name '*.pkg.tar.*' -print | sort)
 (("${#i3_artifacts[@]}" > 0)) || { echo "No ryoku-desktop-i3 package artifacts produced." >&2; exit 1; }

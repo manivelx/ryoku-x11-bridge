@@ -19,6 +19,23 @@ case "$mode" in
     : "${RYOKU_SRC:?RYOKU_SRC is required}"
     : "${RYOKU_BUILD_DIR:?RYOKU_BUILD_DIR is required}"
     [[ "$init" == systemd ]] || { echo "RXB supports only systemd user sessions" >&2; exit 1; }
+    : "${RYOKU_UPSTREAM_DIR:?build-rxb-packages.sh must set RYOKU_UPSTREAM_DIR to the pinned source tree}"
+
+    # Preserve the RXB license plus the complete pinned upstream license and
+    # notice tree. The upstream NOTICE includes component attributions and
+    # additional terms (notably the iNiR section 7 requirements).
+    license_root="$pkgdir/usr/share/licenses/ryoku-desktop-i3"
+    install -Dm644 "$RYOKU_SRC/LICENSE" "$license_root/LICENSE"
+    install -Dm644 "$RYOKU_SRC/NOTICE" "$license_root/NOTICE"
+    install -Dm644 "$RYOKU_SRC/THIRD_PARTY_NOTICES.md" "$pkgdir/usr/share/doc/ryoku-desktop-i3/THIRD_PARTY_NOTICES.md"
+    while IFS= read -r -d '' notice_file; do
+      relative_path="${notice_file#"$RYOKU_UPSTREAM_DIR"/}"
+      install -Dm644 "$notice_file" "$license_root/upstream/$relative_path"
+    done < <(find "$RYOKU_UPSTREAM_DIR" -type f \\
+      \( -iname 'LICENSE' -o -iname 'LICENSE.*' -o -iname 'NOTICE' -o -iname 'NOTICE.*' \\
+         -o -iname 'COPYING' -o -iname 'COPYING.*' -o -iname 'OFL.txt' \\
+         -o -iname '*.LICENSE-*.txt' \) \\
+      -not -path '*/.git/*' -print0)
 
     install -Dm755 "$RYOKU_BUILD_DIR/ryoku-wm-i3" "$pkgdir/usr/bin/ryoku-wm-i3"
     install -Dm755 "$RYOKU_SRC/payload/bin/ryoku-x11-session" "$pkgdir/usr/bin/ryoku-x11-session"
