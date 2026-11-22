@@ -53,7 +53,7 @@ func TestResolveShippedBindsMapsAndReportsCatalogue(t *testing.T) {
 	if !strings.Contains(generated, "bindsym Mod4+q ") || !strings.Contains(generated, "workspace number 1") {
 		t.Fatalf("generated i3 config is missing semantic Ryoku actions:\n%s", generated)
 	}
-	if strings.Contains(generated, "Mod4+Shift+p") {
+	if strings.Contains(generated, "Mod4+r") {
 		t.Fatal("unsupported pin action must not be invented or emitted")
 	}
 }
