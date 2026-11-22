@@ -48,8 +48,15 @@ func TestRunBindsReportsOnlyTheActiveI3Configuration(t *testing.T) {
 	if err := json.Unmarshal(buffer.Bytes(), &rows); err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 1 || rows[0].Chord != "SUPER + ENTER" || rows[0].Kind != "custom" {
-		t.Fatalf("bind legend did not reflect the active i3 config: %+v", rows)
+	if len(rows) != len(ShippedBinds())+1 {
+		t.Fatalf("bind legend returned %d rows, want %d shipped plus one custom: %+v", len(rows), len(ShippedBinds())+1, rows)
+	}
+	if rows[0].ID != "window.close" || rows[0].Default != "SUPER + Q" || rows[0].Unhonored == "" {
+		t.Fatalf("shipped Ryoku bind was not exposed with an honest unsupported reason: %+v", rows[0])
+	}
+	custom := rows[len(rows)-1]
+	if custom.Chord != "SUPER + ENTER" || custom.Kind != "custom" || custom.Default != "" {
+		t.Fatalf("active i3 custom binding was not preserved as a custom row: %+v", custom)
 	}
 }
 
