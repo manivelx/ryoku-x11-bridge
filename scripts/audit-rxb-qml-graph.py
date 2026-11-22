@@ -57,6 +57,7 @@ def graph(root: Path, entry: Path) -> dict:
     visited: set[Path] = set()
     edges: dict[str, list[str]] = {}
     unresolved: set[str] = set()
+    non_qml_imports: set[str] = set()
     dynamic: set[str] = set()
 
     while pending:
@@ -74,8 +75,11 @@ def graph(root: Path, entry: Path) -> dict:
             target = (path.parent / match.group(1)).resolve()
             if target.is_dir():
                 visible_dirs.add(target)
-            elif target.suffix == ".qml" and target.is_file():
-                pending.append(target)
+            elif target.is_file():
+                if target.suffix == ".qml":
+                    pending.append(target)
+                else:
+                    non_qml_imports.add(f"{path.relative_to(root)}: {match.group(1)}")
             else:
                 unresolved.add(f"{path.relative_to(root)}: {match.group(1)}")
         for uri in MODULE_IMPORT_RE.findall(source):
@@ -115,6 +119,7 @@ def graph(root: Path, entry: Path) -> dict:
         "api_occurrences": api_counts,
         "api_files": api_files,
         "dynamic_loading_files": sorted(dynamic),
+        "non_qml_local_imports": sorted(non_qml_imports),
         "unresolved_local_imports": sorted(unresolved),
         "limitations": [
             "Static component-reference resolution is conservative and is not a QML compiler.",
