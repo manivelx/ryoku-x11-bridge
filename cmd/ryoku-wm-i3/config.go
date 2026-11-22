@@ -28,22 +28,29 @@ type i3ConfigReply struct {
 	Config string `json:"config"`
 }
 
-func runBinds(_ []string) error {
+var readActiveI3Config = func() (string, error) {
 	conn, err := dial(socketPath())
 	if err != nil {
-		return fmt.Errorf("binds: connect to active i3 session: %w", err)
+		return "", fmt.Errorf("connect to active i3 session: %w", err)
 	}
 	defer conn.close()
-
 	raw, err := conn.request(msgGetConfig, nil)
 	if err != nil {
-		return fmt.Errorf("binds: read active i3 configuration: %w", err)
+		return "", fmt.Errorf("read active i3 configuration: %w", err)
 	}
 	var reply i3ConfigReply
 	if err := json.Unmarshal(raw, &reply); err != nil {
-		return fmt.Errorf("binds: decode i3 configuration: %w", err)
+		return "", fmt.Errorf("decode i3 configuration: %w", err)
 	}
-	rows, err := parseI3BindRows(reply.Config)
+	return reply.Config, nil
+}
+
+func runBinds(_ []string) error {
+	config, err := readActiveI3Config()
+	if err != nil {
+		return fmt.Errorf("binds: %w", err)
+	}
+	rows, err := parseI3BindRows(config)
 	if err != nil {
 		return fmt.Errorf("binds: parse active i3 configuration: %w", err)
 	}
