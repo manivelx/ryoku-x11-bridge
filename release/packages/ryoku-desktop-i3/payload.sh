@@ -31,10 +31,10 @@ case "$mode" in
     while IFS= read -r -d '' notice_file; do
       relative_path="${notice_file#"$RYOKU_UPSTREAM_DIR"/}"
       install -Dm644 "$notice_file" "$license_root/upstream/$relative_path"
-    done < <(find "$RYOKU_UPSTREAM_DIR" -type f \\
-      \( -iname 'LICENSE' -o -iname 'LICENSE.*' -o -iname 'NOTICE' -o -iname 'NOTICE.*' \\
-         -o -iname 'COPYING' -o -iname 'COPYING.*' -o -iname 'OFL.txt' \\
-         -o -iname '*.LICENSE-*.txt' \) \\
+    done < <(find "$RYOKU_UPSTREAM_DIR" -type f \
+      \( -iname 'LICENSE' -o -iname 'LICENSE.*' -o -iname 'NOTICE' -o -iname 'NOTICE.*' \
+         -o -iname 'COPYING' -o -iname 'COPYING.*' -o -iname 'OFL.txt' \
+         -o -iname '*.LICENSE-*.txt' \) \
       -not -path '*/.git/*' -print0)
 
     install -Dm755 "$RYOKU_BUILD_DIR/ryoku-wm-i3" "$pkgdir/usr/bin/ryoku-wm-i3"
