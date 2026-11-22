@@ -255,10 +255,6 @@ func i3Action(id string, workspace int) (string, string) {
 		return "resize", ""
 	case "window.resize":
 		return "", "The original Ryoku resize submap has no faithful i3 mode translation yet."
-	case "window.pin":
-		return "sticky toggle", ""
-	case "column.maximize":
-		return "", "i3 has no equivalent to Ryoku's column maximize while preserving tiled gaps."
 	case "window.focusPrevious":
 		return "focus prev", ""
 	case "column.first", "column.last":
@@ -299,12 +295,15 @@ func effectiveCatalogueChord(chord string, rebinds map[string]string) string {
 	if value := strings.TrimSpace(rebinds[chord]); value != "" {
 		return value
 	}
-	if strings.Contains(chord, "{n}") {
-		if value := strings.TrimSpace(rebinds[chord]); value != "" {
-			return value
-		}
-	}
 	return chord
+}
+
+func effectiveFamilyChord(chord string, index int, rebinds map[string]string) string {
+	familyKey := strings.ReplaceAll(chord, strconv.Itoa(index%10), "{n}")
+	if value := strings.TrimSpace(rebinds[familyKey]); value != "" {
+		return strings.ReplaceAll(value, "{n}", strconv.Itoa(index%10))
+	}
+	return effectiveCatalogueChord(chord, rebinds)
 }
 
 func resolveShippedBinds(store keybindStore) ([]resolvedI3Bind, []bindRow, []Unhonored) {
@@ -378,7 +377,7 @@ func resolveShippedBinds(store keybindStore) ([]resolvedI3Bind, []bindRow, []Unh
 		if cb.Family {
 			for n := 1; n <= 10; n++ {
 				chordText := expandCatalogueChord(cb, n)
-				chordText = effectiveCatalogueChord(chordText, store.KeybindRebinds)
+				chordText = effectiveFamilyChord(chordText, n, store.KeybindRebinds)
 				chord, ok := i3Chord(chordText)
 				if !ok || claimed[chord] {
 					continue
