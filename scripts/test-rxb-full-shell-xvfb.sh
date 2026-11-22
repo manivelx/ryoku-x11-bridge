@@ -93,12 +93,12 @@ jq -e 'any(.[]; .name == "i3" and .active == true and .caps.name == "i3" and (.c
   exit 1
 }
 provider_binds="$(ryoku-wm-i3 binds)"
-jq -e 'type == "array" and length == 0' <<<"$provider_binds" >/dev/null || {
-  echo "RXB introduced a default/custom binding into the empty test i3 config:" >&2
+jq -e 'type == "array" and length == 105 and all(.[]; (.default | length) > 0 and (.unhonored | length) > 0 and .kind != "custom")' <<<"$provider_binds" >/dev/null || {
+  echo "RXB did not expose all 105 shipped Ryoku binds with explicit unsupported status:" >&2
   printf '%s\n' "$provider_binds" >&2
   exit 1
 }
-echo "RXB leaves the i3 bind catalogue empty when no bindings are declared."
+echo "RXB exposes all 105 shipped Ryoku binds; unsupported i3 actions are explicitly marked and no custom defaults are injected."
 
 echo "Pinned upstream Hub detected the live RXB i3 provider and capability manifest."
 
