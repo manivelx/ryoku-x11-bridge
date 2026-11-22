@@ -160,7 +160,6 @@ func TestApplyPreviewsAndWritesGeneratedKeybindings(t *testing.T) {
 	}
 }
 
-
 func TestApplyRejectsInvalidJSON(t *testing.T) {
 	store := filepath.Join(t.TempDir(), "store.json")
 	if err := os.WriteFile(store, []byte("{"), 0o600); err != nil {

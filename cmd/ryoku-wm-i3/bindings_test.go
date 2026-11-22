@@ -7,13 +7,13 @@ import (
 
 func TestI3ChordTranslatesRyokuModifiersAndMouseButtons(t *testing.T) {
 	cases := map[string]string{
-		"SUPER + SHIFT + Q": "Mod4+Shift+Q",
+		"SUPER + SHIFT + Q":   "Mod4+Shift+Q",
 		"ALT + CTRL + Return": "Mod1+Control+Return",
-		"SUPER + mouse:272": "Mod4+button1",
-		"SUPER + mouse:273": "Mod4+button3",
-		"SUPER + mouse_up": "Mod4+button4",
-		"SUPER + mouse_down": "Mod4+button5",
-		"SUPER + KP_0": "Mod4+KP_0",
+		"SUPER + mouse:272":   "Mod4+button1",
+		"SUPER + mouse:273":   "Mod4+button3",
+		"SUPER + mouse_up":    "Mod4+button4",
+		"SUPER + mouse_down":  "Mod4+button5",
+		"SUPER + KP_0":        "Mod4+KP_0",
 	}
 	for input, want := range cases {
 		got, ok := i3Chord(input)
@@ -60,7 +60,7 @@ func TestResolveShippedBindsMapsAndReportsCatalogue(t *testing.T) {
 
 func TestResolveShippedBindsHonoursFamilyRebindAndDisabledRows(t *testing.T) {
 	store := keybindStore{
-		KeybindRebinds: map[string]string{"SUPER + {n}": "SUPER + CTRL + {n}"},
+		KeybindRebinds:  map[string]string{"SUPER + {n}": "SUPER + CTRL + {n}"},
 		KeybindDisabled: []string{"SUPER + F"},
 	}
 	binds, rows, _ := resolveShippedBinds(store)

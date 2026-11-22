@@ -18,10 +18,10 @@ type keybind struct {
 }
 
 type keybindStore struct {
-	Keybinds        []keybind        `json:"keybinds"`
+	Keybinds        []keybind         `json:"keybinds"`
 	KeybindRebinds  map[string]string `json:"keybindRebinds"`
-	Unbinds         []string         `json:"unbinds"`
-	KeybindDisabled []string         `json:"keybindDisabled"`
+	Unbinds         []string          `json:"unbinds"`
+	KeybindDisabled []string          `json:"keybindDisabled"`
 }
 
 type neutralKeybindStore struct {
