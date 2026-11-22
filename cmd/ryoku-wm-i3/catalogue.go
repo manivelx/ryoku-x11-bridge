@@ -1,7 +1,7 @@
 // This file vendors the pinned upstream Ryoku keybinding catalogue and
 // normalization helpers from Ryoku-dev/ryoku at UPSTREAM_PIN.
 // Keep the source catalogue intact when updating the upstream pin.
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 package main
 
 import (
