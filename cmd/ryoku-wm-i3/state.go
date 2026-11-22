@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 type rect struct {
@@ -59,6 +60,25 @@ type node struct {
 	FloatingNodes  []node `json:"floating_nodes"`
 }
 
+// i3/Sway output APIs that expose a refresh value report millihertz
+// (for example 60000 for 60 Hz). Keep the provider's mode strings in Hz,
+// and omit absent mode data instead of manufacturing a 0x0@0 mode.
+func formatMode(value mode) string {
+	if value.Width <= 0 || value.Height <= 0 {
+		return ""
+	}
+	if value.Refresh <= 0 {
+		return fmt.Sprintf("%dx%d", value.Width, value.Height)
+	}
+	refresh := value.Refresh
+	if refresh >= 1000 {
+		refresh /= 1000
+	}
+	rate := strconv.FormatFloat(refresh, 'f', 2, 64)
+	rate = strings.TrimRight(strings.TrimRight(rate, "0"), ".")
+	return fmt.Sprintf("%dx%d@%s", value.Width, value.Height, rate)
+}
+
 func readState() (Snapshot, error) {
 	return readStateForKinds(nil)
 }
@@ -105,10 +125,12 @@ func readStateForKinds(want map[string]bool) (Snapshot, error) {
 				Model:           output.Model,
 				X:               output.Rect.X,
 				Y:               output.Rect.Y,
-				Mode:            fmt.Sprintf("%dx%d@%.0f", output.CurrentMode.Width, output.CurrentMode.Height, output.CurrentMode.Refresh),
 			}
-			for _, mode := range output.Modes {
-				row.Modes = append(row.Modes, fmt.Sprintf("%dx%d@%.0f", mode.Width, mode.Height, mode.Refresh))
+			row.Mode = formatMode(output.CurrentMode)
+			for _, supportedMode := range output.Modes {
+				if formatted := formatMode(supportedMode); formatted != "" {
+					row.Modes = append(row.Modes, formatted)
+				}
 			}
 			snapshot.Outputs = append(snapshot.Outputs, row)
 		}
