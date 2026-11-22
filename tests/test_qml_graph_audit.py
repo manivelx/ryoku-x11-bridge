@@ -16,8 +16,9 @@ class QmlGraphAuditTests(unittest.TestCase):
             root = Path(tmp) / "shell"
             parts = root / "parts"
             parts.mkdir(parents=True)
+            (root / "helpers.js").write_text("function value() { return 1 }\n", encoding="utf-8")
             (root / "shell.qml").write_text(
-                'import "parts"\nShellRoot { Widget { } }\n', encoding="utf-8"
+                'import "parts"\nimport "helpers.js" as Helpers\nShellRoot { Widget { } }\n', encoding="utf-8"
             )
             (parts / "Widget.qml").write_text(
                 'import Quickshell.Wayland\nPanel { WlrLayershell.layer: 1 }\n',
