@@ -219,7 +219,7 @@ dbus-run-session -- bash -c '
   done
   if [[ "$hub_ready" != 1 ]]; then
     cat "$tmp/daemon.log"
-    find "$XDG_RUNTIME_DIR/quickshell" -type f -name "log.log" -exec sh -c 'echo "--- $1"; tail -n 100 "$1"' _ {} \; 2>/dev/null || true
+    find "$XDG_RUNTIME_DIR/quickshell" -type f -name "log.log" -exec tail -n 100 {} \; 2>/dev/null || true
     echo "Ryoku Hub did not load and answer its navigation IPC from the isolated RXB config root." >&2
     exit 1
   fi
