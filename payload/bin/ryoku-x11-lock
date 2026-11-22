@@ -1,15 +1,38 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Prefer XSecureLock when installed. The i3lock fallback is a real PAM-backed
-# locker, not a Quickshell fullscreen window. If the selected locker fails,
-# propagate the failure rather than silently continuing an unlocked session.
-if command -v xsecurelock >/dev/null 2>&1; then
-  exec xsecurelock
+# Preserve the upstream Wayland qylock path. On Xorg, use a real PAM-backed
+# locker; never substitute a fullscreen Quickshell window for an OS lock.
+if [[ -n ${WAYLAND_DISPLAY:-} ]]; then
+  exec ryoku-qylock-lock
+fi
+if [[ -z ${DISPLAY:-} ]]; then
+  echo "ryoku-x11-lock: no active X11 display; refusing to fake a lock screen" >&2
+  exit 69
+fi
+runtime=${XDG_RUNTIME_DIR:-}
+if [[ -z "$runtime" || ! -d "$runtime" || ! -O "$runtime" ]]; then
+  echo "ryoku-x11-lock: a user-owned XDG_RUNTIME_DIR is required" >&2
+  exit 69
 fi
 
+umask 077
+lock_dir="$runtime/ryoku-x11-lock"
+install -d -m700 "$lock_dir"
+display_key=${DISPLAY//[^A-Za-z0-9_.-]/_}
+lock_file="$lock_dir/$display_key.lock"
+exec 9>"$lock_file"
+# A repeated lock request while the same display is already locked is safe
+# and idempotent; do not stack a second locker over the first.
+flock -n 9 || exit 0
+
+if command -v xsecurelock >/dev/null 2>&1; then
+  xsecurelock
+  exit $?
+fi
 if command -v i3lock >/dev/null 2>&1; then
-  exec i3lock --nofork --color=000000
+  i3lock --nofork --color=000000
+  exit $?
 fi
 
 echo "ryoku-x11-lock: install xsecurelock or i3lock; refusing to fake a lock screen" >&2

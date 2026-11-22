@@ -317,6 +317,8 @@ required_files=(
   /usr/share/xsessions/ryoku-x11.desktop
   /usr/bin/ryoku-x11-session
   /usr/bin/ryoku-x11-session-init
+  /usr/bin/ryoku-x11-lock
+  /usr/bin/ryoku-x11-suspend
   /usr/bin/ryoku-wm-i3
   /usr/lib/systemd/user/ryoku-shell.service
   /usr/lib/systemd/user/ryoku-x11-session.target
