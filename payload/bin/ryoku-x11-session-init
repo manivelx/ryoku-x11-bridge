@@ -50,6 +50,13 @@ ryoku materialize || {
 # the shared systemd user manager would leak DISPLAY/I3SOCK into BSPWM sessions.
 runtime_dir=${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required for a systemd user session}
 env_file="$runtime_dir/ryoku-x11-session.env"
+if [[ -L "$env_file" ]]; then
+  echo "ryoku-x11-session-init: refusing a symlinked session EnvironmentFile" >&2
+  exit 1
+fi
+# Recreate the file with an explicit mode: redirection alone preserves the
+# permissions of a pre-existing file, even when umask is 077.
+install -m 600 /dev/null "$env_file"
 write_env() {
   local key="$1" value="$2"
   if [[ "$value" == *$'\n'* || "$value" == *'"'* || "$value" == *\\* ]]; then
