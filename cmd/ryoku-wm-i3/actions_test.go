@@ -34,7 +34,7 @@ func TestRequiredWindowID(t *testing.T) {
 func TestRunBindsReportsOnlyTheActiveI3Configuration(t *testing.T) {
 	previous := readActiveI3Config
 	readActiveI3Config = func() (string, error) {
-		return "set $mod Mod4\\nbindsym $mod+Return exec terminal\\n", nil
+		return "set $mod Mod4\nbindsym $mod+Return exec terminal\n", nil
 	}
 	defer func() { readActiveI3Config = previous }()
 
