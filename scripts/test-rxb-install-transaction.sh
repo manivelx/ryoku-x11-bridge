@@ -67,54 +67,8 @@ for pkg in "${packages[@]}"; do
   done < <(sed -n 's/^depend = //p' <<<"$metadata")
 done
 
-# Install every external dependency from the official Arch repositories before
-# testing the local package transaction. pacman -U does not download missing
-# dependencies from sync repositories; relying on the build container's package
-# list made this test accidentally incomplete.
-declare -a external_dependency_specs=()
-declare -A seen_external_dependencies=()
-for pkg in "${packages[@]}"; do
-  metadata="$(bsdtar -xOf "$pkg" .PKGINFO)"
-  while IFS= read -r dependency; do
-    dependency_name="${dependency%%[<>=]*}"
-    case "$dependency_name" in
-      ryoku*|ryogami*|gpk)
-        [[ -n "${local_provides[$dependency_name]:-}" ]] || {
-          echo "[install-test] Missing local RXB package/provider: $dependency_name" >&2
-          exit 1
-        }
-        continue
-        ;;
-    esac
-    if [[ -n "${local_provides[$dependency_name]:-}" ]]; then
-      continue
-    fi
-    if [[ -z "${seen_external_dependencies[$dependency]:-}" ]]; then
-      seen_external_dependencies["$dependency"]=1
-      external_dependency_specs+=("$dependency")
-    fi
-  done < <(sed -n 's/^depend = //p' <<<"$metadata")
-done
-
-if (("${#external_dependency_specs[@]}" > 0)); then
-  # pacman -T preserves version constraints and avoids upgrading already
-  # installed dependencies (notably Quickshell) when they already satisfy RXB.
-  mapfile -t unresolved_specs < <(pacman -T "${external_dependency_specs[@]}" 2>/dev/null || true)
-  if (("${#unresolved_specs[@]}" > 0)); then
-    mapfile -t external_dependencies < <(
-      printf '%s\n' "${unresolved_specs[@]}" |
-        sed -E 's/[<>=].*$//' |
-        sort -u
-    )
-    echo "[install-test] Installing unsatisfied external dependencies from the Arch repositories."
-    pacman -S --needed --noconfirm "${external_dependencies[@]}"
-  fi
-  pacman -T "${external_dependency_specs[@]}" >/dev/null || {
-    echo "[install-test] External dependency requirements remain unsatisfied after resolution." >&2
-    exit 1
-  }
-fi
-
+# The installer itself resolves external dependencies from the configured
+# Arch repositories. The transaction test exercises that exact install path.
 # Create a second, metadata-only pkgrel for each package so pacman exercises
 # a real version upgrade and downgrade while the payload remains byte-identical.
 upgrade_dir="$(mktemp -d)"
@@ -243,6 +197,8 @@ cleanup() {
     pacman -Rdd --noconfirm "${present[@]}" >/dev/null || true
   fi
   cleanup_protected
+  rm -f /var/lib/rxb/installed-packages
+  rmdir /var/lib/rxb 2>/dev/null || true
   [[ -z ${upgrade_dir:-} ]] || rm -rf "$upgrade_dir"
   [[ -z ${test_home:-} ]] || rm -rf "$test_home"
   cleanup_test_config
@@ -250,8 +206,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "[install-test] Installing the complete built package set into this disposable Arch container."
-pacman -U --noconfirm "${packages[@]}"
+echo "[install-test] Installing the complete built package set through the RXB installer."
+PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
+  bash "$repo_root/scripts/install-rxb-packages.sh" "$dist"
 
 for name in "${package_names[@]}"; do
   actual_version="$(pacman -Q "$name" | awk '{print $2}')"
@@ -388,8 +345,13 @@ if ! id builder >/dev/null 2>&1; then
 fi
 runuser -u builder -- bash "$repo_root/scripts/test-rxb-full-shell-xvfb.sh"
 
-echo "[install-test] Removing the complete package set from the disposable container."
-pacman -Rdd --noconfirm "${package_names[@]}"
+echo "[install-test] Removing the complete package set through the RXB rollback script."
+PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
+  bash "$repo_root/scripts/remove-rxb-packages.sh"
+[[ ! -e /var/lib/rxb/installed-packages ]] || {
+  echo "RXB installer ownership manifest remains after rollback." >&2
+  exit 1
+}
 for name in "${package_names[@]}"; do
   if pacman -Q "$name" >/dev/null 2>&1; then
     echo "Package remains registered after removal: $name" >&2

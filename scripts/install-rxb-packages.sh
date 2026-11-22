@@ -66,6 +66,7 @@ pacman_confirmed() {
 
 declare -a package_names=()
 declare -a external_dependency_specs=()
+declare -a external_dependencies=()
 declare -A local_provides=()
 declare -A package_versions=()
 declare -A seen_external_dependencies=()
@@ -121,6 +122,10 @@ for pkg in "${packages[@]}"; do
   done < <(sed -n 's/^depend = //p' <<<"$metadata")
 done
 
+before_file="$(mktemp)"
+trap 'rm -f -- "$before_file"' EXIT
+pacman_exec -Qq | sort -u > "$before_file"
+
 if (("${#external_dependency_specs[@]}" > 0)); then
   mapfile -t unresolved_specs < <(pacman_exec -T "${external_dependency_specs[@]}" 2>/dev/null || true)
   if (("${#unresolved_specs[@]}" > 0)); then
@@ -137,10 +142,6 @@ if (("${#external_dependency_specs[@]}" > 0)); then
     exit 1
   }
 fi
-
-before_file="$(mktemp)"
-trap 'rm -f -- "$before_file"' EXIT
-pacman_exec -Qq | sort -u > "$before_file"
 
 echo "Installing the complete RXB X11 package set from $package_dir."
 pacman_confirmed -U "${packages[@]}"
@@ -170,7 +171,7 @@ if [[ -f "$manifest" ]]; then
 fi
 
 declare -a dependency_packages=()
-for name in "${package_names[@]}"; do
+for name in "${package_names[@]}" "${external_dependencies[@]}"; do
   if ! grep -Fxq "$name" "$before_file"; then
     owned_packages["$name"]=1
     [[ "$name" == "ryoku-desktop-i3" ]] || dependency_packages+=("$name")
