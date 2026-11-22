@@ -19,7 +19,7 @@ depends=(
   'i3lock'
   'xdotool'
   'xorg-server'
-  'quickshell'
+  'quickshell>=0.3.2'
   'maim'
   'xclip'
   'slop'
