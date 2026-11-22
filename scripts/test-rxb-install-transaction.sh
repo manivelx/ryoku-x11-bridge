@@ -232,5 +232,6 @@ for path in "${required_files[@]}"; do
   [[ ! -e "$path" ]] || { echo "Package-owned path remains after removal: $path" >&2; exit 1; }
 done
 
+cleanup_test_config
 trap - EXIT
 echo "RXB disposable install/uninstall transaction passed."
