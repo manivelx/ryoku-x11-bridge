@@ -61,7 +61,7 @@ func TestResolveShippedBindsMapsAndReportsCatalogue(t *testing.T) {
 		t.Fatalf("catalogue support reporting incomplete: close=%v unsupported=%v family=%v", foundClose, foundUnsupported, foundFamily)
 	}
 	generated := renderGeneratedI3Config(binds)
-	if !strings.Contains(generated, "bindsym Mod4+Q ") || !strings.Contains(generated, "workspace number 1") {
+	if !strings.Contains(generated, "bindsym Mod4+Q ") || !strings.Contains(generated, "workspace number 1") || !strings.Contains(generated, "bindsym Mod4+0 workspace number 10") {
 		t.Fatalf("generated i3 config is missing semantic Ryoku actions:\n%s", generated)
 	}
 	if strings.Contains(generated, "bindsym Mod4+R ") {
