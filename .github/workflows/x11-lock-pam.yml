@@ -46,7 +46,7 @@ jobs:
               set -euxo pipefail
               pacman -Syu --noconfirm --needed \
                 xorg-server-xvfb xorg-server-xephyr xdotool xorg-xwininfo xorg-xsetroot \
-                imagemagick xsecurelock i3lock pam util-linux procps-ng ttf-dejavu mesa
+                imagemagick xorg-xdpyinfo xsecurelock i3lock pam util-linux procps-ng ttf-dejavu mesa
               for f in payload/bin/ryoku-x11-lock payload/bin/ryoku-x11-suspend scripts/test-x11-lock-pam-xephyr.sh; do bash -n "$f"; done
               bash scripts/test-x11-lock-wrapper.sh
               bash scripts/test-x11-suspend-wrapper.sh

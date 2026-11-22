@@ -47,6 +47,13 @@ dump_diagnostics() {
   { echo "display: ${disp:-unset}"; ps -eo pid,user,args --sort=pid | grep -E 'xsecurelock|i3lock|Xephyr|Xvfb|ryoku-x11-lock|auth_x11|saver_' | grep -v grep; } >&2 || true
   for f in "$tmp"/*.log; do [[ -f $f ]] && { echo "== $f"; tail -n 40 "$f"; } >&2; done
   if [[ -n ${disp:-} ]]; then
+    echo "-- background experiments (Xephyr $disp vs its Xvfb parent :71):" >&2
+    for d in "$disp" :71; do
+      runuser -u "$user" -- env -i PATH=/usr/bin:/bin HOME="$tmp/home" DISPLAY="$d" xsetroot -solid red >&2 2>&1 || echo "xsetroot failed on $d" >&2
+      sleep 1
+      echo "  $d after xsetroot -solid red: $(runuser -u "$user" -- env -i PATH=/usr/bin:/bin HOME="$tmp/home" DISPLAY="$d" import -window root -depth 8 -crop 1x1+640+360 +repage txt:- 2>&1 | tail -n 1)" >&2
+      runuser -u "$user" -- env -i PATH=/usr/bin:/bin HOME="$tmp/home" DISPLAY="$d" xdpyinfo 2>/dev/null | grep -E 'extensions|XTEST|MIT-SCREEN|RANDR|XINERAMA|DOUBLE|SHAPE|XKEYBOARD|MIT-SHM|DPMS|Composite' | head -12 >&2 || true
+    done
     echo "-- raw pixel probe:" >&2
     runuser -u "$user" -- env -i PATH=/usr/bin:/bin HOME="$tmp/home" DISPLAY="$disp" import -window root -depth 8 -crop 1x1+640+360 +repage txt:- 2>&1 | head -5 >&2 || true
     runuser -u "$user" -- env -i PATH=/usr/bin:/bin HOME="$tmp/home" DISPLAY="$disp" xwininfo -root -tree 2>&1 | head -40 >&2 || true
