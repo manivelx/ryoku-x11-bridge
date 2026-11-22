@@ -58,6 +58,19 @@ done
 [[ -n "$base_pkg" ]] || { echo "Missing ryoku-desktop base package (PKGINFO metadata)" >&2; exit 1; }
 [[ -n "$variant_pkg" ]] || { echo "Missing ryoku-desktop-i3 package (PKGINFO metadata)" >&2; exit 1; }
 
+# The X11 package set must not pull Wayland-only helper stacks or DKMS.
+# DKMS can run kernel-module hooks, which is outside the scope of a desktop
+# session install and particularly risky on legacy proprietary GPU drivers.
+for pkg in "${packages[@]}"; do
+  metadata="$(bsdtar -xOf "$pkg" .PKGINFO)"
+  for forbidden in dkms hypridle hyprpicker wtype wl-clipboard wl-clip-persist grim slurp weston xorg-xwayland qt5-wayland qt6-wayland; do
+    if grep -Fqx "depend = $forbidden" <<<"$metadata"; then
+      echo "RXB X11 runtime package must not hard-depend on $forbidden: $pkg" >&2
+      exit 1
+    fi
+  done
+done
+
 base_list="$(bsdtar -tf "$base_pkg")"
 variant_list="$(bsdtar -tf "$variant_pkg")"
 
