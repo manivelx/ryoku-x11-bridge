@@ -884,6 +884,26 @@ def patch_quickshell_config_isolation(root: pathlib.Path) -> None:
         if patched != text:
             qml.write_text(patched)
 
+    p = root / "ryoku/shell/ipc/theming.go"
+    replace_once(p, "func themeAppsEnabled() bool {",
+                 '''func themeAppsEnabled() bool {
+	if os.Getenv("RYOKU_X11_BRIDGE") == "1" {
+		return false
+	}''')
+
+    p = root / "ryoku/hub/backend/matugen.go"
+    replace_once(p, "func renderActiveTemplates(cfg matugenConfig, pal map[string]string) {",
+                 '''func renderActiveTemplates(cfg matugenConfig, pal map[string]string) {
+	if os.Getenv("RYOKU_X11_BRIDGE") == "1" {
+		return
+	}''')
+    p = root / "ryoku/hub/backend/schemes.go"
+    replace_once(p, "func blankGtk() {",
+                 '''func blankGtk() {
+	if os.Getenv("RYOKU_X11_BRIDGE") == "1" {
+		return
+	}''')
+
     p = root / "ryoku/shell/ipc/widgetwatch.go"
     replace_once(p, '''// ryokuConfigDir is ~/.config/ryoku (honouring XDG_CONFIG_HOME), the dir the
 // Ryoku Settings sections write. Empty only when the home dir is unknowable.
