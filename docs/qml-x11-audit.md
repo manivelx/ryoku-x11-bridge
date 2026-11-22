@@ -99,3 +99,15 @@ The Ryogami picker contains Wayland layer-shell usage. RXB installs a dedicated 
 - Record source inspected, adapter implemented, build passed, unit passed, Xvfb/Xephyr passed, hardware passed and owner confirmed as separate evidence fields.
 
 Do not treat the search census or successful source rewrite as runtime compatibility evidence.
+
+## Reproducible CI source inventory
+
+RXB now includes `scripts/audit-rxb-qml.py`. After applying the overlay to the pinned upstream checkout, CI inventories every QML file under these three source roots:
+
+- `ryoku/shell/quickshell/shell` — the main shell tree, including optional styles and modules.
+- `ryoku/shell/quickshell/keys` — the key-hint/Kit application.
+- `ryoku/shell/quickshell/ryoshot` — the screenshot/region-selection application.
+
+The report counts and lists source occurrences of `Quickshell.Wayland`, `WlrLayershell`, `ScreencopyView`, `ToplevelManager`, `WlSessionLock`, `Quickshell.Hyprland`, `Quickshell.Niri` and `Quickshell.I3`. CI uploads the machine-readable JSON as the `rxb-qml-x11-inventory` artifact for each integration run.
+
+This is a reproducible **whole-subtree source census**, not an active-profile dependency graph: a file can belong to an optional bar style or helper surface that is not loaded in the user's current profile. The next audit step remains resolving the default shell's transitive QML imports and classifying every reachable Wayland API use by actual runtime path. The report must not be used to claim that the default profile is fully audited or that an API occurrence is already adapted.
