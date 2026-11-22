@@ -690,14 +690,17 @@ func spawnX11Locker() error {
 		return
 	}
 	if d.lockRecovery != nil {'''
-    replace_once(p, old, new)
+    if text.count(old) != 1:
+        raise RuntimeError(f"{p}: lock recovery anchor missing")
+    text = text.replace(old, new, 1)
     if '"os"' not in text.split("import (",1)[1].split(")",1)[0]:
         text = text.replace('import (\n', 'import (\n\t"os"\n', 1)
     p.write_text(text)
 
     p = root / "ryoku/shell/ipc/control.go"
     text = p.read_text()
-    text = text.replace('import (\n\t"os"\n', 'import (\n\t"os"\n\t"strconv"\n\t"strings"\n\t"syscall"\n', 1)
+    if '"strconv"' not in text.split("import (",1)[1].split(")",1)[0]:
+        text = text.replace('import (\n', 'import (\n\t"strconv"\n\t"strings"\n\t"syscall"\n', 1)
     old = '''// isLocked accepts only generation- and session-bound compositor proof. A
 // marker from a killed or different-session locker is stale and removed.
 func isLocked() bool {
@@ -748,7 +751,10 @@ func isLocked() bool {
 		return false
 	}
 	marker := lockMarker()'''
-    replace_once(p, old, new)
+    if text.count(old) != 1:
+        raise RuntimeError(f"{p}: lock-state anchor missing")
+    text = text.replace(old, new, 1)
+    p.write_text(text)
 
     test = root / "ryoku/shell/ipc/rxb_x11_lock_test.go"
     test.write_text("""package main
@@ -808,7 +814,10 @@ func TestRXBX11SecureSuspendFailsClosed(t *testing.T) {
 				return a.failf("suspend and hibernate are disabled on X11 until secure lock-before-suspend is implemented")
 			}
 		}'''
-    replace_once(p, old, new)
+    if text.count(old) != 1:
+        raise RuntimeError(f"{p}: host power action anchor missing")
+    text = text.replace(old, new, 1)
+    p.write_text(text)
     test = root / "ryoku/cli/internal/host/rxb_x11_power_guard_test.go"
     test.write_text("""package host
 
