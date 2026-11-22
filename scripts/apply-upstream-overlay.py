@@ -546,7 +546,7 @@ func spawnX11Locker() error {
 
 def _ternary_counts(expr: str) -> tuple[int, int, int]:
     parens = expr.count("(") - expr.count(")")
-    questions = len(re.findall(r"\?(?![?.])", expr))
+    questions = len(re.findall(r"(?<!\?)\?(?![?.])", expr))
     colons = len(re.findall(r"(?<!:):(?!:)", expr))
     return parens, questions, colons
 
