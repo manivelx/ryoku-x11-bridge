@@ -122,6 +122,29 @@ for pkg in "${packages[@]}"; do
   done < <(sed -n 's/^depend = //p' <<<"$metadata")
 done
 
+# The manifest is the ownership boundary for safe upgrades and rollback.
+manifest_dir="/var/lib/rxb"
+manifest="$manifest_dir/installed-packages"
+[[ ! -L "$manifest_dir" && ! -L "$manifest" ]] || {
+  echo "install-rxb-packages: refusing symlinked RXB ownership paths." >&2
+  exit 1
+}
+declare -A owned_packages=()
+if [[ -e "$manifest" ]]; then
+  [[ -f "$manifest" && -O "$manifest" ]] || {
+    echo "install-rxb-packages: ownership manifest must be a root-owned regular file." >&2
+    exit 1
+  }
+  while IFS= read -r name; do
+    [[ -n "$name" ]] || continue
+    [[ "$name" =~ ^[a-z0-9][a-z0-9@._+-]*$ ]] || {
+      echo "install-rxb-packages: invalid package name in existing manifest: $name" >&2
+      exit 1
+    }
+    owned_packages["$name"]=1
+  done < "$manifest"
+fi
+
 # Never replace an unrelated/manual Ryoku installation. Reinstallation and
 # upgrades are allowed only for packages this installer previously recorded.
 for name in "${package_names[@]}"; do
@@ -131,6 +154,19 @@ for name in "${package_names[@]}"; do
     exit 1
   fi
 done
+
+write_manifest() {
+  (("${#owned_packages[@]}" > 0)) || return 0
+  [[ ! -L "$manifest_dir" && ! -L "$manifest" ]] || {
+    echo "install-rxb-packages: ownership path became a symlink during installation." >&2
+    return 1
+  }
+  install -d -m700 "$manifest_dir"
+  manifest_tmp="$(mktemp)"
+  printf '%s\n' "${!owned_packages[@]}" | sort -u > "$manifest_tmp"
+  install -D -m600 "$manifest_tmp" "$manifest"
+  rm -f -- "$manifest_tmp"
+}
 
 before_file="$(mktemp)"
 trap 'rm -f -- "$before_file"' EXIT
@@ -153,52 +189,47 @@ if (("${#external_dependency_specs[@]}" > 0)); then
   }
 fi
 
+# Record and mark newly installed external dependencies before the local
+# package transaction. If that transaction fails, the rollback script can
+# still remove the dependencies this installer introduced.
+declare -a external_dependency_packages=()
+for name in "${external_dependencies[@]}"; do
+  if ! grep -Fxq "$name" "$before_file"; then
+    owned_packages["$name"]=1
+    external_dependency_packages+=("$name")
+  fi
+done
+if (("${#external_dependency_packages[@]}" > 0)); then
+  write_manifest
+  pacman_exec -D --asdeps "${external_dependency_packages[@]}"
+fi
+
 echo "Installing the complete RXB X11 package set from $package_dir."
 pacman_confirmed -U "${packages[@]}"
+
+# Persist ownership immediately after pacman commits the local package set,
+# before verification or install-reason updates can fail.
+declare -a local_dependency_packages=()
+for name in "${package_names[@]}"; do
+  if ! grep -Fxq "$name" "$before_file"; then
+    owned_packages["$name"]=1
+    [[ "$name" == "ryoku-desktop-i3" ]] || local_dependency_packages+=("$name")
+  fi
+done
+write_manifest
+if (("${#local_dependency_packages[@]}" > 0)); then
+  pacman_exec -D --asdeps "${local_dependency_packages[@]}"
+fi
+pacman_exec -D --asexplicit ryoku-desktop-i3
 
 for name in "${package_names[@]}"; do
   actual_version="$(pacman_exec -Q "$name" | awk '{print $2}')"
   [[ "$actual_version" == "${package_versions[$name]}" ]] || {
     echo "install-rxb-packages: package registration mismatch for $name: $actual_version" >&2
+    echo "Newly installed packages remain recorded for rollback at $manifest." >&2
     exit 1
   }
 done
-
-# Record only RXB packages that this installer newly introduced. This lets
-# removal leave pre-existing Ryoku packages untouched.
-manifest_dir="/var/lib/rxb"
-manifest="$manifest_dir/installed-packages"
-declare -A owned_packages=()
-if [[ -f "$manifest" ]]; then
-  while IFS= read -r name; do
-    [[ -n "$name" ]] || continue
-    [[ "$name" =~ ^[a-z0-9][a-z0-9@._+-]*$ ]] || {
-      echo "install-rxb-packages: invalid package name in existing manifest: $name" >&2
-      exit 1
-    }
-    owned_packages["$name"]=1
-  done < "$manifest"
-fi
-
-declare -a dependency_packages=()
-for name in "${package_names[@]}" "${external_dependencies[@]}"; do
-  if ! grep -Fxq "$name" "$before_file"; then
-    owned_packages["$name"]=1
-    [[ "$name" == "ryoku-desktop-i3" ]] || dependency_packages+=("$name")
-  fi
-done
-
-if (("${#owned_packages[@]}" > 0)); then
-  manifest_tmp="$(mktemp)"
-  printf '%s\n' "${!owned_packages[@]}" | sort -u > "$manifest_tmp"
-  install -D -m600 "$manifest_tmp" "$manifest"
-  rm -f -- "$manifest_tmp"
-fi
-
-if (("${#dependency_packages[@]}" > 0)); then
-  pacman_exec -D --asdeps "${dependency_packages[@]}"
-fi
-pacman_exec -D --asexplicit ryoku-desktop-i3
 
 echo
 echo "RXB X11 package set installed."
