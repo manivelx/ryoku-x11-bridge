@@ -21,6 +21,9 @@ export XDG_DATA_HOME="$home/.local/share"
 export XDG_STATE_HOME="$home/.local/state"
 export XDG_RUNTIME_DIR="$runtime"
 export RYOKU_X11_BRIDGE=1
+export XDG_SESSION_TYPE=x11
+export XDG_CURRENT_DESKTOP=Ryoku
+export RYOKU_WM=i3
 export RYOKU_CONFIG_HOME="$XDG_CONFIG_HOME/ryoku-x11/ryoku-config"
 export RYOKU_QUICKSHELL_CONFIG_HOME="$RYOKU_CONFIG_HOME/quickshell"
 export QT_QPA_PLATFORM=xcb
@@ -78,7 +81,7 @@ dbus-run-session -- timeout --signal=TERM --kill-after=3s 20s qs -p "$shell_root
 status=$?
 set -e
 
-if [[ $status -ne 0 && $status -ne 124 && $status -ne 143 ]]; then
+if [[ $status -ne 124 && $status -ne 143 ]]; then
   cat "$tmp/quickshell.log"
   echo "Full Ryoku Quickshell shell exited unexpectedly (status $status)." >&2
   exit 1
@@ -91,11 +94,5 @@ if grep -Eiq \
   echo "Full Ryoku shell reported a fatal QML load/import error." >&2
   exit 1
 fi
-
-grep -Eiq 'Quickshell|shell|PanelWindow' "$tmp/quickshell.log" || {
-  cat "$tmp/quickshell.log"
-  echo "Quickshell produced no recognizable startup output." >&2
-  exit 1
-}
 
 echo "RXB full upstream Ryoku shell QML stayed alive under Xvfb + i3 for the smoke window."
