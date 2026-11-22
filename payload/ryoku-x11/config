@@ -22,6 +22,6 @@ exec --no-startup-id ryoku-x11-session-init
 include ~/.config/ryoku-x11/generated.conf
 include ~/.config/ryoku-x11/user.conf
 
-# No default keybindings are installed by RXB yet.
-# Upstream Ryoku bind catalogue and i3 translation are still being ported.
+# Original Ryoku keybindings are generated before i3 starts and reloaded after settings changes.
+# Unsupported upstream actions remain visible in the Hub with an explicit reason.
 # Keep this file free of custom shortcuts; user.conf remains user-owned.
