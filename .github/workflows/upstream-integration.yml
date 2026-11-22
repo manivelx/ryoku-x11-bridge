@@ -53,7 +53,7 @@ jobs:
             bash -lc '
               set -euo pipefail
               pacman -Syu --noconfirm --needed \
-                git curl go jq cmake ninja pkgconf python fish librsvg xorg-xcursorgen hyprcursor tesseract-data-eng \
+                git curl go jq cmake ninja pkgconf python fish librsvg xorg-xcursorgen hyprcursor xcur2png tesseract-data-eng \
                 wayland wayland-protocols ffmpeg \
                 qt6-base qt6-declarative qt6-multimedia \
                 qt6-shadertools qt6-quick3d qt6-svg qt6-5compat \
