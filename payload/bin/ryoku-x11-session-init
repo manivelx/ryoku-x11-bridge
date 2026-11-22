@@ -54,9 +54,12 @@ if [[ -L "$env_file" ]]; then
   echo "ryoku-x11-session-init: refusing a symlinked session EnvironmentFile" >&2
   exit 1
 fi
-# Recreate the file with an explicit mode: redirection alone preserves the
-# permissions of a pre-existing file, even when umask is 077.
-install -m 600 /dev/null "$env_file"
+# Replace any prior regular file rather than truncating it in place:
+# a hard link must not let the EnvironmentFile overwrite another user file.
+# The private runtime directory and restrictive umask give the new inode 0600.
+rm -f -- "$env_file"
+(umask 077; : > "$env_file")
+chmod 600 "$env_file"
 write_env() {
   local key="$1" value="$2"
   if [[ "$value" == *$'\n'* || "$value" == *'"'* || "$value" == *\\* ]]; then
