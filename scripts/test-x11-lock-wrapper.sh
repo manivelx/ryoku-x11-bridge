@@ -22,6 +22,7 @@ printf qylock > "$RXB_LOCK_TEST_MARKER"
 EOF
 chmod +x "$tmp/wayland/ryoku-qylock-lock"
 export RXB_LOCK_TEST_MARKER="$tmp/marker"
+mkdir -p "$tmp/runtime" "$tmp/runtime-fallback" "$tmp/runtime-dedupe"
 PATH="$tmp/wayland" WAYLAND_DISPLAY=wayland-0 DISPLAY= bash "$locker"
 [[ "$(cat "$RXB_LOCK_TEST_MARKER")" == qylock ]] || {
   echo "Wayland lock wrapper did not preserve qylock" >&2

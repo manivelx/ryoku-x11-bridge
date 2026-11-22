@@ -237,6 +237,46 @@ dbus-run-session -- bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HO
   qs -p "$hub_root" ipc call hub close >/dev/null 2>&1 || true
   echo "Ryoku Hub loaded and answered navigation IPC from the isolated RXB Quickshell root."
 
+  # Exercise the real daemon lock dispatch on X11 and ensure status reflects
+  # the live PAM locker, not a Wayland qylock proof marker.
+  if ryoku-shell suspend >/dev/null 2>&1; then
+    echo "RXB unexpectedly accepted suspend on X11 without a secure lock handoff." >&2
+    exit 1
+  fi
+  ryoku-shell lock >/dev/null
+  lock_status=""
+  for _ in $(seq 1 50); do
+    lock_status="$(ryoku-shell lock status 2>/dev/null || true)"
+    [[ "$lock_status" == "locked" ]] && break
+    sleep 0.1
+  done
+  [[ "$lock_status" == "locked" ]] || {
+    cat "$tmp/daemon.log"
+    echo "X11 lock dispatch did not report the live PAM locker as locked." >&2
+    exit 1
+  }
+  locker_pid="$(pgrep -n -x i3lock || true)"
+  [[ -n "$locker_pid" ]] || {
+    echo "X11 lock dispatch reported locked without an i3lock process." >&2
+    exit 1
+  }
+  ryoku-shell lock >/dev/null
+  [[ "$(pgrep -n -x i3lock || true)" == "$locker_pid" ]] || {
+    echo "Repeated lock request started a second i3lock process." >&2
+    exit 1
+  }
+  kill "$locker_pid"
+  for _ in $(seq 1 50); do
+    lock_status="$(ryoku-shell lock status 2>/dev/null || true)"
+    [[ "$lock_status" == "unlocked" ]] && break
+    sleep 0.1
+  done
+  [[ "$lock_status" == "unlocked" ]] || {
+    echo "X11 lock status stayed locked after the PAM locker exited." >&2
+    exit 1
+  }
+  echo "X11 PAM locker start/status/idempotency/exit checks passed; X11 suspend failed closed."
+
   ryoku-shell quit
   wait "$daemon_pid"
   trap - EXIT

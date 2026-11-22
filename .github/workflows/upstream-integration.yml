@@ -66,7 +66,7 @@ jobs:
                 qt6-base qt6-declarative qt6-multimedia \
                 qt6-shadertools qt6-quick3d qt6-svg qt6-5compat \
                 qt6-imageformats qt6-wayland vulkan-headers \
-                imagemagick quickshell i3-wm i3lock xorg-server-xvfb \
+                imagemagick quickshell i3-wm i3lock procps-ng xorg-server-xvfb \
                 xorg-xrandr maim xclip slop dbus mesa
               builder_uid="$(stat -c %u /workspace)"
               useradd -m -u "$builder_uid" builder
@@ -138,10 +138,13 @@ jobs:
           bash -n payload/bin/ryoku-x11-session
           bash -n payload/bin/ryoku-x11-session-init
           bash -n payload/bin/ryoku-x11-lock
+          bash -n payload/bin/ryoku-x11-suspend
           bash -n scripts/test-x11-lock-wrapper.sh
+          bash -n scripts/test-x11-suspend-wrapper.sh
           bash -n scripts/test-rxb-session-lifecycle.sh
           bash -n scripts/test-rxb-full-shell-xvfb.sh
           bash scripts/test-x11-lock-wrapper.sh
+          bash scripts/test-x11-suspend-wrapper.sh
           bash scripts/test-rxb-session-lifecycle.sh
           bash -n release/packages/ryoku-desktop-i3/PKGBUILD
           bash -n release/packages/ryoku-desktop-i3/payload.sh
