@@ -159,15 +159,40 @@ grep -q '^TryExec=i3$' /usr/share/xsessions/ryoku-x11.desktop
 [[ ! -e /usr/lib/systemd/user/ryoku-session.target.wants/ryoku-shell.service ]]
 [[ ! -e /usr/lib/systemd/user/ryoku-session.target.wants/ryogami.service ]]
 
-# Verify the installed RXB user-unit syntax and dependency graph.
+# Validate the installed user-unit files offline. `systemd-analyze --user
+# verify` attempts to contact the caller's live user manager on some systemd
+# versions, which is unavailable in this disposable container. Build a minimal
+# temporary root, map the user units into its system-unit search path, and add
+# explicit stubs for session-only dependencies. This checks unit syntax,
+# dependency references, and ExecStart paths without starting a manager or
+# changing the host/container's systemd state.
 command -v systemd-analyze >/dev/null 2>&1 || {
   echo "systemd-analyze is required to verify the RXB user units." >&2
   exit 1
 }
-systemd-analyze --user verify \
-  /usr/lib/systemd/user/ryoku-x11-session.target \
-  /usr/lib/systemd/user/ryoku-shell-x11.service \
-  /usr/lib/systemd/user/ryogami-x11.service
+verify_root="$(mktemp -d)"
+trap 'rm -rf "$verify_root"; cleanup' EXIT
+mkdir -p "$verify_root/usr/lib/systemd/system" "$verify_root/usr/bin"
+for unit in graphical-session.target graphical-session-pre.target sysinit.target; do
+  printf '[Unit]\\nDescription=RXB offline verification stub (%s)\\n' "$unit" \
+    > "$verify_root/usr/lib/systemd/system/$unit"
+done
+printf '[Unit]\\nDescription=RXB offline session slice stub\\n[Slice]\\n' \
+  > "$verify_root/usr/lib/systemd/system/session.slice"
+for executable in ryoku-shell ryogami; do
+  : > "$verify_root/usr/bin/$executable"
+  chmod 0755 "$verify_root/usr/bin/$executable"
+done
+for unit in ryoku-x11-session.target ryoku-shell-x11.service ryogami-x11.service; do
+  install -m 0644 "/usr/lib/systemd/user/$unit" \
+    "$verify_root/usr/lib/systemd/system/$unit"
+done
+systemd-analyze verify --root="$verify_root" --man=no \
+  "$verify_root/usr/lib/systemd/system/ryoku-x11-session.target" \
+  "$verify_root/usr/lib/systemd/system/ryoku-shell-x11.service" \
+  "$verify_root/usr/lib/systemd/system/ryogami-x11.service"
+rm -rf "$verify_root"
+trap cleanup EXIT
 
 # Exercise the installed upstream QML entry point with the packaged i3 provider.
 # Run as an unprivileged account, but only after the disposable package set is installed.
