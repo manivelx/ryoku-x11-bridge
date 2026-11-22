@@ -630,6 +630,7 @@ exec wl-copy --type "$mime" "$@"
 def patch_lock_dispatch(root: pathlib.Path) -> None:
     p = root / "ryoku/shell/ipc/actions.go"
     old = '''// lockSession locks the screen with qylock, the in-session lock Ryoku ships.
+// The shell has no lock surface of its own.
 func lockSession() string {
 	if err := ensureSessionLocked(time.Now().Add(lockWait)); err != nil {
 		return "err lock: " + err.Error()
