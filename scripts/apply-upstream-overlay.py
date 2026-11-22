@@ -967,8 +967,22 @@ func ryokuConfigDir() string {
          'base := os.Getenv("XDG_CONFIG_HOME")\n\tif base == "" {\n\t\tbase = filepath.Join(os.Getenv("HOME"), ".config")\n\t}',
          'base := ryokuConfigHome()'),
         ("ryoku/shell/ipc/record.go",
-         'dir := os.Getenv("XDG_CONFIG_HOME")\n\tif dir == "" {\n\t\tif home, err := os.UserHomeDir(); err == nil {\n\t\t\tdir = filepath.Join(home, ".config")\n\t\t}',
-         'dir := ryokuConfigHome()\n\tif dir == "" {\n\t\treturn ""\n\t}'),
+         '''func recordingConfigPath() string {
+	dir := os.Getenv("XDG_CONFIG_HOME")
+	if dir == "" {
+		if home, err := os.UserHomeDir(); err == nil {
+			dir = filepath.Join(home, ".config")
+		}
+	}
+	return filepath.Join(dir, "ryoku", "recording.json")
+}''',
+         '''func recordingConfigPath() string {
+	dir := ryokuConfigHome()
+	if dir == "" {
+		return ""
+	}
+	return filepath.Join(dir, "ryoku", "recording.json")
+}'''),
         ("ryoku/shell/ipc/theming.go",
          'base := os.Getenv("XDG_CONFIG_HOME")\n\tif base == "" {\n\t\tbase = filepath.Join(os.Getenv("HOME"), ".config")\n\t}',
          'base := ryokuConfigHome()'),
