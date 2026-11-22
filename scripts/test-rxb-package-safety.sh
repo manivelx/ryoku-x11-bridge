@@ -91,7 +91,15 @@ for forbidden in \
   'usr/share/ryoku/lockscreen/' \
   'usr/share/sddm/' \
   'usr/share/wayland-sessions/' \
+  'usr/share/xsessions/bspwm.desktop' \
+  'etc/sddm.conf' \
   'etc/sddm.conf.d/' \
+  'etc/kernel/cmdline' \
+  'etc/default/grub' \
+  'boot/grub/' \
+  'etc/X11/xorg.conf.d/' \
+  'etc/modprobe.d/' \
+  'usr/lib/systemd/system-sleep/' \
   'usr/lib/environment.d/99-ryoku-session.conf' \
   'usr/lib/environment.d/98-ryoku-dbus.conf' \
   'usr/lib/systemd/user-environment-generators/60-ryoku-xdg-dirs' \

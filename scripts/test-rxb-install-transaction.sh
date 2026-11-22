@@ -185,6 +185,7 @@ cleanup_protected() {
     if [[ "${protected_created[$index]}" == 1 ]]; then
       rm -f -- "$path"
     else
+      mkdir -p "$(dirname "$path")"
       rm -f -- "$path"
       cp -a -- "$snapshot" "$path"
     fi
@@ -235,11 +236,15 @@ echo "[install-test] Installing the complete built package set into this disposa
 pacman -U --noconfirm "${packages[@]}"
 
 for name in "${package_names[@]}"; do
-  pacman -Q "$name" >/dev/null || { echo "Package was not registered after install: $name" >&2; exit 1; }
+  actual_version="$(pacman -Q "$name" | awk '{print $2}')"
+  [[ "$actual_version" == "${package_versions[$name]}" ]] || {
+    echo "Package was not registered at its built version after install: $name ($actual_version)" >&2
+    exit 1
+  }
 done
 verify_protected
 
-echo "[install-test] Upgrading every RXB package from pkgrel 1 to the synthetic pkgrel 2."
+echo "[install-test] Upgrading every RXB package to a synthetic higher pkgrel."
 pacman -U --noconfirm "${upgrade_packages[@]}"
 for name in "${package_names[@]}"; do
   actual_version="$(pacman -Q "$name" | awk '{print $2}')"
