@@ -269,12 +269,7 @@ dbus-run-session -- bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HO
     exit 1
   fi
   ryoku-shell lock >/dev/null
-  locker_pid=""
-  for _ in $(seq 1 50); do
-    locker_pid="$(pgrep -n -x i3lock || true)"
-    [[ -n "$locker_pid" ]] && break
-    sleep 0.1
-  done
+  locker_pid="$(pgrep -n -x i3lock || true)"
   [[ -n "$locker_pid" ]] || {
     cat "$tmp/daemon.log"
     echo "X11 lock dispatch did not start the PAM-backed i3lock process." >&2
