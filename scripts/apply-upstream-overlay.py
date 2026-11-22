@@ -1177,21 +1177,8 @@ func configPath() string {''')
 	return []string{"-c", name}''')
 
     p = root / "ryoku/shell/ipc/daemon.go"
-    replace_once(p, '''	configRoot := os.Getenv("XDG_CONFIG_HOME")
-	if configRoot == "" {
-		home, _ := os.UserHomeDir()
-		configRoot = filepath.Join(home, ".config")
-	}
-	shellRoot := filepath.Join(configRoot, "quickshell")''',
-                 '''	configRoot := os.Getenv("RYOKU_CONFIG_HOME")
-	if configRoot == "" {
-		configRoot = os.Getenv("XDG_CONFIG_HOME")
-	}
-	if configRoot == "" {
-		home, _ := os.UserHomeDir()
-		configRoot = filepath.Join(home, ".config")
-	}
-	shellRoot := filepath.Join(configRoot, "quickshell")''')
+    replace_once(p, 'configRoot := os.Getenv("XDG_CONFIG_HOME")',
+                 'configRoot := os.Getenv("RYOKU_CONFIG_HOME")\n\tif configRoot == "" {\n\t\tconfigRoot = os.Getenv("XDG_CONFIG_HOME")\n\t}')
     replace_once(p, '''	myCfg := os.Getenv("XDG_CONFIG_HOME")
 	if myCfg == "" {
 		myCfg = myHome + "/.config"
