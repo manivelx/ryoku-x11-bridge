@@ -95,6 +95,7 @@ RXB is designed as a separate session. Its package overlay must not replace or r
 - Existing BSPWM configuration or sxhkd bindings.
 - SDDM configuration or the Ryoku Orbital theme.
 - The existing Quickshell lockscreen.
+- The existing `~/.config/quickshell` tree and other user configuration (RXB uses `~/.config/ryoku-x11/ryoku-config`).
 - Picom configuration.
 - NVIDIA drivers, kernel, GRUB/EFI or EDID settings.
 - The separate MRX-Desktop project.
