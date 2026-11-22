@@ -58,7 +58,7 @@ build_package() {
 }
 
 echo "[2/3] Building the original Ryoku runtime and desktop payload..."
-for package in gpk ryoku-keyring ryoku-blobs ryoku-palette-bridge ryoku-shell ryoku-hub ryogami ryoku ryoku-desktop; do
+for package in gpk ryoku-keyring ryoku-blobs ryoku-palette-bridge ryoku-shell ryoku-hub ryogami ryoku-cursors ryoku-cursor-material ryoku ryoku-desktop; do
   build_package "$UPSTREAM" "$package"
 done
 
