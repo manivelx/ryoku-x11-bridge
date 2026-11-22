@@ -18,8 +18,12 @@ class QMLAuditTests(unittest.TestCase):
             repo = Path(temporary)
             shell = repo / "ryoku/shell/quickshell/shell"
             keys = repo / "ryoku/shell/quickshell/keys"
+            hub = repo / "ryoku/hub/quickshell"
+            picker = repo / "ryoku/shell/ryogami/picker/qml"
             shell.mkdir(parents=True)
             keys.mkdir(parents=True)
+            hub.mkdir(parents=True)
+            picker.mkdir(parents=True)
             (shell / "shell.qml").write_text(
                 "import Quickshell.Wayland\\n"
                 "PanelWindow { WlrLayershell.layer: WlrLayer.Top }\\n",
@@ -38,11 +42,15 @@ class QMLAuditTests(unittest.TestCase):
             self.assertEqual(report["schema_version"], 1)
             self.assertEqual(report["roots"]["main_shell"]["qml_files"], 2)
             self.assertEqual(report["roots"]["key_hint_app"]["qml_files"], 1)
+            self.assertEqual(report["roots"]["hub"]["qml_files"], 1)
+            self.assertEqual(report["roots"]["ryogami_picker"]["qml_files"], 1)
             self.assertEqual(report["roots"]["main_shell"]["totals"]["wayland_import"], 1)
             self.assertEqual(report["roots"]["main_shell"]["totals"]["wlr_layershell"], 1)
             self.assertEqual(report["roots"]["main_shell"]["totals"]["screencopy_view"], 1)
             self.assertEqual(report["roots"]["main_shell"]["totals"]["toplevel_manager"], 1)
             self.assertEqual(report["roots"]["key_hint_app"]["totals"]["session_lock"], 1)
+            self.assertEqual(report["roots"]["hub"]["totals"]["wlr_layershell"], 1)
+            self.assertEqual(report["roots"]["ryogami_picker"]["totals"]["screencopy_view"], 1)
             self.assertIn("not proof", report["scope_note"])
 
 
