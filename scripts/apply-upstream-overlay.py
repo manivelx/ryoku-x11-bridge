@@ -1038,6 +1038,17 @@ func ryokuConfigDir() string {
 	}
 	if len(args) == 0 {''')
 
+    p = root / "release/packages/ryogami/PKGBUILD"
+    replace_once(p, '''depends=('imagemagick' 'ffmpeg' 'quickshell'
+         'qt6-multimedia' 'qt6-imageformats' 'skwd-paper-bin')
+optdepends=('yt-dlp: YouTube wallpaper source'
+            'steamcmd: Steam Workshop downloads without the Steam client')''',
+                 '''depends=('imagemagick' 'ffmpeg' 'quickshell'
+         'qt6-multimedia' 'qt6-imageformats')
+optdepends=('skwd-paper-bin: Paper wallpaper source integration'
+            'yt-dlp: YouTube wallpaper source'
+            'steamcmd: Steam Workshop downloads without the Steam client')''')
+
     p = root / "ryoku/hub/backend/config.go"
     replace_once(p, 'func configPath() string {',
                  '''func ryokuConfigHome() string {
