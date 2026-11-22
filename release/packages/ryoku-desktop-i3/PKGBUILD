@@ -9,9 +9,12 @@ arch=('x86_64')
 url="https://github.com/manivelx/ryoku-x11-bridge"
 license=('GPL-3.0-or-later')
 makedepends=('go')
+# The upstream base and wallpaper daemon have independent pkgver/pkgrel
+# values (for example ryoku-desktop 0.1.0 and ryogami 0.2.0). RXB's variant
+# pkgver follows the pinned source VERSION, so version-pin neither dependency.
 depends=(
-  "ryoku-desktop=$epoch:$pkgver"
-  "ryogami=$epoch:$pkgver"
+  'ryoku-desktop'
+  'ryogami'
   'i3-wm'
   'i3lock'
   'xdotool'
