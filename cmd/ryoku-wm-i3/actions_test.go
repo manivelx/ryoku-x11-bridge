@@ -31,7 +31,13 @@ func TestRequiredWindowID(t *testing.T) {
 	}
 }
 
-func TestRunBindsDoesNotInventCatalogueRows(t *testing.T) {
+func TestRunBindsReportsOnlyTheActiveI3Configuration(t *testing.T) {
+	previous := readActiveI3Config
+	readActiveI3Config = func() (string, error) {
+		return "set $mod Mod4\\nbindsym $mod+Return exec terminal\\n", nil
+	}
+	defer func() { readActiveI3Config = previous }()
+
 	buffer, restore := captureProviderOutput(t)
 	defer restore()
 	if err := runBinds(nil); err != nil {
@@ -42,8 +48,8 @@ func TestRunBindsDoesNotInventCatalogueRows(t *testing.T) {
 	if err := json.Unmarshal(buffer.Bytes(), &rows); err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 0 {
-		t.Fatalf("unported catalogue must not return fabricated bind rows: %+v", rows)
+	if len(rows) != 1 || rows[0].Chord != "SUPER + ENTER" || rows[0].Kind != "custom" {
+		t.Fatalf("bind legend did not reflect the active i3 config: %+v", rows)
 	}
 }
 
