@@ -79,10 +79,17 @@ dbus-run-session -- bash -c '
   set -euo pipefail
   timeout --signal=TERM --kill-after=3s 30s ryoku materialize
   [[ -f "$1/shell.qml" ]]
+  touch "$2/materialized"
   timeout --signal=TERM --kill-after=3s 20s qs -p "$1"
-' _ "$shell_root" >"$tmp/quickshell.log" 2>&1
+' _ "$shell_root" "$tmp" >"$tmp/quickshell.log" 2>&1
 status=$?
 set -e
+
+[[ -f "$tmp/materialized" ]] || {
+  cat "$tmp/quickshell.log"
+  echo "Ryoku config materialization did not finish before the timeout." >&2
+  exit 1
+}
 
 [[ -f "$shell_root/shell.qml" ]] || {
   cat "$tmp/quickshell.log"
