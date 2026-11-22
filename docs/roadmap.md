@@ -54,8 +54,8 @@ Acceptance: repeatable frame/resource measurements on target hardware.
 ## Phase 8 — Packaging and installer
 [~] Non-installing package build pipeline and X11 session payload
 [~] Package safety checks protect SDDM, Orbital, Quickshell lockscreen, boot and GPU integration
-[ ] Disposable-root install/uninstall tests, backups and rollback
-Acceptance: disposable-root tests prove protected host files remain unchanged.
+[~] Disposable Arch package transaction and uninstall test added; external dependency resolution and host rollback remain separate acceptance gates
+Acceptance: package transaction/removal passes in disposable Arch; session tests prove shared XDG and Quickshell config are not overwritten. Host dependency resolution and actual login-session behavior remain target-machine checks.
 
 ## Phase 9 — Release validation
 Automated Go/QML/build tests, protocol tests, Xephyr/Xvfb, visual tests, real hardware, install/uninstall and docs.
@@ -75,6 +75,6 @@ Evidence is deliberately separate. A checked implementation item does not imply 
 | Quickshell I3/PanelWindow smoke | Quickshell 0.3.2 API reviewed | Smoke harness | Yes | Yes, Xvfb CI | No | No |
 | X11 lock wrapper | XSecureLock/i3lock command paths | Yes, wrapper only | Yes, Arch package CI | Yes, wrapper test | No | No | No |
 | Settings/keybind translation | Upstream schema inspected | No; fail-closed/empty | N/A | N/A | No | No | No |
-| Ryogami wallpaper service | Go daemon and picker entry inspected; full QML use-site audit pending | RXB-target-only unit + session env adapter | Yes, package CI | Unit/overlay CI | Pending | No | No |
+| Ryogami wallpaper service | Go daemon and picker entry inspected; full QML use-site audit pending | RXB-target-only unit + isolated config root | Yes, package CI | Unit/overlay CI | Pending | No | No |\n| User config isolation | Materializer and QML config paths inspected | RYOKU_CONFIG_HOME + separate Quickshell root; app theme writes gated | Pending | Pending | Pending | No | No |
 | NVIDIA GT 740 / 470 | Hardware constraints recorded | No hardware changes | N/A | N/A | No | No | No |
 
