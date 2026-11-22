@@ -640,7 +640,7 @@ func lockSession() string {
     new = '''// lockSession dispatches to a PAM-backed X11 locker on Xorg. X11 has no
 // compositor-confirmed lock proof, so it is never accepted for suspend.
 func lockSession() string {
-	if os.Getenv("WAYLAND_DISPLAY") == "" && os.Getenv("DISPLAY") != "" {
+	if rxbX11Session() {
 		if isLocked() {
 			return "ok"
 		}
@@ -693,7 +693,7 @@ func spawnX11Locker() error {
     new_guard = '''func ensureSessionLocked(deadline time.Time) error {
 	// X11 has no accepted compositor-secure lock-before-suspend handshake.
 	// Fail closed even if a stale Wayland qylock marker or process exists.
-	if os.Getenv("WAYLAND_DISPLAY") == "" && os.Getenv("DISPLAY") != "" {
+	if rxbX11Session() {
 		return fmt.Errorf("secure lock-before-suspend is not available on X11; suspend and hibernate are disabled")
 	}
 	lockRequestMu.Lock()'''
@@ -706,36 +706,31 @@ func spawnX11Locker() error {
     new = '''func (d *daemon) confirmLockRecovery() {
 	// qylock recovery watches Wayland proof generations. The X11 locker has
 	// its own process lifetime and must not arm a qylock restart loop.
-	if os.Getenv("WAYLAND_DISPLAY") == "" && os.Getenv("DISPLAY") != "" {
+	if rxbX11Session() {
 		return
 	}
 	if d.lockRecovery != nil {'''
     if text.count(old) != 1:
         raise RuntimeError(f"{p}: lock recovery anchor missing")
     text = text.replace(old, new, 1)
-    if '"os"' not in text.split("import (",1)[1].split(")",1)[0]:
-        text = text.replace('import (\n', 'import (\n\t"os"\n', 1)
     p.write_text(text)
 
     p = root / "ryoku/shell/ipc/control.go"
     text = p.read_text()
     if '"strconv"' not in text.split("import (",1)[1].split(")",1)[0]:
-        text = text.replace('import (\n', 'import (\n\t"strconv"\n\t"strings"\n\t"syscall"\n', 1)
+        text = text.replace('import (\n', 'import (\n\t"strconv"\n\t"syscall"\n', 1)
     old = '''// isLocked accepts only generation- and session-bound compositor proof. A
 // marker from a killed or different-session locker is stale and removed.
 func isLocked() bool {
 	marker := lockMarker()'''
-    new = '''// x11LockerProcessMatches accepts only a PAM locker on this exact X display.
-func x11LockerProcessMatches(comm string, environ []byte, display string) bool {
-	name := strings.TrimSpace(comm)
-	return display != "" && (name == "i3lock" || name == "xsecurelock") &&
-		processEnvironmentValue(environ, "DISPLAY") == display
-}
-
-// isLocked uses a live locker process for X11 and generation-bound compositor
-// proof for Wayland. A fullscreen QML surface is never considered a lock.
+    new = '''// isLocked uses a live, trusted locker process for X11 and generation-bound
+// compositor proof for Wayland. A fullscreen QML surface is never a lock.
 func isLocked() bool {
-	if os.Getenv("WAYLAND_DISPLAY") == "" && os.Getenv("DISPLAY") != "" {
+	if rxbX11Session() {
+		display := os.Getenv("DISPLAY")
+		if display == "" {
+			return false
+		}
 		entries, err := os.ReadDir("/proc")
 		if err != nil {
 			return false
@@ -756,7 +751,9 @@ func isLocked() bool {
 			if !ok || int(owner.Uid) != os.Getuid() {
 				continue
 			}
-			comm, err := os.ReadFile(filepath.Join(processDir, "comm"))
+			// The kernel-resolved executable path cannot be spoofed by
+			// renaming a file or by prctl(PR_SET_NAME); comm can.
+			exe, err := os.Readlink(filepath.Join(processDir, "exe"))
 			if err != nil {
 				continue
 			}
@@ -764,7 +761,7 @@ func isLocked() bool {
 			if err != nil {
 				continue
 			}
-			if x11LockerProcessMatches(string(comm), environ, os.Getenv("DISPLAY")) {
+			if x11LockerProcessMatches(exe, environ, display) {
 				return true
 			}
 		}
@@ -776,24 +773,108 @@ func isLocked() bool {
     text = text.replace(old, new, 1)
     p.write_text(text)
 
+    helper = root / "ryoku/shell/ipc/rxb_x11.go"
+    helper.write_text("""package main
+
+import (
+	"os"
+	"strings"
+)
+
+// rxbTrustedLockerDir is the only directory whose i3lock/xsecurelock binaries
+// are accepted as a real X11 locker. It must match locker_dir in
+// ryoku-x11-lock.
+const rxbTrustedLockerDir = "/usr/bin"
+
+// rxbX11Session reports whether this process belongs to an RXB X11 session.
+// It must not depend on WAYLAND_DISPLAY being empty: a stray variable in an
+// X11 session must never route lock or suspend into the Wayland path.
+func rxbX11Session() bool {
+	if os.Getenv("RYOKU_WM") == "i3" || os.Getenv("XDG_SESSION_TYPE") == "x11" {
+		return true
+	}
+	return os.Getenv("WAYLAND_DISPLAY") == "" && os.Getenv("DISPLAY") != ""
+}
+
+// normalizeX11Display drops the screen number so ":0" and ":0.0" name the
+// same display.
+func normalizeX11Display(display string) string {
+	colon := strings.LastIndex(display, ":")
+	dot := strings.LastIndex(display, ".")
+	if colon >= 0 && dot > colon {
+		return display[:dot]
+	}
+	return display
+}
+
+// x11LockerProcessMatches accepts only a trusted PAM locker binary (by its
+// resolved executable path, not its changeable process name) whose initial
+// environment names the current X display.
+func x11LockerProcessMatches(exe string, environ []byte, display string) bool {
+	if display == "" {
+		return false
+	}
+	exe = strings.TrimSuffix(exe, " (deleted)")
+	if exe != rxbTrustedLockerDir+"/i3lock" && exe != rxbTrustedLockerDir+"/xsecurelock" {
+		return false
+	}
+	got := processEnvironmentValue(environ, "DISPLAY")
+	return got != "" && normalizeX11Display(got) == normalizeX11Display(display)
+}
+""")
+
     test = root / "ryoku/shell/ipc/rxb_x11_lock_test.go"
     test.write_text("""package main
 
 import "testing"
 
-func TestRXBX11LockerProcessMatchesExactDisplayAndLocker(t *testing.T) {
+func TestRXBX11LockerProcessMatchesTrustedExecutableAndDisplay(t *testing.T) {
 	env := []byte("HOME=/home/test\\x00DISPLAY=:99\\x00")
-	if !x11LockerProcessMatches("i3lock\\n", env, ":99") {
+	if !x11LockerProcessMatches("/usr/bin/i3lock", env, ":99") {
 		t.Fatal("i3lock on the current display was not recognized")
 	}
-	if !x11LockerProcessMatches("xsecurelock\\n", env, ":99") {
+	if !x11LockerProcessMatches("/usr/bin/xsecurelock", env, ":99") {
 		t.Fatal("xsecurelock on the current display was not recognized")
 	}
-	if x11LockerProcessMatches("i3lock\\n", env, ":0") {
+	if !x11LockerProcessMatches("/usr/bin/i3lock (deleted)", env, ":99") {
+		t.Fatal("a locker whose binary was upgraded while running was rejected")
+	}
+	if !x11LockerProcessMatches("/usr/bin/i3lock", env, ":99.0") {
+		t.Fatal(":99 and :99.0 must be the same display")
+	}
+	if x11LockerProcessMatches("/usr/bin/i3lock", env, ":0") {
 		t.Fatal("locker on a different display was accepted")
 	}
-	if x11LockerProcessMatches("bash\\n", env, ":99") {
+	if x11LockerProcessMatches("/usr/bin/bash", env, ":99") {
 		t.Fatal("non-locker process was accepted")
+	}
+	// A renamed or user-writable binary must not count as a locker even if
+	// its process name is "i3lock".
+	for _, exe := range []string{"/home/u/bin/i3lock", "/tmp/i3lock", "/usr/local/bin/xsecurelock", "/usr/bin/sleep"} {
+		if x11LockerProcessMatches(exe, env, ":99") {
+			t.Fatalf("untrusted executable %q was accepted as a locker", exe)
+		}
+	}
+	if x11LockerProcessMatches("/usr/bin/i3lock", []byte("HOME=/x\\x00"), ":99") {
+		t.Fatal("locker without DISPLAY in its environment was accepted")
+	}
+	if x11LockerProcessMatches("/usr/bin/i3lock", env, "") {
+		t.Fatal("empty display must never match")
+	}
+}
+
+func TestRXBX11SessionDetectionIgnoresStrayWaylandDisplay(t *testing.T) {
+	t.Setenv("DISPLAY", ":99")
+	t.Setenv("RYOKU_WM", "i3")
+	t.Setenv("XDG_SESSION_TYPE", "x11")
+	t.Setenv("WAYLAND_DISPLAY", "wayland-0")
+	if !rxbX11Session() {
+		t.Fatal("a stray WAYLAND_DISPLAY routed an RXB X11 session to the Wayland path")
+	}
+	t.Setenv("RYOKU_WM", "")
+	t.Setenv("XDG_SESSION_TYPE", "wayland")
+	if rxbX11Session() {
+		t.Fatal("a genuine Wayland session was treated as X11")
 	}
 }
 """)
@@ -814,13 +895,21 @@ func TestRXBX11SecureSuspendFailsClosed(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "disabled") {
 		t.Fatalf("X11 suspend lock gate error = %v, want fail-closed disabled error", err)
 	}
+
+	// A stray WAYLAND_DISPLAY inside an RXB X11 session must not reopen the
+	// Wayland lock-before-suspend path.
+	t.Setenv("RYOKU_WM", "i3")
+	t.Setenv("XDG_SESSION_TYPE", "x11")
+	t.Setenv("WAYLAND_DISPLAY", "wayland-0")
+	err = ensureSessionLocked(time.Now().Add(time.Second))
+	if err == nil || !strings.Contains(err.Error(), "disabled") {
+		t.Fatalf("stray WAYLAND_DISPLAY gate error = %v, want fail-closed disabled error", err)
+	}
 }
 """)
 
     p = root / "ryoku/cli/internal/host/power.go"
     text = p.read_text()
-    if not text.startswith('package host\n\nimport "os"'):
-        text = text.replace('package host\n\n', 'package host\n\nimport "os"\n\n', 1)
     old = '''	case "poweroff", "reboot", "suspend", "hibernate":
 		if len(args) != 1 {
 			return ExitUsage
@@ -830,7 +919,7 @@ func TestRXBX11SecureSuspendFailsClosed(t *testing.T) {
 			return ExitUsage
 		}
 		if args[0] == "suspend" || args[0] == "hibernate" {
-			if os.Getenv("WAYLAND_DISPLAY") == "" && os.Getenv("DISPLAY") != "" {
+			if rxbX11Session() {
 				return a.failf("suspend and hibernate are disabled on X11 until secure lock-before-suspend is implemented")
 			}
 		}'''
@@ -838,22 +927,42 @@ func TestRXBX11SecureSuspendFailsClosed(t *testing.T) {
         raise RuntimeError(f"{p}: host power action anchor missing")
     text = text.replace(old, new, 1)
     p.write_text(text)
+    (root / "ryoku/cli/internal/host/rxb_x11.go").write_text("""package host
+
+import "os"
+
+// rxbX11Session reports whether this process belongs to an RXB X11 session.
+// A stray WAYLAND_DISPLAY must not re-enable suspend or hibernate there.
+func rxbX11Session() bool {
+	if os.Getenv("RYOKU_WM") == "i3" || os.Getenv("XDG_SESSION_TYPE") == "x11" {
+		return true
+	}
+	return os.Getenv("WAYLAND_DISPLAY") == "" && os.Getenv("DISPLAY") != ""
+}
+""")
     test = root / "ryoku/cli/internal/host/rxb_x11_power_guard_test.go"
     test.write_text("""package host
 
 import "testing"
 
 func TestRXBHostPowerRejectsSuspendAndHibernateOnX11(t *testing.T) {
-	t.Setenv("DISPLAY", ":99")
-	t.Setenv("WAYLAND_DISPLAY", "")
-	for _, action := range []string{"suspend", "hibernate"} {
-		runner := &fakeRunner{}
-		app, _, _ := testApp(runner, map[string]string{"RYOKU_HOST_INIT": "systemd", "RYOKU_HOST_PKGMGR": "pacman"})
-		if code := app.Power([]string{action}); code == ExitOK {
-			t.Fatalf("%s unexpectedly succeeded on X11", action)
+	cases := map[string]map[string]string{
+		"plain X11":           {"DISPLAY": ":99", "WAYLAND_DISPLAY": "", "RYOKU_WM": "", "XDG_SESSION_TYPE": ""},
+		"stray WAYLAND_DISPLAY": {"DISPLAY": ":99", "WAYLAND_DISPLAY": "wayland-0", "RYOKU_WM": "i3", "XDG_SESSION_TYPE": "x11"},
+	}
+	for name, env := range cases {
+		for key, value := range env {
+			t.Setenv(key, value)
 		}
-		if len(runner.commands) != 0 {
-			t.Fatalf("%s invoked a host power command: %#v", action, runner.commands)
+		for _, action := range []string{"suspend", "hibernate"} {
+			runner := &fakeRunner{}
+			app, _, _ := testApp(runner, map[string]string{"RYOKU_HOST_INIT": "systemd", "RYOKU_HOST_PKGMGR": "pacman"})
+			if code := app.Power([]string{action}); code == ExitOK {
+				t.Fatalf("%s: %s unexpectedly succeeded on X11", name, action)
+			}
+			if len(runner.commands) != 0 {
+				t.Fatalf("%s: %s invoked a host power command: %#v", name, action, runner.commands)
+			}
 		}
 	}
 }

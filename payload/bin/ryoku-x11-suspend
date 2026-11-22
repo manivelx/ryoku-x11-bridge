@@ -7,9 +7,17 @@ case "$action" in
   *) echo "usage: ryoku-x11-suspend [suspend|hibernate]" >&2; exit 2 ;;
 esac
 
+# An RXB X11 session is identified by RYOKU_WM/XDG_SESSION_TYPE as well as by an
+# empty WAYLAND_DISPLAY. A stray WAYLAND_DISPLAY inside an X11 session must
+# never select the Wayland path, which would hibernate without an X11 lock.
+x11_session=0
+if [[ -z ${WAYLAND_DISPLAY:-} || ${RYOKU_WM:-} == i3 || ${XDG_SESSION_TYPE:-} == x11 ]]; then
+  x11_session=1
+fi
+
 # Wayland retains Ryoku's compositor-confirmed qylock transaction. X11 has
 # no accepted lock-before-suspend proof, so fail closed and explain why.
-if [[ -n ${WAYLAND_DISPLAY:-} ]]; then
+if [[ $x11_session == 0 ]]; then
   if [[ "$action" == hibernate ]]; then
     ryoku-shell lock
     sleep 0.6

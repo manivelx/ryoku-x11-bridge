@@ -1,9 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Trusted locker directory. Lockers are resolved ONLY from this absolute path,
+# never from $PATH: a user-writable PATH entry must not be able to substitute a
+# fake "xsecurelock" or "i3lock" that holds the lock file without locking the
+# screen. The Go daemon (rxbTrustedLockerDir) accepts the same directory only.
+locker_dir=/usr/bin
+
+# An RXB X11 session is identified by RYOKU_WM/XDG_SESSION_TYPE as well as by an
+# empty WAYLAND_DISPLAY, so a stray WAYLAND_DISPLAY can never route an X11
+# session into the Wayland qylock path.
+x11_session=0
+if [[ -z ${WAYLAND_DISPLAY:-} || ${RYOKU_WM:-} == i3 || ${XDG_SESSION_TYPE:-} == x11 ]]; then
+  x11_session=1
+fi
+
 # Preserve the upstream Wayland qylock path. On Xorg, use a real PAM-backed
 # locker; never substitute a fullscreen Quickshell window for an OS lock.
-if [[ -n ${WAYLAND_DISPLAY:-} ]]; then
+if [[ $x11_session == 0 ]]; then
   exec ryoku-qylock-lock
 fi
 if [[ -z ${DISPLAY:-} ]]; then
@@ -16,24 +30,76 @@ if [[ -z "$runtime" || ! -d "$runtime" || ! -O "$runtime" ]]; then
   exit 69
 fi
 
+# "host:D.S" and "host:D" name the same X display; ignore the screen number so
+# both spellings share one lock and one locker.
+normalize_display() {
+  local d=$1
+  if [[ $d == *:*.* ]]; then d=${d%.*}; fi
+  printf '%s' "$d"
+}
+
+# True only when a live locker owned by this user is running from the trusted
+# directory on this display. The kernel-resolved /proc/PID/exe cannot be
+# spoofed by renaming a file or changing the process name.
+active_locker() {
+  local want proc exe value
+  want=$(normalize_display "$DISPLAY")
+  for proc in /proc/[0-9]*; do
+    [[ -O $proc ]] || continue
+    exe=$(readlink "$proc/exe" 2>/dev/null) || continue
+    exe=${exe% (deleted)}
+    case "$exe" in
+      "$locker_dir/xsecurelock" | "$locker_dir/i3lock") ;;
+      *) continue ;;
+    esac
+    # A pipe status is ignored on purpose (SIGPIPE/permission races); an empty
+    # value is treated as "not a match".
+    value=$(tr '\0' '\n' <"$proc/environ" 2>/dev/null | sed -n '/^DISPLAY=/{s///;p;q}') || true
+    [[ -n $value ]] || continue
+    if [[ $(normalize_display "$value") == "$want" ]]; then return 0; fi
+  done
+  return 1
+}
+
 umask 077
 lock_dir="$runtime/ryoku-x11-lock"
 install -d -m700 "$lock_dir"
-display_key=${DISPLAY//[^A-Za-z0-9_.-]/_}
+display=$(normalize_display "$DISPLAY")
+display_key=${display//[^A-Za-z0-9_.-]/_}
 lock_file="$lock_dir/$display_key.lock"
 exec 9>"$lock_file"
-# A repeated lock request while the same display is already locked is safe
-# and idempotent; do not stack a second locker over the first.
-flock -n 9 || exit 0
 
-if command -v xsecurelock >/dev/null 2>&1; then
-  xsecurelock
-  exit $?
+# The lock is held through file descriptor 9, which the locker inherits, so it
+# lives exactly as long as the locker (even if this wrapper is killed).
+# A repeated request is idempotent only when a verified locker is really
+# running. If the lock is held but no trusted locker is active (a wrapper that
+# is still starting its locker, or a stale holder), wait briefly and then fail
+# rather than report a locked session that is not locked.
+acquired=0
+for _ in $(seq 1 20); do
+  if flock -n 9; then
+    acquired=1
+    break
+  fi
+  if active_locker; then exit 0; fi
+  sleep 0.1
+done
+if [[ $acquired != 1 ]]; then
+  echo "ryoku-x11-lock: lock for display $DISPLAY is held but no verified locker is running; refusing to report the session as locked" >&2
+  exit 75
 fi
-if command -v i3lock >/dev/null 2>&1; then
-  i3lock --nofork --color=000000
-  exit $?
+# A locker started some other way (not through this wrapper) still counts.
+if active_locker; then exit 0; fi
+
+status=0
+if [[ -x "$locker_dir/xsecurelock" ]]; then
+  "$locker_dir/xsecurelock" || status=$?
+  exit "$status"
+fi
+if [[ -x "$locker_dir/i3lock" ]]; then
+  "$locker_dir/i3lock" --nofork --color=000000 || status=$?
+  exit "$status"
 fi
 
-echo "ryoku-x11-lock: install xsecurelock or i3lock; refusing to fake a lock screen" >&2
+echo "ryoku-x11-lock: install xsecurelock or i3lock in $locker_dir; refusing to fake a lock screen" >&2
 exit 127

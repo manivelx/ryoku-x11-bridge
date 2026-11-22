@@ -1,0 +1,62 @@
+name: x11 lock PAM acceptance
+
+# Real xsecurelock / i3lock against real PAM on an isolated Xephyr display,
+# inside a disposable Arch container. See scripts/test-x11-lock-pam-xephyr.sh.
+concurrency:
+  group: rxb-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+on:
+  push:
+    paths:
+      - "payload/bin/ryoku-x11-lock"
+      - "payload/bin/ryoku-x11-suspend"
+      - "scripts/test-x11-lock-pam-xephyr.sh"
+      - "scripts/test-x11-lock-wrapper.sh"
+      - "scripts/test-x11-suspend-wrapper.sh"
+      - ".github/workflows/x11-lock-pam.yml"
+  pull_request:
+    paths:
+      - "payload/bin/ryoku-x11-lock"
+      - "payload/bin/ryoku-x11-suspend"
+      - "scripts/test-x11-lock-pam-xephyr.sh"
+      - "scripts/test-x11-lock-wrapper.sh"
+      - "scripts/test-x11-suspend-wrapper.sh"
+      - ".github/workflows/x11-lock-pam.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  lock-pam:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run wrapper unit tests and the real-locker PAM test in a disposable Arch container
+        shell: bash
+        run: |
+          mkdir -p lock-artifacts
+          docker run --rm \
+            -e RXB_PAM_TEST_DISPOSABLE=1 \
+            -e RXB_ARTIFACT_DIR=/artifacts \
+            -v "$GITHUB_WORKSPACE:/workspace:ro" \
+            -v "$GITHUB_WORKSPACE/lock-artifacts:/artifacts" \
+            -w /workspace \
+            archlinux:base-devel \
+            bash -lc '
+              set -euxo pipefail
+              pacman -Syu --noconfirm --needed \
+                xorg-server-xvfb xorg-server-xephyr xdotool xorg-xwininfo xorg-xsetroot \
+                imagemagick xsecurelock i3lock pam util-linux procps-ng ttf-dejavu mesa
+              for f in payload/bin/ryoku-x11-lock payload/bin/ryoku-x11-suspend scripts/test-x11-lock-pam-xephyr.sh; do bash -n "$f"; done
+              bash scripts/test-x11-lock-wrapper.sh
+              bash scripts/test-x11-suspend-wrapper.sh
+              bash scripts/test-x11-lock-pam-xephyr.sh
+            ' 2>&1 | tee lock-artifacts/ci.log
+      - name: Upload lock test evidence (screenshots and logs)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: x11-lock-pam-evidence
+          path: lock-artifacts/
+          if-no-files-found: ignore
+          retention-days: 14
