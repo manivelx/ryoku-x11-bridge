@@ -31,9 +31,12 @@ for command in Xvfb Xephyr xdotool xwininfo xsetroot import runuser flock userad
   command -v "$command" >/dev/null 2>&1 || { echo "missing required command: $command" >&2; exit 127; }
 done
 
+# od reads a bounded amount, so there is no early-closing pipe (SIGPIPE under pipefail).
+rand_hex() { od -An -N"$1" -tx1 /dev/urandom | tr -d ' \n'; }
+
 user=rxbpamtest
-password="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 20)"
-wrong_password="not-$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 12)"
+password="$(rand_hex 10)"
+wrong_password="not-$(rand_hex 6)"
 tmp="$(cd "$(mktemp -d /tmp/rxb-lock-pam.XXXXXX)" && pwd -P)"
 mkdir -p "$tmp/runtime" "$tmp/home" "$tmp/shots"
 pam_service_files=()
@@ -209,7 +212,7 @@ start_display
 exercise xsecurelock-default unlock
 
 # Case 2: XSecureLock with a unique isolated PAM service: real pam_unix only.
-svc="rxb-test-$(tr -dc 'a-z0-9' </dev/urandom | head -c 10)"
+svc="rxb-test-$(rand_hex 5)"
 svc_file="/etc/pam.d/$svc"
 [[ ! -e $svc_file ]] || die "unique PAM service name collided with an existing file"
 printf 'auth     required pam_unix.so\naccount  required pam_unix.so\n' >"$svc_file"
@@ -219,7 +222,7 @@ exercise xsecurelock-isolated-pam unlock XSECURELOCK_PAM_SERVICE="$svc"
 # Case 3: negative control. An isolated PAM stack that denies everyone must
 # keep the screen locked even for the correct password. This proves the unlock
 # decision comes from PAM and not from the wrapper or the test harness.
-svc_deny="rxb-test-deny-$(tr -dc 'a-z0-9' </dev/urandom | head -c 10)"
+svc_deny="rxb-test-deny-$(rand_hex 5)"
 printf 'auth     required pam_deny.so\naccount  required pam_permit.so\n' >"/etc/pam.d/$svc_deny"
 pam_service_files+=("/etc/pam.d/$svc_deny")
 exercise xsecurelock-deny-all-pam stay-locked XSECURELOCK_PAM_SERVICE="$svc_deny"
