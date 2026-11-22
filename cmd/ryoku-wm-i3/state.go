@@ -178,7 +178,7 @@ func readStateForKinds(want map[string]bool) (Snapshot, error) {
 		if err := json.Unmarshal(raw, &tree); err != nil {
 			return Snapshot{}, err
 		}
-		var treeWindows []Window
+		treeWindows := []Window{}
 		walkWindows(&tree, "", "", snapshot.Workspaces, &treeWindows)
 		if all || want["windows"] {
 			// Preserve the focused-window sentinel for shell consumers. i3 does

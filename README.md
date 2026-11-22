@@ -361,30 +361,11 @@ Expected session identifiers are `x11`, `Ryoku` and `i3`. The shell and wallpape
 
 Use the session's logout action or log out through the desktop/session controls. The session wrapper is responsible for stopping `ryoku-x11-session.target` and removing its temporary environment file when i3 exits.
 
-### Starter keybindings
+### Keybindings
 
-These are the bindings in the current RXB i3 seed configuration. They are a conservative starting point, not a claim that every upstream shell action is fully functional yet. The `Super` key is `Mod4`.
+RXB does not install custom/default i3 keybindings at this stage. The packaged i3 seed contains no shortcut assignments, and the live bind view reports only bindings actually declared in the active i3 configuration. The upstream Ryoku keybinding catalogue and its i3 translation/rebinding layer are still being ported; no RXB-created shortcuts are presented as Ryoku defaults.
 
-| Key | Action |
-|---|---|
-| `Super + Return` | Launch the configured Ryoku terminal action |
-| `Super + Space` | Open the Ryoku launcher action |
-| `Super + Escape` | Open quick settings |
-| `Super + ,` | Open Ryoku Hub |
-| `Super + W` | Open the Ryogami wallpaper UI |
-| `Super + Shift + S` | Screenshot action |
-| `Super + L` | Lock through the RXB X11 locker wrapper |
-| `Super + Q` | Close the focused window |
-| `Super + F` | Toggle fullscreen |
-| `Super + Shift + F` | Toggle floating |
-| `Super + Arrow` | Move focus |
-| `Super + Shift + Arrow` | Move the focused window |
-| `Super + 1…9` | Switch workspace |
-| `Super + Shift + 1…9` | Move window to workspace |
-| `Super + Shift + R` | Reload the i3 configuration action |
-| `Super + Shift + E` | Exit the session action |
-
-User-owned overrides belong in `~/.config/ryoku-x11/user.conf`. Do not edit the packaged seed expecting changes to survive package upgrades.
+User-owned bindings can be added manually to `~/.config/ryoku-x11/user.conf` if desired, but RXB itself will not add or rewrite them.
 
 ## • configuration •
 

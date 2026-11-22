@@ -63,7 +63,7 @@ Do not run `pacman -U` on the daily-use system. First install into a disposable 
 ## Current limitations
 
 - This is a package-build pipeline, not an installation or rollback tool.
-- The X11 provider's i3 settings generator and user keybinding translation are not yet implemented; the initial i3 config is a conservative seed. The session lifecycle test verifies that RXB uses its own `~/.config/ryoku-x11` and `~/.config/ryoku-x11/ryoku-config` trees while preserving an existing `~/.config/quickshell` directory.
+- The X11 provider's i3 settings generator and upstream Ryoku keybinding translation/rebinding are not yet implemented. RXB ships no default/custom i3 shortcuts; its bind view is read-only and reports only bindings declared in the active i3 config. The session lifecycle test verifies that RXB uses its own `~/.config/ryoku-x11` and `~/.config/ryoku-x11/ryoku-config` trees while preserving an existing `~/.config/quickshell` directory.
 - The original shell's Wayland-only services and features remain gated or unavailable on X11.
 - App-wide GTK/Qt/terminal theming, system font changes, icon-theme changes, and upstream lock/greeter management are disabled in RXB until they have safe per-session adapters.
 - Screen recording, wallpaper daemon behavior, some overlays, and complete multi-monitor behavior still need runtime testing.
