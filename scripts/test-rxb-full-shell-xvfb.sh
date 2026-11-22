@@ -108,7 +108,7 @@ shell_root="$RYOKU_QUICKSHELL_CONFIG_HOME/shell"
 # Exercise the real upstream daemon, not a direct Quickshell invocation. The
 # daemon performs setupQmlImportPath(), selects the isolated RXB shell tree,
 # supervises Quickshell and owns the session IPC socket just as it does after login.
-dbus-run-session -- bash -c '
+dbus-run-session -- bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HOME" <<'RXB_XVFB_TEST'
   set -euo pipefail
   shell_root="$1"
   tmp="$2"
@@ -230,6 +230,6 @@ dbus-run-session -- bash -c '
   wait "$daemon_pid"
   trap - EXIT
   echo "RXB full upstream Ryoku shell daemon stayed healthy under Xvfb + i3."
-' _ "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HOME"
+RXB_XVFB_TEST
 
 echo "RXB full upstream Ryoku daemon/Xvfb acceptance passed."
