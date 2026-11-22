@@ -153,6 +153,12 @@ fi
 [[ ! -L "$runtime/ryoku-x11-session.env" ]]
 grep -Fqx "do not overwrite this target" "$runtime/keep-me"
 
+# Replacing a stale hard link must not truncate the file it points to.
+ln "$runtime/keep-me" "$runtime/ryoku-x11-session.env"
+bash "$repo_root/payload/bin/ryoku-x11-session"
+[[ ! -e "$runtime/ryoku-x11-session.env" ]]
+grep -Fqx "do not overwrite this target" "$runtime/keep-me"
+
 if DISPLAY=:99 WAYLAND_DISPLAY=wayland-0 bash "$repo_root/payload/bin/ryoku-x11-session" >/dev/null 2>&1; then
   echo "session wrapper accepted a nested Wayland session" >&2
   exit 1
