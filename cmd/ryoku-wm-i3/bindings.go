@@ -34,6 +34,7 @@ type resolvedI3Bind struct {
 	chord   string
 	command string
 	id      string
+	release bool
 }
 
 // readKeybindStore reads the same neutral desktop.json document consumed by
@@ -325,11 +326,11 @@ func resolveShippedBinds(store keybindStore) ([]resolvedI3Bind, []bindRow, []Unh
 	}
 	rows := make([]bindRow, 0, len(catalogue)+len(store.Keybinds))
 	binds := make([]resolvedI3Bind, 0, len(catalogue)+len(store.Keybinds))
+	var rebound, static []resolvedI3Bind
 	var report []Unhonored
 	claimed := map[string]bool{}
 
-	// User custom binds have first claim on a chord, matching the upstream
-	// provider precedence: custom > rebound shipped default > static default.
+	// Upstream precedence is custom > rebound default > static default.
 	for index, custom := range store.Keybinds {
 		chord, ok := i3Chord(custom.Keys)
 		if !ok {
@@ -339,14 +340,15 @@ func resolveShippedBinds(store keybindStore) ([]resolvedI3Bind, []bindRow, []Unh
 			continue
 		}
 		command, reason := customI3Action(custom)
-		if reason == "" && command != "" && !claimed[chord] {
-			binds = append(binds, resolvedI3Bind{chord: chord, command: command, id: fmt.Sprintf("custom.%d", index)})
-			claimed[chord] = true
-		}
 		row := bindRow{ID: fmt.Sprintf("custom.%d", index), Category: "Custom", Label: custom.Action, Keys: strings.Split(chord, "+"), Default: custom.Keys, Chord: chord, Kind: "custom", Rebindable: false, Unhonored: reason}
 		rows = append(rows, row)
 		if reason != "" {
 			report = append(report, Unhonored{Key: fmt.Sprintf("desktop.keybinds[%d]", index), Reason: reason})
+			continue
+		}
+		if command != "" {
+			binds = append(binds, resolvedI3Bind{chord: chord, command: command, id: row.ID, release: custom.Release})
+			claimed[chord] = true
 		}
 	}
 
@@ -363,16 +365,13 @@ func resolveShippedBinds(store keybindStore) ([]resolvedI3Bind, []bindRow, []Unh
 			row.Keys = nil
 			row.Chord = ""
 		}
-		var actionCommand, reason string
+		var command, reason string
 		if !row.Disabled {
-			actionCommand, reason = i3Action(cb.ID, 0)
-			if reason == "" && cb.Family {
-				// The ten family members are emitted below, one per digit.
-			}
+			command, reason = i3Action(cb.ID, 1)
 			if missing := cb.Missing(HasProgram); missing != "" {
-				actionCommand, reason = "", missing
+				command, reason = "", missing
 			}
-			if reason == "" && actionCommand == "" && !cb.Family {
+			if reason == "" && command == "" && !cb.Family {
 				reason = "No i3 action was generated for this original Ryoku action."
 			}
 			if reason != "" {
@@ -380,39 +379,62 @@ func resolveShippedBinds(store keybindStore) ([]resolvedI3Bind, []bindRow, []Unh
 				report = append(report, Unhonored{Key: cb.ID, Reason: reason})
 			}
 		}
-
 		rows = append(rows, row)
-		if row.Disabled || reason != "" || actionCommand == i3NativeBinding {
+		if row.Disabled || reason != "" || command == i3NativeBinding {
 			continue
 		}
+
 		if cb.Family {
 			for n := 1; n <= 10; n++ {
-				chordText := expandCatalogueChord(cb, n)
-				chordText = effectiveFamilyChord(chordText, n, store.KeybindRebinds)
-				chord, ok := i3Chord(chordText)
-				if !ok || claimed[chord] {
+				original := expandCatalogueChord(cb, n)
+				if disabled[original] {
 					continue
 				}
-				command, why := i3Action(cb.ID, n%10)
-				if why != "" || command == "" {
+				effectiveChord := effectiveFamilyChord(original, n, store.KeybindRebinds)
+				chord, ok := i3Chord(effectiveChord)
+				if !ok {
+					report = append(report, Unhonored{Key: cb.ID, Reason: fmt.Sprintf("i3 cannot bind the effective chord %q.", effectiveChord)})
 					continue
 				}
-				binds = append(binds, resolvedI3Bind{chord: chord, command: command, id: cb.ID})
-				claimed[chord] = true
+				action, why := i3Action(cb.ID, n%10)
+				if why != "" || action == "" || action == i3NativeBinding {
+					continue
+				}
+				candidate := resolvedI3Bind{chord: chord, command: action, id: cb.ID}
+				if effectiveChord != original {
+					rebound = append(rebound, candidate)
+				} else {
+					static = append(static, candidate)
+				}
 			}
 			continue
 		}
+
 		chord, ok := i3Chord(effective)
 		if !ok {
 			row.Unhonored = fmt.Sprintf("i3 cannot bind the chord %q.", effective)
 			report = append(report, Unhonored{Key: cb.ID, Reason: row.Unhonored})
 			continue
 		}
-		if !claimed[chord] {
-			binds = append(binds, resolvedI3Bind{chord: chord, command: actionCommand, id: cb.ID})
-			claimed[chord] = true
+		candidate := resolvedI3Bind{chord: chord, command: command, id: cb.ID}
+		if effective != defaultChord {
+			rebound = append(rebound, candidate)
+		} else {
+			static = append(static, candidate)
 		}
 	}
+
+	claim := func(candidates []resolvedI3Bind) {
+		for _, candidate := range candidates {
+			if claimed[candidate.chord] {
+				continue
+			}
+			binds = append(binds, candidate)
+			claimed[candidate.chord] = true
+		}
+	}
+	claim(rebound)
+	claim(static)
 	return binds, rows, report
 }
 
@@ -452,6 +474,9 @@ func renderGeneratedI3Config(binds []resolvedI3Bind) string {
 	builder.WriteString("# Do not edit: use Ryoku Settings/Hub; place local additions in user.conf.\n")
 	for _, bind := range binds {
 		builder.WriteString("bindsym ")
+		if bind.release {
+			builder.WriteString("--release ")
+		}
 		builder.WriteString(bind.chord)
 		builder.WriteString(" ")
 		builder.WriteString(bind.command)
