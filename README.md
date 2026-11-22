@@ -61,7 +61,7 @@ The build produces:
 1. The pinned original Ryoku runtime packages (shell, Hub, CLI, desktop payload and supporting services).
 2. The RXB `ryoku-desktop-i3` variant, which provides the i3 provider, X11 session scripts, session-scoped service overrides and the `Ryoku (X11 / i3)` login entry.
 
-Those packages are designed to be installed together in one package transaction. At login, the display manager starts `ryoku-x11-session`; i3 starts the session initializer; the initializer materializes Ryoku's shell configuration and starts the Ryoku services through the RXB-only `ryoku-session.target`. RXB's QML tree is kept under `~/.config/ryoku-x11/quickshell`; the existing `~/.config/quickshell` tree is left untouched. Quickshell then renders the original Ryoku shell against X11.
+Those packages are designed to be installed together in one package transaction. At login, the display manager starts `ryoku-x11-session`; i3 starts the session initializer; the initializer materializes Ryoku's shell configuration and starts the Ryoku services through the RXB-only `ryoku-session.target`. RXB's Ryoku-managed user config is kept under `~/.config/ryoku-x11/ryoku-config` (including its QML tree at `~/.config/ryoku-x11/ryoku-config/quickshell`); the existing `~/.config/quickshell` tree is left untouched. Quickshell then renders the original Ryoku shell against X11.
 
 This is not a second desktop opening a communication window. The provider is the machine-readable bridge between Ryoku's window-manager layer and i3.
 
