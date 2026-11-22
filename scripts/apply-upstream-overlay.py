@@ -807,6 +807,191 @@ post_remove() { _refresh; }
     p.write_text(text)
 
 
+
+def patch_quickshell_config_isolation(root: pathlib.Path) -> None:
+    # Keep Ryoku's QML tree under the RXB session's own config directory.
+    # Upstream materialize intentionally converges ~/.config/quickshell, which
+    # is unsafe on a host that already has another Quickshell desktop/config.
+    p = root / "ryoku/cli/internal/updater/materialize.go"
+    old = '''func Materialize() error {
+	base := sys.BaseConfigDir()
+	dest := sys.ConfigHome()
+	state := materializeStatePath()
+'''
+    new = '''func Materialize() error {
+	base := sys.BaseConfigDir()
+	dest := sys.ConfigHome()
+	quickshellRoot := filepath.Join(dest, "quickshell")
+	if override := os.Getenv("RYOKU_QUICKSHELL_CONFIG_HOME"); override != "" {
+		expected := filepath.Join(dest, "ryoku-x11", "quickshell")
+		if !filepath.IsAbs(dest) || filepath.Clean(override) != filepath.Clean(expected) {
+			return fmt.Errorf("RYOKU_QUICKSHELL_CONFIG_HOME must be the RXB-owned path %s", expected)
+		}
+		for _, path := range []string{filepath.Join(dest, "ryoku-x11"), expected} {
+			if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeSymlink != 0 {
+				return fmt.Errorf("refusing symlinked RXB Quickshell config path: %s", path)
+			}
+		}
+		quickshellRoot = expected
+	}
+	materializedPath := func(rel string) string {
+		if strings.HasPrefix(rel, "quickshell/") {
+			return filepath.Join(quickshellRoot, strings.TrimPrefix(rel, "quickshell/"))
+		}
+		return filepath.Join(dest, rel)
+	}
+	state := materializeStatePath()
+'''
+    replace_once(p, old, new)
+    replace_once(p, "dst := filepath.Join(dest, rel)", "dst := materializedPath(rel)")
+    replace_once(p, 'if local, err := walkRel(filepath.Join(dest, "quickshell")); err == nil {',
+                 'if local, err := walkRel(quickshellRoot); err == nil {')
+    replace_once(p, '''			_ = os.Remove(filepath.Join(dest, full))
+			pruneEmptyParents(dest, filepath.Dir(full))''',
+                 '''			_ = os.Remove(filepath.Join(quickshellRoot, rel))
+			pruneEmptyParents(quickshellRoot, filepath.Dir(rel))''')
+    replace_once(p, '''		_ = os.Remove(filepath.Join(dest, rel))
+		pruneEmptyParents(dest, filepath.Dir(rel))''',
+                 '''		_ = os.Remove(materializedPath(rel))
+		if strings.HasPrefix(rel, "quickshell/") {
+			quickshellRel := strings.TrimPrefix(rel, "quickshell/")
+			pruneEmptyParents(quickshellRoot, filepath.Dir(quickshellRel))
+		} else {
+			pruneEmptyParents(dest, filepath.Dir(rel))
+		}''')
+    replace_once(p, 'os.ReadFile(filepath.Join(dest, rel)); err == nil {',
+                 'os.ReadFile(materializedPath(rel)); err == nil {')
+
+    p = root / "ryoku/shell/ipc/actions.go"
+    replace_once(p, '''	if shellDir != "" {
+		return []string{"-p", filepath.Join(shellDir, "quickshell", name)}
+	}
+	return []string{"-c", name}''',
+                 '''	if shellDir != "" {
+		return []string{"-p", filepath.Join(shellDir, "quickshell", name)}
+	}
+	if root := os.Getenv("RYOKU_QUICKSHELL_CONFIG_HOME"); root != "" {
+		return []string{"-p", filepath.Join(root, name)}
+	}
+	return []string{"-c", name}''')
+
+    p = root / "ryoku/shell/ipc/daemon.go"
+    replace_once(p, '''	shellRoot := filepath.Join(configRoot, "quickshell")
+	if shellDir != "" {
+		shellRoot = filepath.Join(shellDir, "quickshell")
+	}''',
+                 '''	shellRoot := filepath.Join(configRoot, "quickshell")
+	if root := os.Getenv("RYOKU_QUICKSHELL_CONFIG_HOME"); root != "" {
+		shellRoot = root
+	}
+	if shellDir != "" {
+		shellRoot = filepath.Join(shellDir, "quickshell")
+	}''')
+    replace_once(p, '''	myCfg := os.Getenv("XDG_CONFIG_HOME")
+	if myCfg == "" {
+		myCfg = myHome + "/.config"
+	}
+	var out []int''',
+                 '''	myCfg := os.Getenv("XDG_CONFIG_HOME")
+	if myCfg == "" {
+		myCfg = myHome + "/.config"
+	}
+	myQuickshell := os.Getenv("RYOKU_QUICKSHELL_CONFIG_HOME")
+	var out []int''')
+    replace_once(p, "if !sameSessionEnv(string(envRaw), myHome, myCfg) {",
+                 "if !sameSessionEnv(string(envRaw), myHome, myCfg, myQuickshell) {")
+    replace_once(p, "func sameSessionEnv(environ, home, cfgDir string) bool {",
+                 "func sameSessionEnv(environ, home, cfgDir, quickshellDir string) bool {")
+    replace_once(p, '''	return c == cfgDir
+}''',
+                 '''	if c != cfgDir {
+		return false
+	}
+	return env["RYOKU_QUICKSHELL_CONFIG_HOME"] == quickshellDir
+}''')
+
+    test = root / "ryoku/cli/internal/updater/materialize_rxb_test.go"
+    test.write_text("""package updater
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestMaterializeIsolatesRXBQuickshellConfig(t *testing.T) {
+	base, dest := t.TempDir(), t.TempDir()
+	quickshell := filepath.Join(dest, "ryoku-x11", "quickshell")
+	t.Setenv("RYOKU_CONFIG_BASE", base)
+	t.Setenv("XDG_CONFIG_HOME", dest)
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	t.Setenv("RYOKU_QUICKSHELL_CONFIG_HOME", quickshell)
+
+	writeFile(t, filepath.Join(base, "quickshell/shell/shell.qml"), "RXB shell")
+	writeFile(t, filepath.Join(base, "quickshell/shell/old.qml"), "old RXB file")
+	writeFile(t, filepath.Join(dest, "quickshell/shell/shell.qml"), "existing desktop shell")
+	writeFile(t, filepath.Join(dest, "quickshell/keep.qml"), "existing user config")
+
+	if err := Materialize(); err != nil {
+		t.Fatalf("materialize isolated RXB config: %v", err)
+	}
+	wantFile(t, filepath.Join(quickshell, "shell/shell.qml"), "RXB shell")
+	wantFile(t, filepath.Join(dest, "quickshell/shell/shell.qml"), "existing desktop shell")
+	wantFile(t, filepath.Join(dest, "quickshell/keep.qml"), "existing user config")
+
+	if err := os.Remove(filepath.Join(base, "quickshell/shell/old.qml")); err != nil {
+		t.Fatal(err)
+	}
+	if err := Materialize(); err != nil {
+		t.Fatalf("materialize after upstream QML removal: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(quickshell, "shell/old.qml")); !os.IsNotExist(err) {
+		t.Fatalf("stale RXB QML was not pruned from the isolated tree: %v", err)
+	}
+	wantFile(t, filepath.Join(dest, "quickshell/shell/shell.qml"), "existing desktop shell")
+}
+
+func TestMaterializeRejectsSharedQuickshellRootOverride(t *testing.T) {
+	base, dest := t.TempDir(), t.TempDir()
+	t.Setenv("RYOKU_CONFIG_BASE", base)
+	t.Setenv("XDG_CONFIG_HOME", dest)
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	t.Setenv("RYOKU_QUICKSHELL_CONFIG_HOME", filepath.Join(dest, "quickshell"))
+
+	if err := Materialize(); err == nil {
+		t.Fatal("materialize accepted the shared ~/.config/quickshell path for RXB")
+	}
+}
+""")
+
+    test = root / "ryoku/shell/ipc/rxb_quickshell_path_test.go"
+    test.write_text("""package main
+
+import (
+	"path/filepath"
+	"testing"
+)
+
+func TestRXBQuickshellConfigSelector(t *testing.T) {
+	activeShimaRoot.Store("")
+	t.Setenv("RYOKU_QUICKSHELL_CONFIG_HOME", "/tmp/rxb/quickshell")
+	got := qsSelect("shell")
+	if len(got) != 2 || got[0] != "-p" || got[1] != filepath.Join("/tmp/rxb/quickshell", "shell") {
+		t.Fatalf("RXB Quickshell selector = %#v", got)
+	}
+}
+
+func TestRXBSameSessionEnvIncludesQuickshellRoot(t *testing.T) {
+	env := "HOME=/home/test\\x00XDG_CONFIG_HOME=/home/test/.config\\x00RYOKU_QUICKSHELL_CONFIG_HOME=/home/test/.config/ryoku-x11/quickshell\\x00"
+	if !sameSessionEnv(env, "/home/test", "/home/test/.config", "/home/test/.config/ryoku-x11/quickshell") {
+		t.Fatal("same RXB Quickshell root was not recognized as the same session")
+	}
+	if sameSessionEnv(env, "/home/test", "/home/test/.config", "/home/test/.config/quickshell") {
+		t.Fatal("different Quickshell roots were treated as the same session")
+	}
+}
+""")
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("ryoku_checkout", type=pathlib.Path)
@@ -829,6 +1014,7 @@ def main() -> int:
     patch_lock_dispatch(root)
     patch_ryogami_package(root)
     patch_x11_package_safety(root)
+    patch_quickshell_config_isolation(root)
     print(f"RXB overlay applied to pinned Ryoku {PIN}")
     print("Changed: provider/session discovery, QML i3 bridge, X11 panel/taskbar/capture/clipboard/lock adapters, and non-destructive package policy")
     print("Note: this is a source overlay, not a completed/validated desktop build.")
