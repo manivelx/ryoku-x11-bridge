@@ -3,6 +3,24 @@ set -euo pipefail
 
 dist="${1:-dist}"
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# This test runs in a disposable container whose PID 1 is not systemd. Disable
+# only host package-manager hooks (for example kernel-module reload hooks) in
+# this isolated test transaction; package .install scripts and file ownership
+# checks still execute normally. A real Arch/CachyOS install uses its normal
+# pacman.conf and hooks.
+pacman_config="$(mktemp)"
+pacman_hook_dir="$(mktemp -d)"
+awk -v hook_dir="$pacman_hook_dir" '
+  /^\[options\]$/ { print; print "HookDir = " hook_dir; next }
+  { print }
+' /etc/pacman.conf > "$pacman_config"
+pacman() { command pacman --config "$pacman_config" "$@"; }
+cleanup_test_config() {
+  rm -f -- "$pacman_config"
+  rm -rf -- "$pacman_hook_dir"
+}
+trap cleanup_test_config EXIT
 shopt -s nullglob
 packages=("$dist"/*.pkg.tar.*)
 (("${#packages[@]}" > 0)) || { echo "No Arch package artifacts found in $dist" >&2; exit 1; }
@@ -106,6 +124,7 @@ cleanup() {
   if (("${#present[@]}" > 0)); then
     pacman -Rdd --noconfirm "${present[@]}" >/dev/null || true
   fi
+  cleanup_test_config
   exit "$status"
 }
 trap cleanup EXIT
