@@ -664,8 +664,28 @@ func spawnX11Locker() error {
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	go func() { _ = cmd.Wait() }()
-	return nil
+	wait := make(chan error, 1)
+	go func() { wait <- cmd.Wait() }()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if isLocked() {
+			return nil
+		}
+		select {
+		case waitErr := <-wait:
+			wait = nil
+			if waitErr != nil {
+				return fmt.Errorf("X11 lock wrapper exited before a PAM locker became active: %w", waitErr)
+			}
+		default:
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	if wait != nil {
+		_ = cmd.Process.Kill()
+		<-wait
+	}
+	return fmt.Errorf("X11 lock wrapper did not establish a live PAM locker on display %s within 2 seconds", os.Getenv("DISPLAY"))
 }'''
     replace_once(p, old, new)
     old_guard = '''func ensureSessionLocked(deadline time.Time) error {
