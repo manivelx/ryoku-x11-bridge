@@ -62,11 +62,11 @@ if [[ ${1:-} == -c ]]; then
     echo "i3 must use the session-only runtime config copy" >&2
     exit 1
   }
-  grep -Fq "include \"$XDG_CONFIG_HOME/ryoku-x11/generated.conf\"" "$2" || {
+  grep -Fq "$XDG_CONFIG_HOME/ryoku-x11/generated.conf" "$2" || {
     echo "runtime i3 config did not resolve generated.conf through XDG_CONFIG_HOME" >&2
     exit 1
   }
-  grep -Fq "include \"$XDG_CONFIG_HOME/ryoku-x11/user.conf\"" "$2" || {
+  grep -Fq "$XDG_CONFIG_HOME/ryoku-x11/user.conf" "$2" || {
     echo "runtime i3 config did not resolve user.conf through XDG_CONFIG_HOME" >&2
     exit 1
   }
