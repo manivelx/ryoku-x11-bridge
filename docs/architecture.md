@@ -1,7 +1,7 @@
 # RXB architecture
 
 ## Goal
-Run the original Ryoku desktop shell and services on Xorg using i3 and Quickshell. RXB is an X11 compatibility port, not a replacement shell, not an end4 hybrid, and not MRX. Preserve original QML and Go services wherever their dependencies permit.
+Run the original Ryoku desktop shell and services on Xorg using i3 and Quickshell. RXB is an X11 compatibility port, not a replacement shell or a hybrid of unrelated desktops. Preserve original QML and Go services wherever their dependencies permit.
 
 ## Target host
 - CachyOS/Arch Linux x86_64
@@ -39,7 +39,7 @@ Use Quickshell's i3 integration in QML for workspace/monitor presentation where 
 Use framed i3 IPC with magic header, length and message type. Use request connection(s) for GET_WORKSPACES, GET_OUTPUTS, GET_TREE and RUN_COMMAND; use a separate SUBSCRIBE connection for events. Validate reply type and payload size, handle reconnect, debounce event bursts and resync snapshots. Never expose arbitrary command passthrough as semantic actions.
 
 ## Configuration
-Keep neutral desktop settings separate from provider-owned wm.i3 settings. Generate only an RXB-owned include file or isolated i3 config. Preview must be side-effect-free. Preserve user config and report every unsupported setting. Never take ownership of another WM's config.
+Keep neutral desktop settings separate from provider-owned wm.i3 settings. Generate only an RXB-owned include file or isolated i3 config. Preview must be side-effect-free. Preserve user config and report every unsupported setting. Never take ownership of another WM's config. RXB materializes the original shell's QML tree at `~/.config/ryoku-x11/quickshell` and routes the daemon to it; the user's existing `~/.config/quickshell` tree remains untouched, and normal `XDG_CONFIG_HOME` is not redirected for applications.
 
 ## X11 surface adaptation
 Quickshell X11 windows are not Wayland layer-shell surfaces. Test struts, stacking, popup placement, focus, click-through and monitor association under i3. Adapt each surface class deliberately rather than assuming WlrLayershell equivalence.
@@ -48,4 +48,4 @@ Quickshell X11 windows are not Wayland layer-shell surfaces. Test struts, stacki
 A normal fullscreen QML window is not a secure X11 lock. Use a security-reviewed X11 locker (candidate: XSecureLock with PAM) as the security boundary. Ryoku QML may only be a visual layer beneath it. No QML unlock path. Validate grabs, multi-monitor coverage, PAM failure, process death, saver failure and suspend/resume before exposing lock capability.
 
 ## Protected resources
-Do not modify MRX-Desktop, current BSPWM/sxhkd configuration, SDDM, Ryoku Orbital theme, existing Quickshell lock screen, Picom configuration, NVIDIA driver, kernel, GRUB/EFI, or existing autostart/services. Development uses Xephyr/Xvfb, temporary HOME and isolated i3 configs. Host installation requires explicit approval after rollback is tested.
+current BSPWM/sxhkd configuration, SDDM, Ryoku Orbital theme, existing Quickshell lock screen, existing `~/.config/quickshell` tree, Picom configuration, NVIDIA driver, kernel, GRUB/EFI, or existing autostart/services. Development uses Xephyr/Xvfb, temporary HOME and isolated i3 configs. Host installation requires explicit approval after rollback is tested.
