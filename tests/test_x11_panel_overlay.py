@@ -11,6 +11,31 @@ SPEC.loader.exec_module(OVERLAY)
 
 
 class X11PanelOverlayTests(unittest.TestCase):
+    def test_ternary_counter_ignores_optional_chaining_and_nullish_coalescing(self):
+        expression = "(dock.pinned && reveal) ? Math.max(0, thickness) : (!dock.pinned || (Config.options?.dock.onTop ?? false))"
+        parens, questions, colons = OVERLAY._ternary_counts(expression)
+        self.assertEqual((parens, questions, colons), (0, 2, 2))
+
+    def test_multiline_layer_conversion_keeps_nullish_coalescing_expression_intact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            qml = root / "Dock.qml"
+            qml.write_text(
+                "PanelWindow {\n"
+                "    WlrLayershell.layer: (GlobalStates.editMode || GlobalStates.editProgress > 0)\n"
+                "        ? WlrLayer.Overlay : (!dock.pinned || (Config.options?.dock.onTop ?? false)\n"
+                "            ? WlrLayer.Top : WlrLayer.Bottom)\n"
+                '    color: "transparent"\n'
+                "}\n"
+            )
+            OVERLAY.patch_x11_panel_properties(root)
+            result = qml.read_text()
+            self.assertIn(
+                "aboveWindows: (GlobalStates.editMode || GlobalStates.editProgress > 0) ? true : (!dock.pinned || (Config.options?.dock.onTop ?? false) ? true : false)",
+                result,
+            )
+            self.assertIn('color: "transparent"', result)
+            self.assertNotIn("WlrLayershell.layer", result)
     def test_static_and_dynamic_layer_mapping(self):
         self.assertEqual(OVERLAY._convert_x11_layer("WlrLayer.Overlay"), "true")
         self.assertEqual(
