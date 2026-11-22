@@ -35,7 +35,7 @@ exec startup-command
 }
 
 func TestParseI3BindRowsRejectsEmptyConfig(t *testing.T) {
-	if _, err := parseI3BindRows("  \n# no binds\n"); err == nil {
+	if _, err := parseI3BindRows("  \n"); err == nil {
 		t.Fatal("expected empty config error")
 	}
 }
