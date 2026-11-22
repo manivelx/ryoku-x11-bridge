@@ -297,6 +297,8 @@ sudo pacman -U "${packages[@]}"
 
 The local Ryoku packages are installed together by the final `pacman -U` transaction; the first command installs only external dependencies from the official repositories. The disposable CI transaction must prove this exact dependency set resolves before the commands are considered release-ready. Do not guess package versions or install a partial subset.
 
+**Pacman trust note:** the upstream `ryoku-keyring` package places its key material under `/usr/share/pacman/keyrings`. Its install hook runs `pacman-key --populate ryoku` only if a Ryoku key is already present in the local pacman keyring. Review this system-level package-trust behavior before approving a host installation.
+
 ### First login
 
 After installation is explicitly approved:
