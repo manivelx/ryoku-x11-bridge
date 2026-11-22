@@ -1152,11 +1152,12 @@ func configPath() string {''')
                  'config := os.Getenv("RYOKU_CONFIG_HOME")\n\tif config == "" {\n\t\tconfig = os.Getenv("XDG_CONFIG_HOME")\n\t}')
 
     p = root / "ryoku/i18n/i18n.go"
-    replace_once(p, 'home := os.Getenv("XDG_CONFIG_HOME")',
-                 'home := os.Getenv("RYOKU_CONFIG_HOME")\n\tif home == "" {\n\t\thome = os.Getenv("XDG_CONFIG_HOME")\n\t}')
-    # The same config-root selection is used by both shellConfigLanguage and userOverlayDir.
-    replace_once(p, 'home := os.Getenv("XDG_CONFIG_HOME")',
-                 'home := os.Getenv("RYOKU_CONFIG_HOME")\n\tif home == "" {\n\t\thome = os.Getenv("XDG_CONFIG_HOME")\n\t}')
+    text = p.read_text()
+    old_home = 'home := os.Getenv("XDG_CONFIG_HOME")'
+    if text.count(old_home) != 2:
+        raise RuntimeError(f"{p}: expected two config-home selections, found {text.count(old_home)}")
+    new_home = 'home := os.Getenv("RYOKU_CONFIG_HOME")\n\tif home == "" {\n\t\thome = os.Getenv("XDG_CONFIG_HOME")\n\t}'
+    p.write_text(text.replace(old_home, new_home))
 
     p = root / "ryoku/cli/internal/securitykey/config.go"
     replace_once(p, 'if v := strings.TrimSpace(os.Getenv("XDG_CONFIG_HOME")); v != "" {',
