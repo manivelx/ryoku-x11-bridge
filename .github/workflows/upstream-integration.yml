@@ -137,7 +137,7 @@ jobs:
           ! grep -R -E 'WlrLayershell\\.(layer|keyboardFocus|namespace|focusable)' upstream/ryoku --include='*.qml'
           ! grep -R -E '\\.WlrLayershell\\.keyboardFocus' upstream/ryoku --include='*.qml'
       - name: Format patched upstream Go
-        run: gofmt -w upstream/ryoku/wm/detect.go upstream/ryoku/shell/ipc/actions.go
+        run: gofmt -w upstream/ryoku/wm/detect.go upstream/ryoku/shell/ipc/actions.go upstream/ryoku/shell/ipc/daemon.go upstream/ryoku/cli/internal/updater/materialize.go
       - name: Test upstream WM contract
         working-directory: upstream/ryoku/wm
         run: go test -mod=vendor ./...
