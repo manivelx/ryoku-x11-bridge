@@ -36,7 +36,11 @@ export PATH="$fakebin:$repo_root/payload/bin:$PATH"
 printf 'preserve this desktop config\n' > "$config_home/quickshell/keep.qml"
 mkdir -p "$config_home/ryoku-x11"
 printf 'my own keybinds\n' > "$config_home/ryoku-x11/user.conf"
-printf 'i3 config seed\n' > "$seed/config"
+cat > "$seed/config" <<'EOF'
+set $mod Mod4
+include ~/.config/ryoku-x11/generated.conf
+include ~/.config/ryoku-x11/user.conf
+EOF
 printf 'generated seed\n' > "$seed/generated.conf"
 printf 'default user seed\n' > "$seed/user.conf"
 
@@ -132,7 +136,7 @@ case "$*" in
 esac
 SH
 
-for command in ryoku-wm-i3 qs ryoku-shell; do
+for command in qs ryoku-shell; do
   cat > "$fakebin/$command" <<'SH'
 #!/usr/bin/env bash
 exit 0
@@ -163,7 +167,9 @@ done
 bash "$repo_root/payload/bin/ryoku-x11-session"
 
 [[ ! -e "$runtime/ryoku-x11-session.env" ]]
-grep -Fqx 'i3 config seed' "$config_home/ryoku-x11/config"
+grep -Fqx 'include ~/.config/ryoku-x11/generated.conf' "$config_home/ryoku-x11/config"
+grep -Fqx 'include ~/.config/ryoku-x11/user.conf' "$config_home/ryoku-x11/config"
+[[ ! -e "$runtime/ryoku-x11-i3.conf" ]]
 grep -Fqx 'generated seed' "$config_home/ryoku-x11/generated.conf"
 grep -Fqx 'my own keybinds' "$config_home/ryoku-x11/user.conf"
 grep -Fqx 'preserve this desktop config' "$config_home/quickshell/keep.qml"
