@@ -126,6 +126,7 @@ See the [compatibility matrix](docs/compatibility-matrix.md), [QML audit](docs/q
 - Window rules, input settings, appearance settings and live output management are not translated.
 - Wayland-only capture, persistent window previews, session lock and compositor-specific bridges are unavailable or gated.
 - Wallpaper picker/runtime, tray, notifications, popup stacking, capture, multi-monitor behavior and complete shell interactions still need runtime acceptance.
+- App-wide GTK/Qt/terminal theming is intentionally gated in the RXB session so the first launch cannot rewrite shared application configs; a safe per-session app-config adapter is still needed.
 - XSecureLock/i3lock wrapper selection is not equivalent to PAM, focus-grab, crash-recovery or lock-before-suspend security validation.
 
 ## Project references
