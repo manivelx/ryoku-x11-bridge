@@ -57,9 +57,9 @@ type Window struct {
 }
 type Snapshot struct {
 	FocusedOutput   string      `json:"focusedOutput,omitempty"`
-	Outputs         []Output    `json:"outputs,omitempty"`
-	Workspaces      []Workspace `json:"workspaces,omitempty"`
-	Windows         []Window    `json:"windows,omitempty"`
+	Outputs         []Output    `json:"outputs"`
+	Workspaces      []Workspace `json:"workspaces"`
+	Windows         []Window    `json:"windows"`
 	KeyboardLayout  string      `json:"keyboardLayout,omitempty"`
 	KeyboardLayouts []string    `json:"keyboardLayouts,omitempty"`
 }
