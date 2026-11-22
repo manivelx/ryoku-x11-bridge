@@ -38,6 +38,21 @@ UPSTREAM="$WORKTREE"
 echo "[1/3] Applying the pinned RXB X11 overlay in the disposable worktree..."
 python3 "$RXB_ROOT/scripts/apply-upstream-overlay.py" "$UPSTREAM"
 
+copy_runtime_packages() {
+  local pkg pkgname
+  local -a runtime_artifacts=()
+  for pkg in "$@"; do
+    pkgname="$(bsdtar -xOf "$pkg" .PKGINFO | sed -n 's/^pkgname = //p' | head -n1)"
+    if [[ "$pkgname" == *-debug ]]; then
+      echo "Skipping split debug package from runtime set: $pkgname"
+      continue
+    fi
+    runtime_artifacts+=("$pkg")
+  done
+  (("${#runtime_artifacts[@]}" > 0)) || { echo "No runtime package artifacts found." >&2; exit 1; }
+  cp -f -- "${runtime_artifacts[@]}" "$OUT/"
+}
+
 build_package() {
   local repo="$1"
   local name="$2"
@@ -45,7 +60,8 @@ build_package() {
   [[ -f "$dir/PKGBUILD" ]] || { echo "Missing PKGBUILD: $dir" >&2; exit 1; }
   echo "Building $name..."
   # makepkg may emit a separate -debug package after the main package.
-  # Remove stale artifacts first, then preserve every package from this build.
+  # Keep those symbols out of the runtime set: upstream split debug packages
+  # can share build IDs and are not required to install or run the desktop.
   find "$dir" -maxdepth 1 -type f -name '*.pkg.tar.*' -delete
   (
     cd "$dir"
@@ -54,7 +70,7 @@ build_package() {
   local -a artifacts
   mapfile -t artifacts < <(find "$dir" -maxdepth 1 -type f -name '*.pkg.tar.*' -print | sort)
   (("${#artifacts[@]}" > 0)) || { echo "No package artifacts produced for $name" >&2; exit 1; }
-  cp -f -- "${artifacts[@]}" "$OUT/"
+  copy_runtime_packages "${artifacts[@]}"
 }
 
 echo "[2/3] Building the original Ryoku runtime and desktop payload..."
@@ -71,7 +87,7 @@ find "$i3_package_dir" -maxdepth 1 -type f -name '*.pkg.tar.*' -delete
 )
 mapfile -t i3_artifacts < <(find "$i3_package_dir" -maxdepth 1 -type f -name '*.pkg.tar.*' -print | sort)
 (("${#i3_artifacts[@]}" > 0)) || { echo "No ryoku-desktop-i3 package artifacts produced." >&2; exit 1; }
-cp -f -- "${i3_artifacts[@]}" "$OUT/"
+copy_runtime_packages "${i3_artifacts[@]}"
 
 echo
 echo "Build complete. Packages are in: $OUT"
