@@ -82,6 +82,8 @@ case "$*" in
     grep -Fqx "RYOKU_CONFIG_HOME=\"$XDG_CONFIG_HOME/ryoku-x11/ryoku-config\"" "$env_file"
     grep -Fqx "RYOKU_QUICKSHELL_CONFIG_HOME=\"$XDG_CONFIG_HOME/ryoku-x11/ryoku-config/quickshell\"" "$env_file"
     grep -Fqx 'XDG_SESSION_TYPE="x11"' "$env_file"
+    grep -Fqx 'DISPLAY=":99"' "$env_file"
+    grep -Fqx "XDG_CONFIG_HOME=\"$XDG_CONFIG_HOME\"" "$env_file"
     ;;
 esac
 SH
