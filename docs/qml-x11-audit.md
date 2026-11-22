@@ -100,6 +100,14 @@ The Ryogami picker contains Wayland layer-shell usage. RXB installs a dedicated 
 
 Do not treat the search census or successful source rewrite as runtime compatibility evidence.
 
+### Hub and companion surfaces
+
+The pinned Hub QML tree contains `Quickshell.Wayland` imports in `pages/InputPage.qml` and `pages/KeybindsPage.qml`, but the inspected files do not reference Wayland types or attached properties beyond those import lines. These are import-only residues, not evidence of a live Wayland dependency.
+
+The Ryogami wallpaper picker uses `WlrLayershell.layer`, `namespace` and `keyboardFocus` on its picker window. The common overlay maps the layer and keyboard-focus expressions to X11 `PanelWindow` properties and removes the Wayland-only namespace. The source conversion is covered by overlay checks; picker focus, dismissal and wallpaper interaction still require runtime acceptance.
+
+The RyoStore and Ryovm QML roots are included in the source inventory so optional companion applications are not silently omitted from future audits. Their import census is not a substitute for testing those applications under the RXB session.
+
 ## Reproducible CI source inventory
 
 RXB now includes `scripts/audit-rxb-qml.py`. After applying the overlay to the pinned upstream checkout, CI inventories every QML file under the main shell, Hub, picker and companion-app source roots:
