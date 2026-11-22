@@ -28,8 +28,8 @@ func TestI3ChordTranslatesRyokuModifiersAndMouseButtons(t *testing.T) {
 	}
 	for _, unsafe := range []string{
 		"SUPER + Q; exec touch /tmp/rxb-injected",
-		"SUPER + Q\\\" exec --no-startup-id touch /tmp/rxb-injected",
-		"SUPER + Q\\\\bar",
+		"SUPER + Q\" exec --no-startup-id touch /tmp/rxb-injected",
+		"SUPER + Q\\bar",
 	} {
 		if _, ok := i3Chord(unsafe); ok {
 			t.Errorf("unsafe i3 config token must be rejected: %q", unsafe)
