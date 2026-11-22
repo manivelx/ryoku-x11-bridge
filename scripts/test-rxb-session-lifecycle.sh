@@ -143,6 +143,16 @@ grep -Fq -- '--user start ryoku-x11-session.target' "$TEST_SYSTEMCTL_LOG"
 grep -Fq -- '--user stop ryoku-x11-session.target' "$TEST_SYSTEMCTL_LOG"
 ! grep -Fq 'import-environment' "$TEST_SYSTEMCTL_LOG"
 
+# A stale symlink at the predictable EnvironmentFile path must not be followed.
+printf "do not overwrite this target\\n" > "$runtime/keep-me"
+ln -s "$runtime/keep-me" "$runtime/ryoku-x11-session.env"
+if bash "$repo_root/payload/bin/ryoku-x11-session" >/dev/null 2>&1; then
+  echo "session initializer accepted a symlinked EnvironmentFile" >&2
+  exit 1
+fi
+[[ ! -L "$runtime/ryoku-x11-session.env" ]]
+grep -Fqx "do not overwrite this target" "$runtime/keep-me"
+
 if DISPLAY=:99 WAYLAND_DISPLAY=wayland-0 bash "$repo_root/payload/bin/ryoku-x11-session" >/dev/null 2>&1; then
   echo "session wrapper accepted a nested Wayland session" >&2
   exit 1
