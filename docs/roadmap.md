@@ -12,7 +12,7 @@
 [x] Quickshell 0.3.2 API and basic full-shell daemon/QML-load smoke passed in disposable Xvfb+i3 CI
 [ ] Architecture review and acceptance
 
-Status: automated provider, overlay, package, basic shell-daemon and disposable transaction gates pass; exhaustive feature, security and target-hardware acceptance remain open.
+Status: automated provider, overlay, upstream Go, package, installer/rollback, session lifecycle and Xvfb+i3 shell/lock smoke gates are being validated on the current head. Full feature interaction, real PAM security and target-hardware acceptance remain separate gates.
 
 ## Phase 1 — i3 provider foundation
 [~] Provider CLI and conservative capability manifest
@@ -45,8 +45,11 @@ Audio, media, Bluetooth, networking, power, tray, clipboard and session controls
 Acceptance: real DBus/PipeWire/BlueZ/UPower integration tests.
 
 ## Phase 6 — Secure lock and display management
-Secure X11 locker + PAM, lock-before-suspend, output management, capture and recording.
-Acceptance: security checklist, multi-monitor, crash and resume tests. Lock remains disabled until accepted.
+[x] X11 lock action dispatches to XSecureLock when available, otherwise i3lock; no fullscreen QML surface is treated as a secure lock.
+[x] Lock-state detection is scoped to a live i3lock/XSecureLock process on the current X display; repeated requests are idempotent.
+[x] Suspend, hibernate and automatic suspend are disabled/fail-closed on X11; all known shell-owned power entry points route through the refusal wrapper or the Go host guard.
+[~] Real PAM authentication, keyboard/pointer grabs, VT switching, multi-monitor coverage, crash/recovery, output management, capture and recording remain unaccepted.
+Acceptance: complete the real X11 security checklist before enabling any sleep handoff.
 
 ## Phase 7 — Rendering/performance
 QtQuick, NVIDIA 470, Picom, animations, transparency, effects, resource use and stability.
@@ -55,7 +58,7 @@ Acceptance: repeatable frame/resource measurements on target hardware.
 ## Phase 8 — Packaging and installer
 [x] Non-installing package build pipeline and X11 session payload passed in Arch CI
 [x] Package safety checks protect SDDM, Orbital, Quickshell lockscreen, boot and GPU integration
-[x] Disposable Arch package transaction/uninstall and external dependency resolution passed in CI; host rollback remains separate
+[x] Disposable Arch package install/upgrade/rejected-transaction/rollback/removal is exercised through the same RXB installer and ownership-manifest removal scripts shipped in the bundle; host rollback remains separate
 Acceptance: package transaction/removal passes in disposable Arch; session tests prove shared XDG and Quickshell config are not overwritten. Host dependency resolution and actual login-session behavior remain target-machine checks.
 
 ## Phase 9 — Release validation
@@ -74,7 +77,7 @@ Evidence is deliberately separate. A checked implementation item does not imply 
 | i3 IPC provider | Yes | Yes, initial | Yes | Yes | Pending | No | No |
 | Watch debounce/incremental frames | Yes, upstream frame contract | Yes | Yes | Yes | Pending | No | No |
 | Quickshell I3/PanelWindow + full shell daemon smoke | Quickshell 0.3.2 API reviewed; static active-shell QML graph artifact added | Full-shell Xvfb/i3 daemon harness; static dependency candidate graph | Yes | Yes, Xvfb CI | Yes, smoke only | No | No |
-| X11 lock wrapper | XSecureLock/i3lock command paths | Yes, wrapper only | Yes, Arch package CI | Yes, wrapper test | No | No | No |
+| X11 lock wrapper | XSecureLock/i3lock PAM process paths and display identity | Yes, lock dispatch/state/idempotency and suspend fail-closed guard | Pending current-head Arch run | Yes, wrapper + Go regression tests | Xvfb lock process smoke pending current-head Arch run | No | No |
 | Settings/keybind translation | Pinned 105-action catalogue, neutral desktop store, rebind/disabled/custom precedence and i3 GET_CONFIG contract | Partial: semantic i3 mappings are generated before session start and on settings apply; unsupported actions and other desktop settings are explicitly reported; settings file is never overwritten | Pending current CI | Pending current CI | Pending current Xvfb integration | No | No |
 | RXB systemd service isolation | Dedicated target and X11-only units reviewed | Session EnvironmentFile, graphical-session binding and no upstream unit drop-ins | Yes | Systemd unit verification + lifecycle tests | No, unit/lifecycle smoke only | No | No |
 | Ryogami wallpaper service | Go daemon and picker entry inspected; full QML use-site audit pending | Dedicated RXB X11 unit + isolated config root | Yes, package CI | Unit/overlay CI | Daemon included in basic shell smoke; picker interaction pending | No | No |

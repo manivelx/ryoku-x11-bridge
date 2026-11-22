@@ -17,6 +17,8 @@ depends=(
   'ryogami'
   'i3-wm'
   'i3lock'
+  'libnotify'
+  'util-linux'
   'xdotool'
   'xorg-server'
   'quickshell>=0.3.2'

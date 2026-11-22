@@ -4,7 +4,7 @@
 
 This script builds the original Ryoku runtime packages from the pinned upstream checkout, applies the RXB X11 overlay, and builds the i3 provider package.
 
-**It does not install any packages.** Do not install the resulting package set on the existing CachyOS host until the disposable-VM validation phase passes. The build may require development tools already installed on the build machine; use an Arch/CachyOS VM rather than the daily-use desktop.
+**The build script does not install packages.** After the current-head disposable Arch acceptance job passes, CI bundles the package archives with `scripts/install-rxb-packages.sh` and `scripts/remove-rxb-packages.sh`. Use that tested bundle; do not run `pacman -U` manually. The build itself should still run in an Arch/CachyOS VM rather than the daily-use desktop.
 
 The overlay explicitly skips the upstream distribution-level SDDM/qylock bundle, system services manifest, hardware helper binaries, udev/modprobe/polkit/logind rules, and boot/UKI integration. It replaces the desktop package install scriptlet with metadata refresh only. The RXB i3 package installs dedicated `ryoku-shell-x11.service` and `ryogami-x11.service` units owned only by `ryoku-x11-session.target`. It does not add drop-ins to, replace, or alter the original upstream `ryoku-shell.service`, `ryogami.service` or `ryoku-session.target` units. It does not call `systemctl --user enable` or import X11 variables into the shared user-manager environment. The session recreates a mode-0600 environment file for the RXB units, rejects symlink paths and replaces stale inodes rather than truncating a hard-linked target, then removes it when i3 exits. RXB uses `RYOKU_CONFIG_HOME` under `~/.config/ryoku-x11/ryoku-config` while leaving normal `XDG_CONFIG_HOME` unchanged for applications. Upstream lock/greeter mutation, app-wide theme writes, and host icon/font changes are gated by `RYOKU_X11_BRIDGE=1`. Its picker QML is covered by the panel-property overlay, but wallpaper/picker runtime behavior remains unvalidated. It does not change the existing SDDM configuration, Orbital theme, Quickshell lockscreen files, the existing `~/.config/quickshell` tree, NVIDIA driver, kernel, or bootloader. RXB's Ryoku-managed config is materialized under `~/.config/ryoku-x11/ryoku-config` (including Quickshell at `~/.config/ryoku-x11/ryoku-config/quickshell`). The overlay routes Ryoku services and QML to that root through `RYOKU_CONFIG_HOME` without changing the session's normal `XDG_CONFIG_HOME`, so applications keep using their existing configs.
 
@@ -59,6 +59,10 @@ done
 ```
 
 Do not run `pacman -U` on the daily-use system. First install into a disposable VM/root, verify that SDDM, the Orbital theme, the existing Quickshell lockscreen, NVIDIA 470, kernel and EFI files remain unchanged, then test the separate "Ryoku (X11 / i3)" session.
+
+## Install from the validated bundle
+
+See [Installation and rollback](install.md). The CI artifact `rxb-install-bundle` contains the runtime package set, SHA256 checksums, install/remove scripts, the package-safety verifier and the payload files it inspects. The installer resolves external dependencies, installs the package set as one transaction, and records only packages newly introduced by RXB. The removal script uses that ownership record and preserves pre-existing packages and user configuration.
 
 ## Current limitations
 

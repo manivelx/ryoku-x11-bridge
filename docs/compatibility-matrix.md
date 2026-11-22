@@ -7,7 +7,7 @@ Legend: Direct candidate = Quickshell/X11 API likely covers it; Adapter = implem
 | QML rendering | Quickshell QtQuick X11 | Direct candidate | Full shell loads on target Qt/driver |
 | User config isolation | RYOKU_CONFIG_HOME + RXB-only Quickshell path | Adapter | Existing XDG/Quickshell config unchanged; RXB settings persist separately |
 | App-wide theming | Gated while RXB safety flag is set | Gated | Requires an explicit per-session app-config adapter |
-| Lock/greeter management | RXB XSecureLock wrapper; upstream qylock/greeter mutations disabled | Gated | PAM, lock-before-suspend and secure-lock acceptance still required |
+| Lock/greeter management | XSecureLock when installed, otherwise PAM-backed i3lock; upstream qylock/greeter mutations disabled | Adapter, security acceptance pending | Xvfb verifies locker process startup/idempotency; real PAM auth, input grabs, VT switching, multi-monitor coverage and crash recovery remain target checks |
 | Panels and bars | Quickshell X11 windows + i3 struts/stacking | Adapter | Stacking, struts, focus and multi-monitor |
 | Popups and overlays | Quickshell X11 windows | Adapter | Placement, transient behavior, dismissal |
 | Workspaces/monitors | Quickshell i3 integration | Direct candidate | Real workspace/output events |
@@ -24,17 +24,17 @@ Legend: Direct candidate = Quickshell/X11 API likely covers it; Adapter = implem
 | Network/power | NetworkManager/UPower services | Direct candidate | State and action verification |
 | Clipboard | X11 clipboard backend | Adapter | PRIMARY/CLIPBOARD and persistence |
 | Capture/recording | X11 capture backend | Replacement | Coordinates, multi-monitor, performance |
-| Window previews | X11 capture + i3 tree | Replacement | Correct window identity and refresh |
+| Window previews | Live capture surfaces gated off; window identity/state still comes from i3 tree | Gated | Implement and validate a per-window X11 capture adapter before enabling previews |
 | Overview | Original QML + i3 state + capture adapter | Replacement | Navigation and previews |
 | WlrLayershell | X11 window hints/struts | Replacement | Per-surface behavior validated |
 | Foreign-toplevel | i3 GET_TREE | Replacement | Task list, titles, app identity |
 | Global shortcuts | i3 bindings or XGrabKey | Adapter/gated | Conflicts and focus semantics |
-| Session lock | XSecureLock + PAM | Replacement/gated | Security review and failure tests |
+| Session lock | XSecureLock or i3lock + PAM; process identity scoped to the current X display | Replacement/partial | Xvfb start/idempotency/exit smoke; real PAM authentication, grabs, VT switching and recovery pending |
 | PAM UI | Quickshell PAM API | Partial | Not itself a secure lock |
 | Hyprland plugins | No i3 equivalent | Gated | Disable and explain |
 | Wayfire-specific features | No i3 equivalent | Gated | Disable and explain |
 | Blur/transparency | Existing Picom + QtQuick alpha | Unverified | Do not alter Picom config |
-| Suspend/lock handoff | logind + secure locker | Gated | Lock-before-suspend proven |
+| Suspend/lock handoff | Suspend, hibernate and automatic suspend are disabled on X11; explicit warning, no direct systemctl/loginctl call | Gated/fail-closed | Keep disabled until a secure X11 lock-before-suspend protocol and resume/crash tests are proven |
 
 For each row track: source inspected, adapter implemented, build passed, unit tests passed, Xephyr/Xvfb passed, real X11 hardware passed, user confirmed. Never infer hardware success from a virtual test or secure locking from fullscreen QML.
 

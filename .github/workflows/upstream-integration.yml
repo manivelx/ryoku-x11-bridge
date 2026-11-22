@@ -104,6 +104,24 @@ jobs:
           path: dist/rxb-arch-packages.tar.gz
           if-no-files-found: error
           retention-days: 14
+      - name: Bundle installation-ready RXB package set
+        run: |
+          bundle=dist/rxb-install-bundle
+          rm -rf "$bundle" dist/rxb-install-bundle.tar.gz
+          mkdir -p "$bundle/packages" "$bundle/scripts"
+          cp dist/*.pkg.tar.* "$bundle/packages/"
+          cp scripts/install-rxb-packages.sh scripts/remove-rxb-packages.sh scripts/test-rxb-package-safety.sh "$bundle/scripts/"
+          cp -a payload "$bundle/payload"
+          cp docs/install.md "$bundle/INSTALL.md"
+          (cd "$bundle" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          tar -czf dist/rxb-install-bundle.tar.gz -C dist rxb-install-bundle
+      - name: Upload installation-ready RXB bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: rxb-install-bundle
+          path: dist/rxb-install-bundle.tar.gz
+          if-no-files-found: error
+          retention-days: 30
 
   overlay-and-go-tests:
     runs-on: ubuntu-latest
@@ -141,6 +159,8 @@ jobs:
           bash -n payload/bin/ryoku-x11-suspend
           bash -n scripts/test-x11-lock-wrapper.sh
           bash -n scripts/test-x11-suspend-wrapper.sh
+          bash -n scripts/install-rxb-packages.sh
+          bash -n scripts/remove-rxb-packages.sh
           bash -n scripts/test-rxb-session-lifecycle.sh
           bash -n scripts/test-rxb-full-shell-xvfb.sh
           bash scripts/test-x11-lock-wrapper.sh

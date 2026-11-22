@@ -15,11 +15,11 @@ The original Ryoku desktop, brought to X11.
 ![Quickshell](https://img.shields.io/badge/Quickshell-0.3.2-0d0d0d?style=for-the-badge)
 ![Arch](https://img.shields.io/badge/platform-Arch%20%7C%20CachyOS-0d0d0d?style=for-the-badge)
 
-<kbd>[Architecture](docs/architecture.md)</kbd> · <kbd>[Build](docs/build.md)</kbd> · <kbd>[Compatibility](docs/compatibility-matrix.md)</kbd> · <kbd>[QML audit](docs/qml-x11-audit.md)</kbd> · <kbd>[Roadmap](docs/roadmap.md)</kbd>
+<kbd>[Install](docs/install.md)</kbd> · <kbd>[Architecture](docs/architecture.md)</kbd> · <kbd>[Build](docs/build.md)</kbd> · <kbd>[Compatibility](docs/compatibility-matrix.md)</kbd> · <kbd>[QML audit](docs/qml-x11-audit.md)</kbd> · <kbd>[Roadmap](docs/roadmap.md)</kbd>
 
 </div>
 
-> **Development build — not ready for installation on a daily-use machine.** RXB has passed provider tests, pinned upstream Go tests, an Arch package build, and an isolated Quickshell/i3 startup smoke. Disposable Arch package transaction checks have also passed on a prior validated commit. This is not a completed desktop acceptance: interactive shell surfaces, secure locking, multi-monitor behavior, host rollback and the target GT 740 / NVIDIA 470 desktop still need validation.
+> **Installable release candidate — target-hardware acceptance remains pending.** The release bundle is produced only after the disposable Arch package install/upgrade/rejected-transaction/rollback/removal checks and the Xvfb+i3 shell/lock smoke pass. X11 suspend and hibernate are intentionally disabled until a secure lock-before-suspend handoff is proven; live window previews remain gated. Real PAM unlock, multi-monitor behavior, and rendering on the target GT 740 / NVIDIA 470 / Picom desktop still require owner validation.
 
 <div align="center">
   <img src="https://raw.githubusercontent.com/Ryoku-dev/ryoku/main/docs/media/showroom/blue-hour.webp" alt="Original Ryoku desktop visual reference" width="100%" />
