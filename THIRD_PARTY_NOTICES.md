@@ -1,12 +1,12 @@
 # Third-party notices and licensing
 
-RXB's provider and session integration is licensed under **GPL-3.0-or-later** (see [LICENSE](LICENSE) and the package metadata). RXB integrates the pinned original Ryoku desktop; it does not relicense upstream or third-party components.
+RXB's provider and session integration is licensed under **GPL-3.0-only** (see [LICENSE](LICENSE) and the package metadata). RXB integrates the pinned original Ryoku desktop; it does not relicense upstream or third-party components.
 
 ## Pinned upstream
 
 - Repository: [Ryoku](https://github.com/Ryoku-dev/ryoku)
 - Revision: `0bf11741b22f69f22ad2733025671c7d0a5e1a47` (see [UPSTREAM_PIN](UPSTREAM_PIN))
-- Upstream root license: GNU GPL version 3; the upstream package metadata declares GPL-3.0-or-later for the core desktop.
+- Upstream root license: GNU GPL version 3; the upstream root NOTICE and GitHub license metadata identify GPL-3.0. The upstream PKGBUILD currently labels the core package GPL-3.0-or-later; RXB follows the root source license for the copied provider catalogue.
 - The upstream [NOTICE](NOTICE) is preserved verbatim. It records component origins, copyright, license distinctions and additional terms. It is authoritative alongside the component-level files copied from the pinned source tree.
 
 ## Notable upstream-derived components

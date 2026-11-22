@@ -7,7 +7,7 @@ epoch=1
 pkgdesc="Ryoku desktop X11/i3 session and RXB window-manager provider"
 arch=('x86_64')
 url="https://github.com/manivelx/ryoku-x11-bridge"
-license=('GPL-3.0-or-later')
+license=('GPL-3.0-only')
 makedepends=('go')
 # The upstream base and wallpaper daemon have independent pkgver/pkgrel
 # values (for example ryoku-desktop 0.1.0 and ryogami 0.2.0). RXB's variant

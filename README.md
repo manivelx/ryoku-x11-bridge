@@ -224,7 +224,7 @@ This table is the target test profile, not a compatibility claim. The GT 740 has
 
 RXB targets the original [Ryoku desktop](https://github.com/Ryoku-dev/ryoku), maintained in the [Ryoku upstream repository](https://github.com/Ryoku-dev/ryoku). The upstream revision is recorded in [`UPSTREAM_PIN`](UPSTREAM_PIN), and the overlay is applied to a disposable worktree during builds.
 
-The RXB provider/session package is `GPL-3.0-or-later`; the complete GPL text is in [LICENSE](LICENSE). The pinned upstream [NOTICE](NOTICE) and [third-party license inventory](THIRD_PARTY_NOTICES.md) are preserved. The Shima style is a modified derivative, not iNiR or iRiS; the required attribution is **Based on iNiR by snowarch (https://github.com/snowarch/inir)**. Its GPL section 7 terms and component notices remain in force.
+The RXB provider/session package is `GPL-3.0-only`; the complete GPL text is in [LICENSE](LICENSE). The pinned upstream [NOTICE](NOTICE) and [third-party license inventory](THIRD_PARTY_NOTICES.md) are preserved. The Shima style is a modified derivative, not iNiR or iRiS; the required attribution is **Based on iNiR by snowarch (https://github.com/snowarch/inir)**. Its GPL section 7 terms and component notices remain in force.
 
 <div align="center">
   <sub>RXB is an independent X11 compatibility effort for the original Ryoku desktop. It is not an official Ryoku release.</sub>
