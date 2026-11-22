@@ -50,10 +50,28 @@ func runBinds(_ []string) error {
 	if err != nil {
 		return fmt.Errorf("binds: %w", err)
 	}
-	rows, err := parseI3BindRows(config)
+	customRows, err := parseI3BindRows(config)
 	if err != nil {
 		return fmt.Errorf("binds: parse active i3 configuration: %w", err)
 	}
+
+	// Always expose the complete pinned Ryoku catalogue. Until an i3 action
+	// mapping is implemented and installed, every shipped row remains visible
+	// with an explicit reason rather than disappearing from the Hub/Kit legend.
+	rows := make([]bindRow, 0, len(ShippedBinds())+len(customRows))
+	for _, shipped := range ShippedBinds() {
+		reason := shipped.Missing(HasProgram)
+		if reason == "" {
+			reason = "The i3 provider does not yet implement this shipped Ryoku action; no shortcut is installed."
+		}
+		rows = append(rows, bindRow{
+			ID: shipped.ID, Category: shipped.Category, Label: shipped.Label,
+			Hint: shipped.Hint, Keys: DisplayKeys(shipped.Chord),
+			Default: shipped.Chord, Chord: shipped.Chord, Kind: string(shipped.Kind),
+			Rebindable: !shipped.Locked, Locked: shipped.Locked, Unhonored: reason,
+		})
+	}
+	rows = append(rows, customRows...)
 	return json.NewEncoder(out).Encode(rows)
 }
 
