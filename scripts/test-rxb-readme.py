@@ -46,6 +46,27 @@ def main() -> int:
     if "Ryoku (X11 / i3)" not in text:
         errors.append("README must document the exact SDDM session name.")
 
+
+    # The README must retain the upstream-inspired layout while distinguishing
+    # reference imagery from an RXB screenshot and keeping the X11 safety gates.
+    required_phrases = (
+        "Ryoku X11 Bridge",
+        "For the sake of power and beauty.",
+        "Original Ryoku upstream showroom image",
+        "not an RXB X11 screenshot",
+        "Ryoku (X11 / i3)",
+        "not ready for installation on a daily-use machine",
+        "GT 740",
+        "NVIDIA 470",
+        "No custom RXB keybindings",
+    )
+    for phrase in required_phrases:
+        if phrase not in text:
+            errors.append(f"README is missing required project statement: {phrase}")
+
+    if text.count("<img ") < 4:
+        errors.append("README should include the Ryoku-inspired visual gallery.")
+
     links = re.findall(r"\[[^\]]+\]\(([^)]+)\)", text)
     for raw_target in links:
         target = raw_target.strip()
