@@ -59,13 +59,14 @@ class QmlGraphAuditTests(unittest.TestCase):
             pages = root / "pages"
             pages.mkdir(parents=True)
             (root / "shell.qml").write_text(
-                'Loader { source: Qt.resolvedUrl("pages/Settings.qml") }\\n'
-                'property string activeProfile: "desktop"\\n',
+                'Loader { source: Qt.resolvedUrl("pages/Settings.qml") }\n'
+                'property string activeProfile: "desktop"\n',
                 encoding="utf-8",
             )
-            (pages / "Settings.qml").write_text("Item { }\\n", encoding="utf-8")
+            (pages / "Settings.qml").write_text("Item { }\n", encoding="utf-8")
             report = MODULE.graph(root, root / "shell.qml")
             self.assertIn("pages/Settings.qml", report["reachable_qml_files"])
+            self.assertEqual(report["dependency_edges"]["shell.qml"], ["pages/Settings.qml"])
             self.assertEqual(report["dynamic_references"][0]["resolution"], "resolved-local")
             self.assertIn("shell.qml", report["profile_dependent_files"])
 
@@ -74,8 +75,8 @@ class QmlGraphAuditTests(unittest.TestCase):
             root = Path(tmp) / "shell"
             root.mkdir(parents=True)
             (root / "shell.qml").write_text(
-                'import Quickshell.Services.Pipewire\\n'
-                'Loader { source: Config.profilePage }\\n',
+                'import Quickshell.Services.Pipewire\n'
+                'Loader { source: Config.profilePage }\n',
                 encoding="utf-8",
             )
             report = MODULE.graph(root, root / "shell.qml")

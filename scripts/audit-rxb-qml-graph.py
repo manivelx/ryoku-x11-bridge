@@ -141,6 +141,7 @@ def graph(root: Path, entry: Path) -> dict:
                     if target.is_file():
                         resolved_targets.append(str(target.relative_to(root)))
                         if target.suffix.lower() == ".qml":
+                            targets.add(target)
                             pending.append(target)
                         else:
                             non_qml_imports.add(f"{rel}: {literal}")
@@ -175,6 +176,8 @@ def graph(root: Path, entry: Path) -> dict:
                     "line": number,
                     "text": line_text.strip()[:240],
                 })
+        # Include literal dynamic QML loads in the dependency graph as well.
+        edges[rel] = sorted(str(target.relative_to(root)) for target in targets)
 
     api_counts = {name: 0 for name in API_PATTERNS}
     api_files = {name: [] for name in API_PATTERNS}
