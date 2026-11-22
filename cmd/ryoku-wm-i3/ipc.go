@@ -20,6 +20,7 @@ const (
 	msgSubscribe  uint32 = 2
 	msgOutputs    uint32 = 3
 	msgTree       uint32 = 4
+	msgGetConfig  uint32 = 9
 )
 
 type ipcConn struct{ c net.Conn }
