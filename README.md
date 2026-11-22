@@ -21,7 +21,7 @@ An X11 compatibility layer that runs the original Ryoku shell with **i3, Xorg an
 
 RXB is a compatibility port for the **original Ryoku desktop**. It keeps Ryoku's QML shell, Go services, Hub and CLI as the desktop experience, while replacing the Wayland compositor boundary with an X11/i3 provider and X11-specific adapters.
 
-RXB is **not** a new desktop shell, a second desktop that communicates through a window, or a hybrid of unrelated shells. The intended result is one separate login session named **Ryoku (X11 / i3)**:
+RXB is **not** a new desktop shell, a second desktop that communicates through a window, or a hybrid of unrelated shells. It is separate from MRX-Desktop; MRX-Desktop remains unfinished and under active development and is not ready for daily use. RXB does not replace or modify MRX. The intended result is one separate login session named **Ryoku (X11 / i3)**:
 
 - **i3** owns windows, focus, tiling, workspaces and outputs.
 - **Quickshell on X11** renders Ryoku's panels, popups, widgets and shell surfaces.
