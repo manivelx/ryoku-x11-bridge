@@ -22,6 +22,9 @@ export XDG_CONFIG_HOME="$config_home"
 export XDG_RUNTIME_DIR="$runtime"
 export DISPLAY=:99
 export TEST_I3_SOCKET="$runtime/i3-ipc.sock"
+export TEST_STALE_I3_SOCKET="$runtime/stale-i3-ipc.sock"
+# Simulate a valid socket leaked by a previous desktop session; RXB must ignore it.
+export I3SOCK="$TEST_STALE_I3_SOCKET"
 export TEST_SYSTEMCTL_LOG="$tmp/systemctl.log"
 export RYOKU_X11_SEED_DIR="$seed"
 export PATH="$fakebin:$repo_root/payload/bin:$PATH"
