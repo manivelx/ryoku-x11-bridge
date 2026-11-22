@@ -1291,6 +1291,21 @@ func TestRXBQuickshellConfigSelector(t *testing.T) {
 	}
 }
 
+func TestRXBMatugenReloadSkipsHostDesktopCommands(t *testing.T) {
+	t.Setenv("RYOKU_X11_BRIDGE", "1")
+	old := runCommand
+	calls := 0
+	runCommand = func(string, ...string) error {
+		calls++
+		return nil
+	}
+	defer func() { runCommand = old }()
+	matugenReload("dark", nil)
+	if calls != 0 {
+		t.Fatalf("RXB matugen reload invoked %d host desktop commands", calls)
+	}
+}
+
 func TestRXBDisablesExternalAppTheming(t *testing.T) {
 	t.Setenv("RYOKU_X11_BRIDGE", "1")
 	if themeAppsEnabled() {
