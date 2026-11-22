@@ -28,12 +28,14 @@ export I3SOCK="$socket"
 
 config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
 config_dir="$config_home/ryoku-x11"
-quickshell_dir="$config_dir/quickshell"
-if [[ -L "$config_dir" || -L "$quickshell_dir" ]]; then
+ryoku_config_dir="$config_dir/config"
+quickshell_dir="$ryoku_config_dir/quickshell"
+if [[ -L "$config_dir" || -L "$ryoku_config_dir" || -L "$quickshell_dir" ]]; then
   echo "ryoku-x11-session-init: refusing symlinked RXB config paths." >&2
   exit 1
 fi
-install -d -m 700 "$config_dir" "$quickshell_dir"
+install -d -m 700 "$config_dir" "$ryoku_config_dir" "$quickshell_dir"
+export RYOKU_CONFIG_HOME="$ryoku_config_dir"
 export RYOKU_QUICKSHELL_CONFIG_HOME="$quickshell_dir"
 
 ryoku materialize || {
@@ -60,6 +62,7 @@ umask 077
   write_env XDG_CURRENT_DESKTOP Ryoku
   write_env RYOKU_WM i3
   write_env I3SOCK "$socket"
+  write_env RYOKU_CONFIG_HOME "$RYOKU_CONFIG_HOME"
   write_env RYOKU_QUICKSHELL_CONFIG_HOME "$RYOKU_QUICKSHELL_CONFIG_HOME"
   [[ -z ${XAUTHORITY:-} ]] || write_env XAUTHORITY "$XAUTHORITY"
 } > "$env_file"
