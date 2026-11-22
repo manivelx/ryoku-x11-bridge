@@ -174,10 +174,10 @@ command -v systemd-analyze >/dev/null 2>&1 || {
 verify_root="$(mktemp -d)"
 mkdir -p "$verify_root/usr/lib/systemd/system" "$verify_root/usr/bin"
 for unit in graphical-session.target graphical-session-pre.target sysinit.target; do
-  printf '[Unit]\\nDescription=RXB offline verification stub (%s)\\n' "$unit" \
+  printf '[Unit]\nDescription=RXB offline verification stub (%s)\n' "$unit" \
     > "$verify_root/usr/lib/systemd/system/$unit"
 done
-printf '[Unit]\\nDescription=RXB offline session slice stub\\n[Slice]\\n' \
+printf '[Unit]\nDescription=RXB offline session slice stub\n[Slice]\n' \
   > "$verify_root/usr/lib/systemd/system/session.slice"
 for executable in ryoku-shell ryogami; do
   : > "$verify_root/usr/bin/$executable"
