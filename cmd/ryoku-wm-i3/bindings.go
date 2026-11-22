@@ -502,6 +502,12 @@ func runKeybindApply(args []string) error {
 		return fmt.Errorf("apply: %w", err)
 	}
 	binds, _, unhonored := resolveShippedBinds(store)
+	unhonored = append(unhonored,
+		Unhonored{Key: "desktop.windowRules", Reason: "Window rules are not yet translated into i3 criteria."},
+		Unhonored{Key: "desktop.input", Reason: "Input settings remain managed by the existing X11 input configuration."},
+		Unhonored{Key: "desktop.appearance", Reason: "Provider-specific appearance settings are not generated from the neutral store yet."},
+		Unhonored{Key: "desktop.autostart", Reason: "Autostart settings are not yet applied by the i3 provider."},
+	)
 	report := ApplyReport{Provider: "i3", Unhonored: unhonored, ReloadNeeded: len(binds) > 0}
 	if preview {
 		return json.NewEncoder(out).Encode(report)
