@@ -16,6 +16,14 @@ This is a **representative source audit, not an exhaustive file-by-file inventor
 | `Quickshell.Hyprland` | 16 | Mostly compositor-specific bridge modules and compatibility code |
 | `Quickshell.I3` | 0 | The X11/i3 QML bridge is new; there is no upstream I3 QML integration in this pin |
 
+## RXB configuration isolation
+
+The upstream materializer treats its normal `XDG_CONFIG_HOME/quickshell` tree as Ryoku-owned and also seeds other user configuration files. That behavior is unsafe when Ryoku is added beside an existing desktop. RXB therefore sets a non-standard `RYOKU_CONFIG_HOME` at `~/.config/ryoku-x11/ryoku-config` and `RYOKU_QUICKSHELL_CONFIG_HOME` below it. The overlay routes Ryoku's materializer, Go settings stores, and QML config reads to that isolated root while leaving standard `XDG_CONFIG_HOME` unchanged for applications.
+
+The QML source rewrite prefers `Quickshell.env("RYOKU_CONFIG_HOME")` before `XDG_CONFIG_HOME`. The `ryoku-shell` daemon uses the isolated Quickshell path for both import discovery and `qs -p` selection. The materializer rejects a shared Quickshell path and symlinked RXB QML root. Session startup tests verify that existing `~/.config/quickshell` files and user i3 config survive, that RXB files land only under `~/.config/ryoku-x11`, and that session-scoped services receive the same environment.
+
+External application theme writes are gated while `RYOKU_X11_BRIDGE=1`; app-wide GTK/Qt/terminal theming remains unavailable until a safe per-session adapter exists. This intentionally trades some visual integration for preservation of the user's existing application configuration.
+
 ## Feature classifications
 
 ### X11 panel and popup surfaces
