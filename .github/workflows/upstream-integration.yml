@@ -1,9 +1,10 @@
 name: pinned upstream integration
 
 concurrency:
-  # Preserve in-progress validation; commits must each retain an auditable result.
+  # Validate the current branch head; superseded development commits should not
+  # occupy the single disposable Arch build slot.
   group: rxb-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 on:
   push:
     paths:
