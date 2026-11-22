@@ -410,7 +410,7 @@ func resolveShippedBinds(store keybindStore) ([]resolvedI3Bind, []bindRow, []Unh
 					report = append(report, Unhonored{Key: cb.ID, Reason: fmt.Sprintf("i3 cannot bind the effective chord %q.", effectiveChord)})
 					continue
 				}
-				action, why := i3Action(cb.ID, n%10)
+				action, why := i3Action(cb.ID, n)
 				if why != "" || action == "" || action == i3NativeBinding {
 					continue
 				}
