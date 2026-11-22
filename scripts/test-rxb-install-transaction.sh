@@ -47,26 +47,48 @@ done
 # testing the local package transaction. pacman -U does not download missing
 # dependencies from sync repositories; relying on the build container's package
 # list made this test accidentally incomplete.
-declare -a external_dependencies=()
+declare -a external_dependency_specs=()
 declare -A seen_external_dependencies=()
 for pkg in "${packages[@]}"; do
   metadata="$(bsdtar -xOf "$pkg" .PKGINFO)"
   while IFS= read -r dependency; do
     dependency_name="${dependency%%[<>=]*}"
-    # Skip every package name and virtual provide supplied by this artifact set,
-    # including upstream names such as ryogami that do not share the ryoku prefix.
+    case "$dependency_name" in
+      ryoku*|ryogami*|gpk)
+        [[ -n "${local_provides[$dependency_name]:-}" ]] || {
+          echo "[install-test] Missing local RXB package/provider: $dependency_name" >&2
+          exit 1
+        }
+        continue
+        ;;
+    esac
     if [[ -n "${local_provides[$dependency_name]:-}" ]]; then
       continue
     fi
-    if [[ -z "${seen_external_dependencies[$dependency_name]:-}" ]]; then
-      seen_external_dependencies["$dependency_name"]=1
-      external_dependencies+=("$dependency_name")
+    if [[ -z "${seen_external_dependencies[$dependency]:-}" ]]; then
+      seen_external_dependencies["$dependency"]=1
+      external_dependency_specs+=("$dependency")
     fi
   done < <(sed -n 's/^depend = //p' <<<"$metadata")
 done
-if (("${#external_dependencies[@]}" > 0)); then
-  echo "[install-test] Resolving external runtime dependencies from the Arch repositories."
-  pacman -S --needed --noconfirm "${external_dependencies[@]}"
+
+if (("${#external_dependency_specs[@]}" > 0)); then
+  # pacman -T preserves version constraints and avoids upgrading already
+  # installed dependencies (notably Quickshell) when they already satisfy RXB.
+  mapfile -t unresolved_specs < <(pacman -T "${external_dependency_specs[@]}" 2>/dev/null || true)
+  if (("${#unresolved_specs[@]}" > 0)); then
+    mapfile -t external_dependencies < <(
+      printf '%s\n' "${unresolved_specs[@]}" |
+        sed -E 's/[<>=].*$//' |
+        sort -u
+    )
+    echo "[install-test] Installing unsatisfied external dependencies from the Arch repositories."
+    pacman -S --needed --noconfirm "${external_dependencies[@]}"
+  fi
+  pacman -T "${external_dependency_specs[@]}" >/dev/null || {
+    echo "[install-test] External dependency requirements remain unsatisfied after resolution." >&2
+    exit 1
+  }
 fi
 
 cleanup() {
