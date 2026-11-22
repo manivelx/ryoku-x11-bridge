@@ -61,7 +61,7 @@ The build produces:
 1. The pinned original Ryoku runtime packages (shell, Hub, CLI, desktop payload and supporting services).
 2. The RXB `ryoku-desktop-i3` variant, which provides the i3 provider, X11 session scripts, session-scoped service overrides and the `Ryoku (X11 / i3)` login entry.
 
-Those packages are designed to be installed together in one package transaction. At login, the display manager starts `ryoku-x11-session`; i3 starts the session initializer; the initializer materializes Ryoku's shell configuration and starts the Ryoku services through the RXB-only `ryoku-session.target`. RXB's Ryoku-managed user config is kept under `~/.config/ryoku-x11/ryoku-config` (including its QML tree at `~/.config/ryoku-x11/ryoku-config/quickshell`); the existing `~/.config/quickshell` tree is left untouched. Quickshell then renders the original Ryoku shell against X11.
+Those packages are designed to be installed together in one package transaction. At login, the display manager starts `ryoku-x11-session`; i3 starts the session initializer; the initializer materializes Ryoku's shell configuration and starts the Ryoku services through the RXB-only `ryoku-session.target`. RXB's Ryoku-managed user config is kept under `~/.config/ryoku-x11/ryoku-config` (including its QML tree at `~/.config/ryoku-x11/ryoku-config/quickshell`); the existing `~/.config/quickshell` tree and normal application `XDG_CONFIG_HOME` are left untouched. External app theming, icon/font changes and upstream lock/greeter management are gated in this session. Quickshell then renders the original Ryoku shell against X11.
 
 This is not a second desktop opening a communication window. The provider is the machine-readable bridge between Ryoku's window-manager layer and i3.
 
@@ -98,7 +98,6 @@ RXB is designed as a separate session. Its package overlay must not replace or r
 - The existing `~/.config/quickshell` tree and other user configuration (RXB uses `~/.config/ryoku-x11/ryoku-config`).
 - Picom configuration.
 - NVIDIA drivers, kernel, GRUB/EFI or EDID settings.
-- The separate MRX-Desktop project.
 
 X11 environment variables are passed to the Ryoku shell through a session-scoped environment file. RXB does not import them into the shared systemd user-manager environment or enable the Ryoku shell globally.
 
