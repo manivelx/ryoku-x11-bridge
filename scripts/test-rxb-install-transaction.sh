@@ -25,8 +25,8 @@ for pkg in "${packages[@]}"; do
 done
 
 # Every Ryoku-owned dependency must be supplied by this exact package set.
-# External Arch dependencies are deliberately outside this package-transaction
-# test; pacman -dd below skips dependency resolution in the throwaway container.
+# The normal pacman transaction resolves external dependencies from the official
+# Arch repositories; this catches hard dependencies that are unavailable there.
 for pkg in "${packages[@]}"; do
   metadata="$(bsdtar -xOf "$pkg" .PKGINFO)"
   while IFS= read -r dependency; do
@@ -57,7 +57,7 @@ cleanup() {
 trap cleanup EXIT
 
 echo "[install-test] Installing the complete built package set into this disposable Arch container."
-pacman -U --noconfirm -dd "${packages[@]}"
+pacman -U --noconfirm "${packages[@]}"
 
 for name in "${package_names[@]}"; do
   pacman -Q "$name" >/dev/null || { echo "Package was not registered after install: $name" >&2; exit 1; }
