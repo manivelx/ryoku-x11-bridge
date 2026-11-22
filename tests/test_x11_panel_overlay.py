@@ -14,7 +14,7 @@ class X11PanelOverlayTests(unittest.TestCase):
     def test_ternary_counter_ignores_optional_chaining_and_nullish_coalescing(self):
         expression = "(dock.pinned && reveal) ? Math.max(0, thickness) : (!dock.pinned || (Config.options?.dock.onTop ?? false))"
         parens, questions, colons = OVERLAY._ternary_counts(expression)
-        self.assertEqual((parens, questions, colons), (0, 2, 2))
+        self.assertEqual((parens, questions, colons), (0, 1, 1))
 
     def test_multiline_layer_conversion_keeps_nullish_coalescing_expression_intact(self):
         with tempfile.TemporaryDirectory() as directory:
