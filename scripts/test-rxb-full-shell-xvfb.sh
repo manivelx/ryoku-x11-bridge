@@ -199,6 +199,33 @@ dbus-run-session -- bash -c '
     exit 1
   fi
 
+  # The Hub uses a separate upstream selector from the shell. Exercise
+  # its real open/navigation IPC path and verify it resolves inside the RXB
+  # Quickshell root rather than the user's shared XDG Quickshell directory.
+  hub_root="$quickshell_root/hub"
+  [[ -f "$hub_root/shell.qml" ]] || {
+    echo "Ryoku materializer did not create the isolated Hub entrypoint: $hub_root/shell.qml" >&2
+    find "$RYOKU_CONFIG_HOME" -maxdepth 5 -type f -name shell.qml -print >&2 || true
+    exit 1
+  }
+  ryoku-shell hub open keybinds
+  hub_ready=0
+  for _ in $(seq 1 100); do
+    if qs -p "$hub_root" ipc call nav section >/dev/null 2>&1; then
+      hub_ready=1
+      break
+    fi
+    sleep 0.1
+  done
+  if [[ "$hub_ready" != 1 ]]; then
+    cat "$tmp/daemon.log"
+    find "$XDG_RUNTIME_DIR/quickshell" -type f -name "log.log" -exec sh -c 'echo "--- $1"; tail -n 100 "$1"' _ {} \; 2>/dev/null || true
+    echo "Ryoku Hub did not load and answer its navigation IPC from the isolated RXB config root." >&2
+    exit 1
+  fi
+  qs -p "$hub_root" ipc call hub close >/dev/null 2>&1 || true
+  echo "Ryoku Hub loaded and answered navigation IPC from the isolated RXB Quickshell root."
+
   ryoku-shell quit
   wait "$daemon_pid"
   trap - EXIT
