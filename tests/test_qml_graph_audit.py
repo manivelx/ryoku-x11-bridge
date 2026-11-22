@@ -34,6 +34,8 @@ class QmlGraphAuditTests(unittest.TestCase):
             self.assertEqual(report["api_occurrences"]["WlrLayershell"], 1)
             self.assertEqual(report["api_occurrences"]["WlSessionLock"], 0)
             self.assertEqual(report["unreachable_qml_files"], ["parts/Unused.qml"])
+            self.assertEqual(report["unresolved_local_imports"], [])
+            self.assertEqual(report["non_qml_local_imports"], ["shell.qml: helpers.js"])
 
     def test_follows_qmldir_module_imports(self):
         with tempfile.TemporaryDirectory() as tmp:
