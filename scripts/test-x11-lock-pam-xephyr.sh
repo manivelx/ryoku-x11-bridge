@@ -27,7 +27,7 @@ if [[ -n ${WAYLAND_DISPLAY:-} || -n ${SWAYSOCK:-} ]]; then
   echo "refusing to run inside a desktop session" >&2
   exit 2
 fi
-for command in Xvfb Xephyr xdotool xwininfo xsetroot import runuser flock useradd chpasswd xsecurelock i3lock pacman; do
+for command in Xvfb Xephyr xdotool xwininfo xterm import runuser flock useradd chpasswd xsecurelock i3lock pacman; do
   command -v "$command" >/dev/null 2>&1 || { echo "missing required command: $command" >&2; exit 127; }
 done
 
@@ -40,29 +40,13 @@ wrong_password="not-$(rand_hex 6)"
 tmp="$(cd "$(mktemp -d /tmp/rxb-lock-pam.XXXXXX)" && pwd -P)"
 mkdir -p "$tmp/runtime" "$tmp/home" "$tmp/shots"
 pam_service_files=()
-xvfb_pid="" xephyr_pid="" wrapper_pid=""
+xvfb_pid="" xephyr_pid="" xterm_pid="" wrapper_pid=""
 
 dump_diagnostics() {
   echo "----- diagnostics -----" >&2
   { echo "display: ${disp:-unset}"; ps -eo pid,user,args --sort=pid | grep -E 'xsecurelock|i3lock|Xephyr|Xvfb|ryoku-x11-lock|auth_x11|saver_' | grep -v grep; } >&2 || true
   for f in "$tmp"/*.log; do [[ -f $f ]] && { echo "== $f"; tail -n 40 "$f"; } >&2; done
   if [[ -n ${disp:-} ]]; then
-    echo "-- background experiments (Xephyr $disp vs its Xvfb parent :71):" >&2
-    for d in "$disp" :71; do
-      runuser -u "$user" -- env -i PATH=/usr/bin:/bin HOME="$tmp/home" DISPLAY="$d" xsetroot -solid red >&2 2>&1 || echo "xsetroot failed on $d" >&2
-      sleep 1
-      echo "  $d after xsetroot -solid red: $(runuser -u "$user" -- env -i PATH=/usr/bin:/bin HOME="$tmp/home" DISPLAY="$d" import -window root -depth 8 -crop 1x1+640+360 +repage txt:- 2>&1 | tail -n 1)" >&2
-      runuser -u "$user" -- env -i PATH=/usr/bin:/bin HOME="$tmp/home" DISPLAY="$d" xdpyinfo 2>/dev/null | grep -E 'extensions|XTEST|MIT-SCREEN|RANDR|XINERAMA|DOUBLE|SHAPE|XKEYBOARD|MIT-SHM|DPMS|Composite' | head -12 >&2 || true
-    done
-    echo "-- paint/readback variants on $disp:" >&2
-    local ru="runuser -u $user -- env -i PATH=/usr/bin:/bin HOME=$tmp/home DISPLAY=$disp"
-    $ru xsetroot -solid '#ff0000' >&2 2>&1; sleep 1
-    echo "  x:root readback after xsetroot: $($ru convert x:root -depth 8 -format '%[pixel:p{640,360}]' info: 2>&1 | tail -n 1)" >&2
-    echo "  import png readback after xsetroot: $($ru import -window root -depth 8 png:- 2>/dev/null | convert png:- -depth 8 -format '%[pixel:p{640,360}] size=%wx%h' info: 2>&1 | tail -n 1)" >&2
-    $ru display -window root -geometry 1280x720+0+0 xc:'#00ff00' >&2 2>&1 &
-    sleep 2
-    echo "  readback after 'display -window root xc:green': $($ru import -window root -depth 8 -crop 1x1+640+360 +repage txt:- 2>&1 | tail -n 1)" >&2
-    echo "  xwininfo children: $($ru xwininfo -root -children 2>&1 | grep -c '0x')" >&2
     echo "-- raw pixel probe:" >&2
     runuser -u "$user" -- env -i PATH=/usr/bin:/bin HOME="$tmp/home" DISPLAY="$disp" import -window root -depth 8 -crop 1x1+640+360 +repage txt:- 2>&1 | head -5 >&2 || true
     runuser -u "$user" -- env -i PATH=/usr/bin:/bin HOME="$tmp/home" DISPLAY="$disp" xwininfo -root -tree 2>&1 | head -40 >&2 || true
@@ -74,6 +58,7 @@ cleanup() {
   trap - EXIT
   exec 8>&- 2>/dev/null || true
   pkill -KILL -u "$user" 2>/dev/null || true
+  [[ -z $xterm_pid ]] || kill "$xterm_pid" 2>/dev/null || true
   [[ -z $xephyr_pid ]] || kill "$xephyr_pid" 2>/dev/null || true
   [[ -z $xvfb_pid ]] || kill "$xvfb_pid" 2>/dev/null || true
   for f in "${pam_service_files[@]:-}"; do [[ -n $f ]] && rm -f -- "$f"; done
@@ -114,6 +99,10 @@ start_display() {
   for _ in $(seq 1 100); do as_user DISPLAY="$disp" xwininfo -root >/dev/null 2>&1 && break; sleep 0.1; done
   as_user DISPLAY="$disp" xwininfo -root >/dev/null 2>&1 || die "Xephyr display $disp did not start"
   as_user DISPLAY="$disp" xdotool getdisplaygeometry >"$tmp/geometry.log" 2>&1 || die "XTEST/xdotool cannot talk to Xephyr: $(cat "$tmp/geometry.log")"
+  # A real mapped red window is the "desktop" content that the locker must
+  # cover (setting the root window background is not reliably readable back).
+  as_user DISPLAY="$disp" xterm -b 0 +sb -bg '#ff0000' -fg '#ff0000' -geometry 200x50+0+0 -e sleep 100000 >"$tmp/xterm.log" 2>&1 &
+  xterm_pid=$!
 }
 
 pixel() { # prints "R G B" of the centre pixel
@@ -156,8 +145,7 @@ type_password() { # text
 exercise() {
   local label="$1" expect="$2"; shift 2
   echo "=== $label ==="
-  as_user DISPLAY="$disp" xsetroot -solid '#ff0000'
-  wait_until 5 is_red || die "$label: test background is not red before locking (cannot judge coverage)"
+  wait_until 10 is_red || die "$label: the red test window is not visible before locking (cannot judge coverage)"
   shot "$label-1-before"
   [[ "$(count_lockers)" == 0 ]] || die "$label: a locker was already running before the test"
 
