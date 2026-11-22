@@ -24,7 +24,7 @@ fi
 install -d -m 700 "$config_dir" "$quickshell_dir"
 export RYOKU_QUICKSHELL_CONFIG_HOME="$quickshell_dir"
 
-seed_dir=/usr/share/ryoku/config/ryoku-x11
+seed_dir=${RYOKU_X11_SEED_DIR:-/usr/share/ryoku/config/ryoku-x11}
 for name in config generated.conf user.conf; do
   if [[ ! -e "$config_dir/$name" && -f "$seed_dir/$name" ]]; then
     install -m 600 "$seed_dir/$name" "$config_dir/$name"
