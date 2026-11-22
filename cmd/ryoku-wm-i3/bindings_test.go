@@ -145,7 +145,7 @@ func TestFamilySpecificLegacyRebindOverridesFamilyRebind(t *testing.T) {
 		}
 		return false
 	}
-	if !contains("Mod4+Alt+1") || contains("Mod4+Control+1") {
+	if !contains("Mod4+Mod1+1") || contains("Mod4+Control+1") {
 		t.Fatalf("member-specific rebind must override family rebind: %+v", binds)
 	}
 }
