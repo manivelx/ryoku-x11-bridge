@@ -142,8 +142,16 @@ for pkg in "${packages[@]}"; do
   # prefixes entries with "./", which makes pacman reject the synthetic upgrade
   # as missing .PKGINFO. Enumerate every root entry (including dotfiles) and
   # archive those names directly instead.
-  mapfile -d '' -t archive_entries < <(find "$stage" -mindepth 1 -maxdepth 1 -printf '%f\\0' | sort -z)
-  bsdtar --zstd -cf "$upgraded_pkg" -C "$stage" -- "${archive_entries[@]}"
+  (
+    cd "$stage"
+    shopt -s dotglob nullglob
+    archive_entries=(*)
+    (("${#archive_entries[@]}" > 0)) || {
+      echo "Synthetic upgrade staging directory is empty: $stage" >&2
+      exit 1
+    }
+    bsdtar --zstd -cf "$upgraded_pkg" -- "${archive_entries[@]}"
+  )
   bsdtar -tf "$upgraded_pkg" | grep -Fxq '.PKGINFO' || {
     echo "Synthetic upgrade archive is missing root-level .PKGINFO: $upgraded_pkg" >&2
     exit 1
