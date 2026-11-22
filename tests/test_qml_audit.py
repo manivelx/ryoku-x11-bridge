@@ -25,25 +25,25 @@ class QMLAuditTests(unittest.TestCase):
             hub.mkdir(parents=True)
             picker.mkdir(parents=True)
             (shell / "shell.qml").write_text(
-                "import Quickshell.Wayland\\n"
-                "PanelWindow { WlrLayershell.layer: WlrLayer.Top }\\n",
+                "import Quickshell.Wayland\n"
+                "PanelWindow { WlrLayershell.layer: WlrLayer.Top }\n",
                 encoding="utf-8",
             )
             (shell / "overview.qml").write_text(
-                "ScreencopyView { }\\nToplevelManager { }\\n",
+                "ScreencopyView { }\nToplevelManager { }\n",
                 encoding="utf-8",
             )
             (keys / "shell.qml").write_text(
-                "import Quickshell.Wayland\\nWlSessionLock { }\\n",
+                "import Quickshell.Wayland\nWlSessionLock { }\n",
                 encoding="utf-8",
             )
 
             (hub / "Hub.qml").write_text(
-                "import Quickshell.Wayland\\nWlrLayershell.layer: WlrLayer.Top\\n",
+                "import Quickshell.Wayland\nWlrLayershell.layer: WlrLayer.Top\n",
                 encoding="utf-8",
             )
             (picker / "Picker.qml").write_text(
-                "ScreencopyView { }\\n",
+                "ScreencopyView { }\n",
                 encoding="utf-8",
             )
 
