@@ -188,7 +188,7 @@ The privileged package transaction/removal check runs in disposable Arch CI. It 
 
 Not available yet. The original shell daemon can start in the isolated Xvfb+i3 smoke environment, but the user-facing workflows have not been accepted for everyday use.
 
-RXB does not invent shortcuts. At session startup and when Ryoku applies settings, the provider generates i3 bindings from the pinned 105-action upstream catalogue. Semantically compatible actions are translated; unsupported actions remain visible with explicit reasons. Upstream custom bindings, rebinds, disabled actions and chord conflicts are resolved using Ryoku's precedence rules. The generated include is isolated from the user-owned user.conf. Some upstream actions and non-keybinding desktop settings remain unsupported.
+RXB does not add custom keybindings; it translates the original shipped Ryoku catalogue without inventing shortcuts. At session startup and when Ryoku applies settings, the provider generates i3 bindings from the pinned 105-action upstream catalogue. Semantically compatible actions are translated; unsupported actions remain visible with explicit reasons. Upstream custom bindings, rebinds, disabled actions and chord conflicts are resolved using Ryoku's precedence rules. The generated include is isolated from the user-owned user.conf. Some upstream actions and non-keybinding desktop settings remain unsupported.
 
 ## Hardware
 
