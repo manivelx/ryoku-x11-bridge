@@ -65,6 +65,7 @@ jobs:
               su builder -c "bash /workspace/scripts/build-rxb-packages.sh /workspace/upstream /workspace/dist"
               su builder -c "bash /workspace/scripts/test-rxb-package-safety.sh /workspace/dist"
               su builder -c "bash /workspace/scripts/test-quickshell-i3-smoke.sh"
+              bash /workspace/scripts/test-rxb-install-transaction.sh /workspace/dist
             '
       - name: Bundle Arch packages for artifact upload
         run: |
@@ -123,6 +124,7 @@ jobs:
           bash -n scripts/build-rxb-packages.sh
           bash -n scripts/test-rxb-package-safety.sh
           bash -n scripts/test-quickshell-i3-smoke.sh
+          bash -n scripts/test-rxb-install-transaction.sh
       - name: Apply RXB overlay
         run: python3 scripts/apply-upstream-overlay.py upstream
       - name: Validate patched helper scripts
