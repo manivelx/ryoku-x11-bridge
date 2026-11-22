@@ -122,6 +122,16 @@ for pkg in "${packages[@]}"; do
   done < <(sed -n 's/^depend = //p' <<<"$metadata")
 done
 
+# Never replace an unrelated/manual Ryoku installation. Reinstallation and
+# upgrades are allowed only for packages this installer previously recorded.
+for name in "${package_names[@]}"; do
+  if pacman_exec -Q "$name" >/dev/null 2>&1 && [[ -z "${owned_packages[$name]:-}" ]]; then
+    echo "install-rxb-packages: refusing to overwrite pre-existing package '$name' not recorded as RXB-owned." >&2
+    echo "Remove or back up that package deliberately, or use the RXB installer that originally installed it." >&2
+    exit 1
+  fi
+done
+
 before_file="$(mktemp)"
 trap 'rm -f -- "$before_file"' EXIT
 pacman_exec -Qq | sort -u > "$before_file"
