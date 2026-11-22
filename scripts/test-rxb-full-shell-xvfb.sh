@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-for command in Xvfb i3 qs ryoku ryoku-shell dbus-run-session timeout; do
+for command in Xvfb i3 qs ryoku ryoku-shell ryoku-wm-i3 ryoku-hub jq dbus-run-session timeout; do
   command -v "$command" >/dev/null 2>&1 || {
     echo "RXB full-shell Xvfb test requires $command" >&2
     exit 127
@@ -69,6 +69,29 @@ for _ in $(seq 1 100); do
 done
 [[ -n "$socket" && -S "$socket" ]] || { cat "$tmp/i3.log"; exit 1; }
 export I3SOCK="$socket"
+
+# Prove the pinned upstream WM seam discovers RXB as a live i3 provider.
+# This exercises the same provider detection and caps path used by the Hub,
+# not just the standalone RXB binary or a successful QML process launch.
+provider_caps="$(ryoku-wm-i3 caps)"
+jq -e '.name == "i3" and (.supports | index("workspaces") != null)' <<<"$provider_caps" >/dev/null || {
+  echo "RXB i3 provider returned an invalid capability manifest:" >&2
+  printf '%s\n' "$provider_caps" >&2
+  exit 1
+}
+provider_state="$(ryoku-wm-i3 state)"
+jq -e '(.outputs | type == "array") and (.workspaces | type == "array") and (.windows | type == "array")' <<<"$provider_state" >/dev/null || {
+  echo "RXB i3 provider returned an invalid state snapshot:" >&2
+  printf '%s\n' "$provider_state" >&2
+  exit 1
+}
+hub_providers="$(ryoku-hub wm list)"
+jq -e 'any(.[]; .name == "i3" and .active == true and .caps.name == "i3" and (.caps.supports | index("workspaces") != null))' <<<"$hub_providers" >/dev/null || {
+  echo "Pinned upstream Hub did not detect the live RXB i3 provider:" >&2
+  printf '%s\n' "$hub_providers" >&2
+  exit 1
+}
+echo "Pinned upstream Hub detected the live RXB i3 provider and capability manifest."
 
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME"
 shell_root="$RYOKU_QUICKSHELL_CONFIG_HOME/shell"
