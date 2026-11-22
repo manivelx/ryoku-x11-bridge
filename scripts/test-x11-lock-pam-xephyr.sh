@@ -46,7 +46,11 @@ dump_diagnostics() {
   echo "----- diagnostics -----" >&2
   { echo "display: ${disp:-unset}"; ps -eo pid,user,args --sort=pid | grep -E 'xsecurelock|i3lock|Xephyr|Xvfb|ryoku-x11-lock|auth_x11|saver_' | grep -v grep; } >&2 || true
   for f in "$tmp"/*.log; do [[ -f $f ]] && { echo "== $f"; tail -n 40 "$f"; } >&2; done
-  [[ -n ${disp:-} ]] && runuser -u "$user" -- env -i DISPLAY="$disp" xwininfo -root -tree 2>&1 | head -40 >&2 || true
+  if [[ -n ${disp:-} ]]; then
+    echo "-- raw pixel probe:" >&2
+    runuser -u "$user" -- env -i PATH=/usr/bin:/bin HOME="$tmp/home" DISPLAY="$disp" import -window root -depth 8 -crop 1x1+640+360 +repage txt:- 2>&1 | head -5 >&2 || true
+    runuser -u "$user" -- env -i PATH=/usr/bin:/bin HOME="$tmp/home" DISPLAY="$disp" xwininfo -root -tree 2>&1 | head -40 >&2 || true
+  fi
   if [[ -n $artifacts ]]; then mkdir -p "$artifacts"; cp -r "$tmp/shots" "$tmp"/*.log "$artifacts/" 2>/dev/null || true; fi
 }
 
