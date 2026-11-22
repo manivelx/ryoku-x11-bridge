@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -29,6 +30,39 @@ type neutralKeybindStore struct {
 }
 
 const i3NativeBinding = "__RXB_I3_NATIVE__"
+
+var safeI3KeyToken = regexp.MustCompile(`^[A-Za-z0-9_]+package main
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
+)
+
+type keybind struct {
+	Keys    string `json:"keys"`
+	Action  string `json:"action"`
+	Value   string `json:"value"`
+	Release bool   `json:"release,omitempty"`
+}
+
+type keybindStore struct {
+	Keybinds        []keybind         `json:"keybinds"`
+	KeybindRebinds  map[string]string `json:"keybindRebinds"`
+	Unbinds         []string          `json:"unbinds"`
+	KeybindDisabled []string          `json:"keybindDisabled"`
+}
+
+type neutralKeybindStore struct {
+	Desktop keybindStore `json:"desktop"`
+}
+
+)
 
 type resolvedI3Bind struct {
 	chord   string
@@ -124,6 +158,12 @@ func i3Chord(raw string) (string, bool) {
 			default:
 				return "", false
 			}
+		}
+		// Key tokens are emitted into an i3 configuration file. Restrict
+		// them to XKB-style identifiers so user-provided chords cannot inject
+		// additional i3 directives or commands through punctuation/whitespace.
+		if !safeI3KeyToken.MatchString(token) {
+			return "", false
 		}
 		out = append(out, token)
 	}
