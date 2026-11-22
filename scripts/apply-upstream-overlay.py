@@ -1040,12 +1040,12 @@ func ryokuConfigDir() string {
 
     p = root / "release/packages/ryogami/PKGBUILD"
     replace_once(p, '''depends=('imagemagick' 'ffmpeg' 'quickshell'
-         'qt6-multimedia' 'qt6-imageformats' 'skwd-paper-bin')
-optdepends=('yt-dlp: YouTube wallpaper source'
-            'steamcmd: Steam Workshop downloads without the Steam client')''',
+         'qt6-multimedia' 'qt6-imageformats' 'skwd-paper-bin')''',
                  '''depends=('imagemagick' 'ffmpeg' 'quickshell'
-         'qt6-multimedia' 'qt6-imageformats')
-optdepends=('skwd-paper-bin: Paper wallpaper source integration'
+         'qt6-multimedia' 'qt6-imageformats')''')
+    replace_once(p, '''optdepends=('yt-dlp: YouTube wallpaper source'
+            'steamcmd: Steam Workshop downloads without the Steam client')''',
+                 '''optdepends=('skwd-paper-bin: Wallpaper Engine scene support'
             'yt-dlp: YouTube wallpaper source'
             'steamcmd: Steam Workshop downloads without the Steam client')''')
 
