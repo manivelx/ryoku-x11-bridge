@@ -58,7 +58,7 @@ def main() -> int:
         "not ready for installation on a daily-use machine",
         "GT 740",
         "NVIDIA 470",
-        "No custom RXB keybindings",
+        "RXB does not add custom keybindings",
     )
     for phrase in required_phrases:
         if phrase not in text:
