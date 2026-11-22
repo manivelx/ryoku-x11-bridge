@@ -15,13 +15,20 @@ The pinned upstream NOTICE describes the following material and its licensing. T
 
 | Component | Upstream use | License / required notice |
 |---|---|---|
-| Omarchy quattro shell | Modified Nomarchy bar style | MIT; preserve its LICENSE and NOTICE |
-| Caelestia shell | Ryoku.Blobs rendering and animation portions | GPL-3.0 |
+| Omarchy quattro shell | Modified Nomarchy bar style | MIT; preserve its LICENSE and detailed NOTICE |
+| Caelestia shell | Ryoku.Blobs rendering and animation/motion portions | GPL-3.0 |
 | DankMaterialShell | Portions of display configuration UI | MIT |
-| OkShell | Frame-bar layout and Bar Studio workflow | GPL-3.0 |
-| iNiR by snowarch | Modified Shima bar style | GPL-3.0 plus additional GPL section 7 terms in the upstream NOTICE |
-| Serpantinum | Python bar style and related presentation | AGPL-3.0-or-later; preserve its LICENSE and NOTICE |
-| skwd-wall | Ryogami wallpaper picker | GPL-3.0-or-later; preserve its LICENSE and NOTICE |
+| OkShell | Frame-bar layout, bounded rail/widget catalogue and Bar Studio workflow | GPL-3.0 |
+| iNiR by snowarch | Modified Shima bar style | GPL-3.0 plus additional GPL section 7 terms; keep its LICENSE and NOTICE |
+| Serpantinum | Python bar style and selected presentation components | AGPL-3.0-or-later; keep its LICENSE and NOTICE |
+| ii-p3drovfx / ii-vynx / end-4 | Stage Editor, ii dock, Kit typing/phone pages and Game Bar Discord Voice portions | GPL-3.0; keep source attribution and notices |
+| Monkeytype | Typing word lists and key sounds | GPL-3.0-only; pinned source commit is recorded upstream |
+| freedesktop.org sound theme | Built-in desktop event sounds | Individual assets use GPL-2.0-or-later, CC-BY-3.0 and CC-BY-SA; attributions are recorded in NOTICE |
+| Quickshell Rise | QS Bar style, widgets and pop-up panels | MIT; preserve its upstream license |
+| Redux adapter | Dictation adapter installed with the Hub | MIT; preserve its license |
+| parakeet.cpp | Built locally by the Hub installer | MIT; not shipped in the RXB package |
+| Moondream Parakeet Redux weights | Downloaded by the Hub for dictation | CC-BY-4.0; not shipped in the RXB package |
+| Ryoku Discord/Vesktop theme | Default Vesktop/Equibop theme | MIT; upstream theme assets loaded from the upstream site are not bundled |
 | Roboto Condensed UI subset | Ryogami picker font | Apache-2.0 |
 | Symbols Nerd Font | Ryogami picker symbols | MIT |
 | Inter, Montserrat and Rubik | iNiR font assets | SIL Open Font License 1.1; preserve each OFL.txt |
@@ -29,6 +36,10 @@ The pinned upstream NOTICE describes the following material and its licensing. T
 The iNiR attribution required by its section 7 terms is present in the README and in the original Shima/Iris About page:
 
 > Based on iNiR by snowarch (https://github.com/snowarch/inir)
+
+The Shima style is a modified derivative; RXB/Ryoku is not iNiR or iRiS and does not claim those names, logos or the Kira mascot.
+
+For the sound assets, the relevant Creative Commons legal texts are [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/legalcode) and [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/legalcode). GPL, AGPL, MIT, Apache and OFL license texts are retained from the upstream source tree where supplied.
 
 Do not remove or alter the upstream NOTICE, the iNiR LICENSE/NOTICE, component-specific LICENSE/NOTICE files, font OFL texts, or vendored dependency license files.
 
