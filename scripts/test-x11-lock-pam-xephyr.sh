@@ -122,6 +122,8 @@ locker_pids() { # real locker binaries owned by the test user
   done
 }
 count_lockers() { locker_pids | wc -l; }
+lockers_at_least() { [[ "$(count_lockers)" -ge "$1" ]]; }
+no_lockers() { [[ "$(count_lockers)" == 0 ]]; }
 wait_until() { local limit=$(( $1 * 10 )); shift; for _ in $(seq 1 "$limit"); do "$@" && return 0; sleep 0.1; done; return 1; }
 lock_file_held() { ! as_user flock -n "$tmp/runtime/ryoku-x11-lock/$(printf '%s' "${disp//[^A-Za-z0-9_.-]/_}").lock" true; }
 
@@ -150,7 +152,7 @@ exercise() {
   [[ "$(count_lockers)" == 0 ]] || die "$label: a locker was already running before the test"
 
   start_wrapper "$tmp/$label-wrapper.log" "$@"
-  wait_until 20 test "$(count_lockers)" -ge 1 || die "$label: the wrapper did not start a real locker"
+  wait_until 20 lockers_at_least 1 || die "$label: the wrapper did not start a real locker"
   wait_until 10 is_covered || die "$label: screen is not covered after locking (centre pixel stayed red)"
   wrapper_alive || die "$label: wrapper exited while locking"
   lock_file_held || die "$label: the per-display lock is not held while the locker runs"
@@ -180,7 +182,7 @@ exercise() {
     wait_until 25 wrapper_gone || die "$label: the CORRECT password did not unlock"
     local rc=0; wait "$wrapper_pid" || rc=$?
     [[ "$rc" == 0 ]] || die "$label: locker exited $rc after the correct password, want 0"
-    wait_until 10 test "$(count_lockers)" == 0 || die "$label: locker processes remain after unlocking"
+    wait_until 10 no_lockers || die "$label: locker processes remain after unlocking"
     wait_until 10 is_red || die "$label: screen not restored after unlocking"
     lock_file_held && die "$label: lock still held after unlocking"
     # No helper left behind (auth/saver helpers).
