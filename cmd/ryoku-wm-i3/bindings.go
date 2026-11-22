@@ -557,5 +557,11 @@ func runKeybindApply(args []string) error {
 	}
 	report.Written = []string{target}
 	report.ReloadNeeded = true
+	if socketPath() != "" {
+		if err := runCommand("reload"); err != nil {
+			return fmt.Errorf("apply: generated keybindings were written but i3 reload failed: %w", err)
+		}
+		report.ReloadNeeded = false
+	}
 	return json.NewEncoder(out).Encode(report)
 }
