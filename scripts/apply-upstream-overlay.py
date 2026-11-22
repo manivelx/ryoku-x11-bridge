@@ -1219,6 +1219,21 @@ func configPath() string {''')
 	}
 	return []string{"-c", name}''')
 
+    # Hub has a dedicated selector too; keep it in the RXB-owned Quickshell
+    # tree rather than falling back to the user's shared ~/.config/quickshell.
+    p = root / "ryoku/shell/ipc/control.go"
+    replace_once(p, '''	if shellDir != "" {
+		return []string{"-p", filepath.Join(shellDir, "..", "hub", "quickshell")}
+	}
+	return []string{"-c", "hub"}''',
+                 '''	if shellDir != "" {
+		return []string{"-p", filepath.Join(shellDir, "..", "hub", "quickshell")}
+	}
+	if root := os.Getenv("RYOKU_QUICKSHELL_CONFIG_HOME"); root != "" {
+		return []string{"-p", filepath.Join(root, "hub")}
+	}
+	return []string{"-c", "hub"}''')
+
     p = root / "ryoku/shell/ipc/daemon.go"
     replace_once(p, 'configRoot := os.Getenv("XDG_CONFIG_HOME")',
                  'configRoot := os.Getenv("RYOKU_CONFIG_HOME")\n\tif configRoot == "" {\n\t\tconfigRoot = os.Getenv("XDG_CONFIG_HOME")\n\t}')
@@ -1315,6 +1330,17 @@ func TestRXBQuickshellConfigSelector(t *testing.T) {
 	got := qsSelect("shell")
 	if len(got) != 2 || got[0] != "-p" || got[1] != filepath.Join("/tmp/rxb/config/quickshell", "shell") {
 		t.Fatalf("RXB Quickshell selector = %#v", got)
+	}
+}
+
+func TestRXBHubQuickshellConfigSelector(t *testing.T) {
+	old := shellDir
+	shellDir = ""
+	defer func() { shellDir = old }()
+	t.Setenv("RYOKU_QUICKSHELL_CONFIG_HOME", "/tmp/rxb/config/quickshell")
+	got := hubSelect()
+	if len(got) != 2 || got[0] != "-p" || got[1] != filepath.Join("/tmp/rxb/config/quickshell", "hub") {
+		t.Fatalf("RXB Hub Quickshell selector = %#v", got)
 	}
 }
 
