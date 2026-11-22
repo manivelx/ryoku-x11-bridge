@@ -32,7 +32,7 @@ PATH="$tmp/prefer" bash "$locker"
 make_fake_path "$tmp/fallback"
 cat >"$tmp/fallback/i3lock" <<'EOF'
 #!/bin/sh
-[[ "$1" == --nofork && "$2" == --color=000000 ]]
+[ "$1" = "--nofork" ] && [ "$2" = "--color=000000" ] || exit 1
 printf i3lock > "$RXB_LOCK_TEST_MARKER"
 EOF
 chmod +x "$tmp/fallback/i3lock"
