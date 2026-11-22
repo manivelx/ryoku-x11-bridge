@@ -17,6 +17,9 @@ fakebin="$tmp/bin"
 seed="$tmp/seed"
 mkdir -p "$home" "$config_home/quickshell" "$runtime" "$fakebin" "$seed"
 chmod 700 "$runtime"
+# Simulate a stale, over-permissive file from a prior interrupted session.
+printf "stale environment\n" > "$runtime/ryoku-x11-session.env"
+chmod 644 "$runtime/ryoku-x11-session.env"
 export HOME="$home"
 export XDG_CONFIG_HOME="$config_home"
 export XDG_RUNTIME_DIR="$runtime"
@@ -85,6 +88,10 @@ case "$*" in
   *"start ryoku-x11-session.target"*)
     env_file="$XDG_RUNTIME_DIR/ryoku-x11-session.env"
     [[ -f "$env_file" ]] || { echo "session EnvironmentFile missing" >&2; exit 1; }
+    [[ "$(stat -c %a "$env_file")" == "600" ]] || {
+      echo "session EnvironmentFile permissions are not 0600" >&2
+      exit 1
+    }
     grep -Fqx 'RYOKU_X11_BRIDGE="1"' "$env_file"
     grep -Fqx "RYOKU_CONFIG_HOME=\"$XDG_CONFIG_HOME/ryoku-x11/ryoku-config\"" "$env_file"
     grep -Fqx "RYOKU_QUICKSHELL_CONFIG_HOME=\"$XDG_CONFIG_HOME/ryoku-x11/ryoku-config/quickshell\"" "$env_file"
