@@ -159,6 +159,16 @@ jobs:
           bash -n upstream/ryoku/shell/scripts/ryoku-cmd-google-lens
           ! grep -R -E 'WlrLayershell\\.(layer|keyboardFocus|namespace|focusable)' upstream/ryoku --include='*.qml'
           ! grep -R -E '\\.WlrLayershell\\.keyboardFocus' upstream/ryoku --include='*.qml'
+      - name: Inventory pinned Ryoku QML APIs
+        run: python3 scripts/audit-rxb-qml.py upstream --output dist/qml-x11-inventory.json
+      - name: Upload QML API inventory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rxb-qml-x11-inventory
+          path: dist/qml-x11-inventory.json
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Format patched upstream Go
         run: find upstream/ryoku -type f -name '*.go' -not -path '*/vendor/*' -print0 | xargs -0 gofmt -w
       - name: Test upstream WM contract
