@@ -27,7 +27,7 @@ The bundle contains the package archives, install/remove scripts, the package-sa
 bash scripts/install-rxb-packages.sh
 ```
 
-The script requests sudo when needed. It verifies the package set and protected paths, resolves missing runtime dependencies from the configured Arch repositories without refreshing package databases, installs the complete RXB X11 package set in one pacman transaction, and records only packages newly introduced by this installer.
+The script requests sudo when needed. It verifies the package set and protected paths, resolves missing runtime dependencies from the configured Arch repositories without refreshing package databases, installs the complete RXB X11 package set in one pacman transaction, and records only packages newly introduced by this installer. It refuses to overwrite any Ryoku package that is already installed but is not recorded as RXB-owned; review and resolve an existing Ryoku installation before proceeding.
 
 After installation, the display manager should offer **Ryoku (X11 / i3)** as a separate session. RXB does not edit SDDM configuration or the Orbital theme; it only installs the XSession desktop entry. Select the new session at the login screen. Your BSPWM session remains installed.
 
