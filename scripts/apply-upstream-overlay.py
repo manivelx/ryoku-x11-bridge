@@ -1178,6 +1178,8 @@ func TestMaterializeIsolatesRXBQuickshellConfig(t *testing.T) {
 
 	writeFile(t, filepath.Join(base, "quickshell/shell/shell.qml"), "RXB shell")
 	writeFile(t, filepath.Join(base, "quickshell/shell/old.qml"), "old RXB file")
+	writeFile(t, filepath.Join(base, "gtk-3.0/settings.ini"), "RXB GTK settings")
+	writeFile(t, filepath.Join(xdg, "gtk-3.0/settings.ini"), "existing GTK settings")
 	writeFile(t, filepath.Join(xdg, "quickshell/shell/shell.qml"), "existing desktop shell")
 	writeFile(t, filepath.Join(xdg, "quickshell/keep.qml"), "existing user config")
 
@@ -1185,6 +1187,8 @@ func TestMaterializeIsolatesRXBQuickshellConfig(t *testing.T) {
 		t.Fatalf("materialize isolated RXB config: %v", err)
 	}
 	wantFile(t, filepath.Join(quickshell, "shell/shell.qml"), "RXB shell")
+	wantFile(t, filepath.Join(configHome, "gtk-3.0/settings.ini"), "RXB GTK settings")
+	wantFile(t, filepath.Join(xdg, "gtk-3.0/settings.ini"), "existing GTK settings")
 	wantFile(t, filepath.Join(xdg, "quickshell/shell/shell.qml"), "existing desktop shell")
 	wantFile(t, filepath.Join(xdg, "quickshell/keep.qml"), "existing user config")
 
@@ -1229,6 +1233,13 @@ func TestRXBQuickshellConfigSelector(t *testing.T) {
 	got := qsSelect("shell")
 	if len(got) != 2 || got[0] != "-p" || got[1] != filepath.Join("/tmp/rxb/config/quickshell", "shell") {
 		t.Fatalf("RXB Quickshell selector = %#v", got)
+	}
+}
+
+func TestRXBDisablesExternalAppTheming(t *testing.T) {
+	t.Setenv("RYOKU_X11_BRIDGE", "1")
+	if themeAppsEnabled() {
+		t.Fatal("RXB session unexpectedly enabled shared application theming")
 	}
 }
 
