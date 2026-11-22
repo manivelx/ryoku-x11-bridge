@@ -13,7 +13,7 @@ Legend: Direct candidate = Quickshell/X11 API likely covers it; Adapter = implem
 | Workspaces/monitors | Quickshell i3 integration | Direct candidate | Real workspace/output events |
 | Windows/focus/tree | i3 GET_TREE + window events | Adapter | Floating, tiled, nested containers |
 | Window/workspace actions | i3 IPC | Adapter | Semantic action tests |
-| Keybindings | Pinned Ryoku catalogue + RXB-owned i3 include | Partial adapter | All 105 shipped actions visible; each untranslated action marked unsupported; no defaults installed yet; no user config overwritten |
+| Keybindings | Pinned Ryoku catalogue + RXB-owned i3 include | Partial adapter | Compatible shipped actions generated at session start and settings apply; unsupported actions remain visible; user.conf remains untouched |
 | Output state | i3 GET_OUTPUTS | Adapter | Correct output geometry |
 | Display mode changes | RandR/XRandR backend | Adapter | Safe mode change and rollback |
 | Wallpaper | Quickshell X11 surface + wallpaper backend | Adapter | Correct stacking and monitor coverage |

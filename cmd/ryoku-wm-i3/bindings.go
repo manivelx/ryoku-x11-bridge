@@ -259,7 +259,7 @@ func i3Action(id string, workspace int) (string, string) {
 	case "window.resize":
 		return "", "The original Ryoku resize submap has no faithful i3 mode translation yet."
 	case "window.focusPrevious":
-		return "focus prev", ""
+		return "", "i3's focus prev command does not guarantee Ryoku's previous-focused-window history semantics."
 	case "column.first", "column.last":
 		return "", "i3 does not expose a reliable first/last column action with the same semantics."
 	case "column.mergeLeft", "column.mergeRight":

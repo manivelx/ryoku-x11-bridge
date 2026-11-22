@@ -125,7 +125,7 @@ A source adapter, a successful build, an Xvfb smoke test and real desktop accept
 | Package transaction | Install/remove transaction passed in disposable Arch CI on the recorded successful baseline |
 | Full interactive Ryoku shell | Not accepted |
 | Active-profile QML / Wayland audit | Partial; exhaustive inventory remains open |
-| Keybinding translation | Full 105-action upstream catalogue is visible; no default shortcuts are installed yet and all untranslated actions are explicitly marked unsupported |
+| Keybinding translation | Original 105-action catalogue is resolved into i3 bindings where semantics match; remaining actions are visible with explicit unsupported reasons |
 | Secure lock / PAM / lock-before-suspend | Not security-validated; suspend handoff remains disabled |
 | Multi-monitor, capture and previews | Not accepted |
 | GT 740 / NVIDIA 470 / Picom rendering | Not tested to acceptance on target hardware |
@@ -188,7 +188,7 @@ The privileged package transaction/removal check runs in disposable Arch CI. It 
 
 Not available yet. The original shell daemon can start in the isolated Xvfb+i3 smoke environment, but the user-facing workflows have not been accepted for everyday use.
 
-RXB does not add custom keybindings. The complete pinned upstream catalogue (105 actions) is now shown in the Ryoku binding legend, with every action explicitly marked unsupported until a tested i3 semantic mapping exists. Existing i3-only bindings are listed separately as custom rows. No default shortcuts are installed yet; faithful i3 translation and settings-driven persistence remain work in progress.
+RXB does not invent shortcuts. At session startup and when Ryoku applies settings, the provider generates i3 bindings from the pinned 105-action upstream catalogue. Semantically compatible actions are translated; unsupported actions remain visible with explicit reasons. Upstream custom bindings, rebinds, disabled actions and chord conflicts are resolved using Ryoku's precedence rules. The generated include is isolated from the user-owned user.conf. Some upstream actions and non-keybinding desktop settings remain unsupported.
 
 ## Hardware
 

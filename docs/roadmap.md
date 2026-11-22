@@ -21,7 +21,7 @@ Status: automated provider, overlay, package, basic shell-daemon and disposable 
 [~] Watch: full initial state + ready, 40 ms event coalescing, changed-frame emission, reconnect/resync
 [x] Sway socket fallback removed; only I3SOCK or sanitized i3 socket discovery is accepted
 [x] Settings apply remains fail-closed; no placeholder generated config is written
-[~] Bind legend now exposes all 105 pinned upstream Ryoku actions plus live i3 custom binds; every untranslated action is explicitly marked unhonored; i3 semantic mappings, rebind resolution and settings-driven persistence remain open
+[~] Bind legend exposes all 105 pinned upstream Ryoku actions plus live i3 custom binds; semantically compatible actions are generated from the neutral store, rebinds/disabled/custom precedence is resolved, and untranslated actions remain explicitly unhonored
 [x] Provider CI at Go 1.22: gofmt, vet, race tests, build passed
 [x] Quickshell 0.3.2 Quickshell.I3 + X11 PanelWindow smoke test passed in disposable Xvfb CI
 [x] Full upstream shell daemon runtime smoke passed under Xvfb + i3: materialize, daemon IPC ping/status, QML shell process/log and clean quit; interactive/hardware acceptance remains open
@@ -75,7 +75,7 @@ Evidence is deliberately separate. A checked implementation item does not imply 
 | Watch debounce/incremental frames | Yes, upstream frame contract | Yes | Yes | Yes | Pending | No | No |
 | Quickshell I3/PanelWindow + full shell daemon smoke | Quickshell 0.3.2 API reviewed; static active-shell QML graph artifact added | Full-shell Xvfb/i3 daemon harness; static dependency candidate graph | Yes | Yes, Xvfb CI | Yes, smoke only | No | No |
 | X11 lock wrapper | XSecureLock/i3lock command paths | Yes, wrapper only | Yes, Arch package CI | Yes, wrapper test | No | No | No |
-| Settings/keybind translation | Pinned 105-action catalogue and upstream schema inspected; i3 GET_CONFIG contract exercised | Partial: full catalogue exposed with explicit unhonored reasons and live i3 custom rows; no shipped default action mappings or settings-driven persistence yet | Pending current CI | Pending current CI | Pending current Xvfb integration | No | No |
+| Settings/keybind translation | Pinned 105-action catalogue, neutral desktop store, rebind/disabled/custom precedence and i3 GET_CONFIG contract | Partial: semantic i3 mappings are generated before session start and on settings apply; unsupported actions and other desktop settings are explicitly reported; settings file is never overwritten | Pending current CI | Pending current CI | Pending current Xvfb integration | No | No |
 | RXB systemd service isolation | Dedicated target and X11-only units reviewed | Session EnvironmentFile, graphical-session binding and no upstream unit drop-ins | Yes | Systemd unit verification + lifecycle tests | No, unit/lifecycle smoke only | No | No |
 | Ryogami wallpaper service | Go daemon and picker entry inspected; full QML use-site audit pending | Dedicated RXB X11 unit + isolated config root | Yes, package CI | Unit/overlay CI | Daemon included in basic shell smoke; picker interaction pending | No | No |
 | User config isolation | Materializer and QML config paths inspected | RYOKU_CONFIG_HOME + separate Quickshell root; app theme writes gated | Pending | Pending | Pending | No | No |
