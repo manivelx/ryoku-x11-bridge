@@ -54,7 +54,7 @@ Acceptance: repeatable frame/resource measurements on target hardware.
 ## Phase 8 — Packaging and installer
 [~] Non-installing package build pipeline and X11 session payload
 [~] Package safety checks protect SDDM, Orbital, Quickshell lockscreen, boot and GPU integration
-[~] Disposable Arch package transaction and uninstall test added; external dependency resolution and host rollback remain separate acceptance gates
+[~] Disposable Arch package transaction/uninstall test and external dependency resolution added; CI acceptance pending; host rollback remains separate
 Acceptance: package transaction/removal passes in disposable Arch; session tests prove shared XDG and Quickshell config are not overwritten. Host dependency resolution and actual login-session behavior remain target-machine checks.
 
 ## Phase 9 — Release validation
