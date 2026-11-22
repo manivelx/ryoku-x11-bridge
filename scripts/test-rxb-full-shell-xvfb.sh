@@ -77,7 +77,7 @@ shell_root="$RYOKU_QUICKSHELL_CONFIG_HOME/shell"
 set +e
 dbus-run-session -- bash -c '
   set -euo pipefail
-  ryoku materialize
+  timeout --signal=TERM --kill-after=3s 30s ryoku materialize
   [[ -f "$1/shell.qml" ]]
   timeout --signal=TERM --kill-after=3s 20s qs -p "$1"
 ' _ "$shell_root" >"$tmp/quickshell.log" 2>&1
