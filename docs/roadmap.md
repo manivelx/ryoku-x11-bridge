@@ -75,6 +75,7 @@ Evidence is deliberately separate. A checked implementation item does not imply 
 | Quickshell I3/PanelWindow smoke | Quickshell 0.3.2 API reviewed | Smoke harness | Yes | Yes, Xvfb CI | No | No |
 | X11 lock wrapper | XSecureLock/i3lock command paths | Yes, wrapper only | Yes, Arch package CI | Yes, wrapper test | No | No | No |
 | Settings/keybind translation | Upstream schema inspected | No; fail-closed/empty | N/A | N/A | No | No | No |
-| Ryogami wallpaper service | Go daemon and picker entry inspected; full QML use-site audit pending | RXB-target-only unit + isolated config root | Yes, package CI | Unit/overlay CI | Pending | No | No |\n| User config isolation | Materializer and QML config paths inspected | RYOKU_CONFIG_HOME + separate Quickshell root; app theme writes gated | Pending | Pending | Pending | No | No |
+| Ryogami wallpaper service | Go daemon and picker entry inspected; full QML use-site audit pending | RXB-target-only unit + isolated config root | Yes, package CI | Unit/overlay CI | Pending | No | No |
+| User config isolation | Materializer and QML config paths inspected | RYOKU_CONFIG_HOME + separate Quickshell root; app theme writes gated | Pending | Pending | Pending | No | No |
 | NVIDIA GT 740 / 470 | Hardware constraints recorded | No hardware changes | N/A | N/A | No | No | No |
 
