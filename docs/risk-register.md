@@ -18,6 +18,6 @@
 | R14 | Host install disrupts BSPWM, SDDM, Orbital or lockscreen | Critical | Disposable Arch package transaction/removal, package path assertions, isolated user config root and session lifecycle test; explicit host-install approval |
 | R15 | GT 740 has no iGPU fallback | High | Keep existing working NVIDIA stack and recovery desktop untouched |
 | R16 | RXB license declaration may not match the combined upstream-derived distribution | High | Owner must confirm RXB original-code licensing; preserve upstream GPL-3.0 and third-party notices; no repository LICENSE is asserted yet |
-| R17 | User service enablement or Wayland-only services leak into non-RXB sessions | High | Start shell and Ryogami only through the RXB session target; do not enable globally or mutate the shared user-manager environment; use a session-scoped EnvironmentFile; clear qylock power hooks |
+| R17 | User service enablement or Wayland-only services leak into non-RXB sessions | High | Use dedicated RXB target and service units; never drop in to upstream Wayland units; do not enable globally or mutate the shared user-manager environment; use a session-scoped EnvironmentFile; omit qylock power hooks |
 
 Stop ship if secure lock is not proven, capabilities are overstated, protected files change, active session services must be killed, or regression tests fail.

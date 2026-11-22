@@ -71,7 +71,7 @@ The provider reports capabilities conservatively. Features that depend on Waylan
 4. The initializer discovers the active i3 IPC socket, ignoring inherited stale i3/Sway socket variables.
 5. RXB materializes the original Ryoku QML/configuration into its dedicated configuration root.
 6. A mode-restricted session environment file is written under `$XDG_RUNTIME_DIR`.
-7. The initializer starts `ryoku-session.target`; the Ryoku shell and Ryogami services are linked only to this target.
+7. The initializer starts `ryoku-x11-session.target`; the Ryoku shell and Ryogami services are linked only to this target.
 8. Quickshell loads the original Ryoku shell against the X11/i3 provider.
 9. When i3 exits, the session wrapper stops the RXB target and removes the temporary environment file.
 
@@ -334,7 +334,7 @@ After installation is explicitly approved:
 5. Wait for i3, the RXB provider, the Ryoku session target and Quickshell to start.
 6. If the session fails, return to SDDM and choose the existing BSPWM session. Do not disable or replace the existing session to troubleshoot RXB.
 
-The package adds an X11 session desktop entry; it must not replace the SDDM configuration or the Orbital theme. No manual `systemctl --user enable ryoku-shell` command should be used. RXB starts the shell only through `ryoku-session.target` while the RXB X11 session is active.
+The package adds an X11 session desktop entry; it must not replace the SDDM configuration or the Orbital theme. Do not manually enable either RXB unit. The session starts `ryoku-shell-x11.service` and `ryogami-x11.service` only through `ryoku-x11-session.target`; the original upstream `ryoku-shell.service`, `ryogami.service` and `ryoku-session.target` units and their Wayland hooks remain untouched.
 
 ### Starting and using the Ryoku desktop
 
@@ -352,14 +352,14 @@ printf 'Desktop: %s\n' "$XDG_CURRENT_DESKTOP"
 printf 'Window manager: %s\n' "$RYOKU_WM"
 
 i3 --get-socketpath
-systemctl --user status ryoku-session.target ryoku-shell.service ryogami.service
+systemctl --user status ryoku-x11-session.target ryoku-shell-x11.service ryogami-x11.service
 ```
 
 Expected session identifiers are `x11`, `Ryoku` and `i3`. The shell and wallpaper daemon should be associated with the RXB session target, not enabled under the default user target.
 
 ### Exit the session
 
-Use the session's logout action or log out through the desktop/session controls. The session wrapper is responsible for stopping `ryoku-session.target` and removing its temporary environment file when i3 exits.
+Use the session's logout action or log out through the desktop/session controls. The session wrapper is responsible for stopping `ryoku-x11-session.target` and removing its temporary environment file when i3 exits.
 
 ### Starter keybindings
 
@@ -428,7 +428,7 @@ From BSPWM or a TTY, collect:
 ```bash
 journalctl -b -u sddm --no-pager
 journalctl --user -b --no-pager
-systemctl --user status ryoku-session.target ryoku-shell.service ryogami.service
+systemctl --user status ryoku-x11-session.target ryoku-shell-x11.service ryogami-x11.service
 ```
 
 Also capture:
@@ -451,8 +451,8 @@ echo "$DISPLAY"
 echo "$XDG_SESSION_TYPE"
 echo "$I3SOCK"
 i3 --get-socketpath
-systemctl --user status ryoku-session.target ryoku-shell.service
-journalctl --user -u ryoku-shell.service -b --no-pager
+systemctl --user status ryoku-x11-session.target ryoku-shell-x11.service
+journalctl --user -u ryoku-shell-x11.service -b --no-pager
 ```
 
 Do not start the service globally as a workaround. The session environment file is created by the RXB session initializer and is removed when the session exits.

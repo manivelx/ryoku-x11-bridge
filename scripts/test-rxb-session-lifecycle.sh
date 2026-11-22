@@ -82,7 +82,7 @@ cat > "$fakebin/systemctl" <<'SH'
 set -euo pipefail
 printf '%s\n' "$*" >> "$TEST_SYSTEMCTL_LOG"
 case "$*" in
-  *"start ryoku-session.target"*)
+  *"start ryoku-x11-session.target"*)
     env_file="$XDG_RUNTIME_DIR/ryoku-x11-session.env"
     [[ -f "$env_file" ]] || { echo "session EnvironmentFile missing" >&2; exit 1; }
     grep -Fqx 'RYOKU_X11_BRIDGE="1"' "$env_file"
@@ -133,7 +133,7 @@ grep -Fqx 'my own keybinds' "$config_home/ryoku-x11/user.conf"
 grep -Fqx 'preserve this desktop config' "$config_home/quickshell/keep.qml"
 grep -Fqx 'isolated RXB shell config' "$config_home/ryoku-x11/ryoku-config/quickshell/shell/shell.qml"
 grep -Fq -- '--user start ryoku-session.target' "$TEST_SYSTEMCTL_LOG"
-grep -Fq -- '--user stop ryoku-session.target' "$TEST_SYSTEMCTL_LOG"
+grep -Fq -- '--user stop ryoku-x11-session.target' "$TEST_SYSTEMCTL_LOG"
 ! grep -Fq 'import-environment' "$TEST_SYSTEMCTL_LOG"
 
 if DISPLAY=:99 WAYLAND_DISPLAY=wayland-0 bash "$repo_root/payload/bin/ryoku-x11-session" >/dev/null 2>&1; then

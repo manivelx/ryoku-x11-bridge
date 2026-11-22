@@ -133,9 +133,11 @@ required_files=(
   /usr/bin/ryoku-x11-session-init
   /usr/bin/ryoku-wm-i3
   /usr/lib/systemd/user/ryoku-shell.service
-  /usr/lib/systemd/user/ryoku-shell.service.d/10-rxb-x11.conf
-  /usr/lib/systemd/user/ryoku-session.target.wants/ryoku-shell.service
-  /usr/lib/systemd/user/ryoku-session.target.wants/ryogami.service
+  /usr/lib/systemd/user/ryoku-x11-session.target
+  /usr/lib/systemd/user/ryoku-shell-x11.service
+  /usr/lib/systemd/user/ryogami-x11.service
+  /usr/lib/systemd/user/ryoku-x11-session.target.wants/ryoku-shell-x11.service
+  /usr/lib/systemd/user/ryoku-x11-session.target.wants/ryogami-x11.service
   /usr/share/ryoku/config/quickshell/shell/shell.qml
 )
 for path in "${required_files[@]}"; do
@@ -150,6 +152,10 @@ grep -q '^TryExec=i3$' /usr/share/xsessions/ryoku-x11.desktop
 # outside the explicit RXB X11 session.
 [[ ! -e /usr/lib/systemd/user/default.target.wants/ryoku-shell.service ]]
 [[ ! -e /usr/lib/systemd/user/default.target.wants/ryogami.service ]]
+[[ ! -e /usr/lib/systemd/user/ryoku-shell.service.d/10-rxb-x11.conf ]]
+[[ ! -e /usr/lib/systemd/user/ryogami.service.d/10-rxb-x11.conf ]]
+[[ ! -e /usr/lib/systemd/user/ryoku-session.target.wants/ryoku-shell.service ]]
+[[ ! -e /usr/lib/systemd/user/ryoku-session.target.wants/ryogami.service ]]
 
 # Exercise the installed upstream QML entry point with the packaged i3 provider.
 # Run as an unprivileged account, but only after the disposable package set is installed.

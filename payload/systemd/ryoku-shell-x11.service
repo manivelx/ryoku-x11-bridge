@@ -1,0 +1,24 @@
+[Unit]
+Description=Ryoku shell daemon (RXB X11)
+ConditionUser=!@system
+PartOf=ryoku-x11-session.target
+After=ryoku-x11-session.target
+ConditionPathExists=%t/ryoku-x11-session.env
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Environment=RYOKU_POLKIT_AGENT=1
+Environment=QT_MEDIA_BACKEND=ffmpeg
+Environment=QT_FFMPEG_DECODING_HW_DEVICE_TYPES=
+EnvironmentFile=%t/ryoku-x11-session.env
+UnsetEnvironment=WAYLAND_DISPLAY
+ExecStart=/usr/bin/ryoku-shell daemon
+TimeoutStartSec=0
+TimeoutStopSec=0
+Restart=always
+RestartSec=2
+KillMode=process
+OOMPolicy=continue
+ManagedOOMPreference=avoid
+Slice=session.slice

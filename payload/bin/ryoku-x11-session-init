@@ -77,4 +77,4 @@ umask 077
 
 systemctl --user daemon-reload
 # The package links ryoku-shell.service only into ryoku-session.target.wants.
-systemctl --user start ryoku-session.target
+systemctl --user start ryoku-x11-session.target

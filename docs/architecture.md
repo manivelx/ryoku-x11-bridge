@@ -29,6 +29,9 @@ Original Ryoku QML + Go services + Hub
 
 Quickshell owns QML rendering and shell surfaces. i3 owns windows, focus, workspaces, tiling and outputs. RXB's provider implements the upstream ryoku-wm subprocess contract over i3 IPC. Dedicated X11 adapters replace unsupported Wayland services.
 
+## Session service isolation
+RXB starts only `ryoku-x11-session.target`, which owns `ryoku-shell-x11.service` and `ryogami-x11.service`. These dedicated units consume a mode-restricted session EnvironmentFile. The original upstream `ryoku-shell.service`, `ryogami.service`, `ryoku-session.target`, and their Wayland-specific hooks are not modified or reused. No default user target is enabled and no global user-manager environment is imported.
+
 ## Provider boundary
 Implement the upstream `ryoku-wm-<name>` executable contract, not a new API. Inspect and match upstream's current JSON schemas and verbs for caps, state, watch, act, apply, defaults, schema, binds, outputs, session and environment. Window/workspace IDs are opaque handles. Capability declarations are promises and must be conservative. Watch must emit a full initial state, ready frame, typed newline-delimited JSON frames, and recover from socket loss by resynchronizing.
 

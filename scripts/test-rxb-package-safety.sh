@@ -16,26 +16,28 @@ if grep -Eq 'systemctl --user (import-environment|unset-environment)' "$root/pay
   echo "X11 session init must not mutate the shared systemd user-manager environment." >&2
   exit 1
 fi
-if ! grep -Fq 'EnvironmentFile=%t/ryoku-x11-session.env' "$root/payload/systemd/ryoku-shell.service.d/10-rxb-x11.conf" ||
-   ! grep -Fq 'ConditionPathExists=%t/ryoku-x11-session.env' "$root/payload/systemd/ryoku-shell.service.d/10-rxb-x11.conf"; then
-  echo "Ryoku shell must consume a session-scoped environment file." >&2
+for unit in ryoku-shell-x11.service ryogami-x11.service; do
+  unit_file="$root/payload/systemd/$unit"
+  if ! grep -Fq 'EnvironmentFile=%t/ryoku-x11-session.env' "$unit_file" ||
+     ! grep -Fq 'ConditionPathExists=%t/ryoku-x11-session.env' "$unit_file"; then
+    echo "$unit must consume the session-scoped RXB environment." >&2
+    exit 1
+  fi
+  if ! grep -Fq 'PartOf=ryoku-x11-session.target' "$unit_file"; then
+    echo "$unit must be owned by the dedicated RXB target." >&2
+    exit 1
+  fi
+done
+if ! grep -Fq 'systemctl --user stop ryoku-x11-session.target' "$root/payload/bin/ryoku-x11-session"; then
+  echo "X11 session wrapper must stop its dedicated target on exit." >&2
   exit 1
 fi
-if grep -Fq 'ExecStartPre=-/usr/bin/ryoku-shell quit' "$root/payload/systemd/ryoku-shell.service.d/10-rxb-x11.conf"; then
-  echo "X11 unit must not terminate a shell daemon from another session." >&2
+if ! grep -Fq 'systemctl --user start ryoku-x11-session.target' "$root/payload/bin/ryoku-x11-session-init"; then
+  echo "X11 session initializer must start its dedicated target." >&2
   exit 1
 fi
-if ! grep -Fq 'systemctl --user stop ryoku-session.target' "$root/payload/bin/ryoku-x11-session"; then
-  echo "X11 session wrapper must stop its target on exit." >&2
-  exit 1
-fi
-if ! grep -Fq 'ryoku-session.target.wants/ryogami.service' "$root/release/packages/ryoku-desktop-i3/payload.sh"; then
-  echo "Ryogami must be linked only to the RXB session target." >&2
-  exit 1
-fi
-if ! grep -Fq 'EnvironmentFile=%t/ryoku-x11-session.env' "$root/payload/systemd/ryogami.service.d/10-rxb-x11.conf" ||
-   ! grep -Fq 'ConditionPathExists=%t/ryoku-x11-session.env' "$root/payload/systemd/ryogami.service.d/10-rxb-x11.conf"; then
-  echo "Ryogami must use the same session-scoped X11 environment." >&2
+if grep -R -q '10-rxb-x11.conf' "$root/payload/systemd"; then
+  echo "RXB must not install global drop-ins into upstream Ryoku service units." >&2
   exit 1
 fi
 shopt -s nullglob
@@ -92,7 +94,11 @@ for forbidden in \
   'etc/modules-load.d/ryoku-i2c.conf' \
   'usr/bin/ryoku-qylock-activate' \
   'usr/bin/ryoku-qylock-lock' \
-  'usr/lib/systemd/user/default.target.wants/ryogami.service'; do
+  'usr/lib/systemd/user/default.target.wants/ryogami.service' \
+  'usr/lib/systemd/user/ryoku-shell.service.d/10-rxb-x11.conf' \
+  'usr/lib/systemd/user/ryogami.service.d/10-rxb-x11.conf' \
+  'usr/lib/systemd/user/ryoku-session.target.wants/ryoku-shell.service' \
+  'usr/lib/systemd/user/ryoku-session.target.wants/ryogami.service'; do
   if grep -Fq "$forbidden" <<<"$base_list" || grep -Fq "$forbidden" <<<"$variant_list"; then
     echo "Forbidden host integration in RXB package set: $forbidden" >&2
     exit 1
@@ -110,9 +116,11 @@ done
 
 for required in \
   'usr/share/xsessions/ryoku-x11.desktop' \
-  'usr/lib/systemd/user/ryoku-shell.service.d/10-rxb-x11.conf' \
-  'usr/lib/systemd/user/ryogami.service.d/10-rxb-x11.conf' \
-  'usr/lib/systemd/user/ryoku-session.target.wants/ryogami.service' \
+  'usr/lib/systemd/user/ryoku-shell-x11.service' \
+  'usr/lib/systemd/user/ryogami-x11.service' \
+  'usr/lib/systemd/user/ryoku-x11-session.target' \
+  'usr/lib/systemd/user/ryoku-x11-session.target.wants/ryoku-shell-x11.service' \
+  'usr/lib/systemd/user/ryoku-x11-session.target.wants/ryogami-x11.service' \
   'usr/bin/ryoku-x11-session' \
   'usr/bin/ryoku-x11-session-init' \
   'usr/bin/ryoku-x11-lock' \

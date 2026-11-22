@@ -49,7 +49,7 @@ env_file="$runtime_dir/ryoku-x11-session.env"
 cleanup() {
   local status=$?
   trap - EXIT
-  systemctl --user stop ryoku-session.target >/dev/null 2>&1 || true
+  systemctl --user stop ryoku-x11-session.target >/dev/null 2>&1 || true
   rm -f "$env_file" || true
   exit "$status"
 }

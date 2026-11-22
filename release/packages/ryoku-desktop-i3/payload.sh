@@ -30,15 +30,20 @@ case "$mode" in
     install -m644 "$RYOKU_SRC/payload/ryoku-x11/generated.conf" "$pkgdir/usr/share/ryoku/config/ryoku-x11/generated.conf"
     install -m644 "$RYOKU_SRC/payload/ryoku-x11/user.conf" "$pkgdir/usr/share/ryoku/config/ryoku-x11/user.conf"
 
-    install -Dm644 "$RYOKU_SRC/payload/systemd/ryoku-shell.service.d/10-rxb-x11.conf" \
-      "$pkgdir/usr/lib/systemd/user/ryoku-shell.service.d/10-rxb-x11.conf"
-    install -Dm644 "$RYOKU_SRC/payload/systemd/ryogami.service.d/10-rxb-x11.conf" \
-      "$pkgdir/usr/lib/systemd/user/ryogami.service.d/10-rxb-x11.conf"
+    # RXB owns dedicated user units. Never drop in to or rewrite the upstream
+    # Ryoku Wayland services: those units remain byte-for-byte untouched.
+    install -Dm644 "$RYOKU_SRC/payload/systemd/ryoku-x11-session.target" \
+      "$pkgdir/usr/lib/systemd/user/ryoku-x11-session.target"
+    install -Dm644 "$RYOKU_SRC/payload/systemd/ryoku-shell-x11.service" \
+      "$pkgdir/usr/lib/systemd/user/ryoku-shell-x11.service"
+    install -Dm644 "$RYOKU_SRC/payload/systemd/ryogami-x11.service" \
+      "$pkgdir/usr/lib/systemd/user/ryogami-x11.service"
 
-    # Link Ryoku session daemons only to the RXB session target, never a default user target.
-    install -d "$pkgdir/usr/lib/systemd/user/ryoku-session.target.wants"
-    ln -sfn ../ryoku-shell.service "$pkgdir/usr/lib/systemd/user/ryoku-session.target.wants/ryoku-shell.service"
-    ln -sfn ../ryogami.service "$pkgdir/usr/lib/systemd/user/ryoku-session.target.wants/ryogami.service"
+    # Only the dedicated RXB target owns these services; no default or upstream
+    # Ryoku target is enabled or modified.
+    install -d "$pkgdir/usr/lib/systemd/user/ryoku-x11-session.target.wants"
+    ln -sfn ../ryoku-shell-x11.service "$pkgdir/usr/lib/systemd/user/ryoku-x11-session.target.wants/ryoku-shell-x11.service"
+    ln -sfn ../ryogami-x11.service "$pkgdir/usr/lib/systemd/user/ryoku-x11-session.target.wants/ryogami-x11.service"
     install -Dm644 /dev/stdin "$pkgdir/usr/share/xsessions/ryoku-x11.desktop" <<'EOF'
 [Desktop Entry]
 Name=Ryoku (X11 / i3)

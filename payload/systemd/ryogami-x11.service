@@ -1,0 +1,18 @@
+[Unit]
+Description=Ryogami wallpaper daemon (RXB X11)
+ConditionUser=!@system
+PartOf=ryoku-x11-session.target
+After=ryoku-shell-x11.service
+ConditionPathExists=%t/ryoku-x11-session.env
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+EnvironmentFile=%t/ryoku-x11-session.env
+UnsetEnvironment=WAYLAND_DISPLAY
+ExecStart=/usr/bin/ryogami
+Restart=always
+RestartSec=2
+KillMode=process
+Slice=session.slice
+Environment=MALLOC_CONF=narenas:2,background_thread:true,dirty_decay_ms:5000,muzzy_decay_ms:5000
