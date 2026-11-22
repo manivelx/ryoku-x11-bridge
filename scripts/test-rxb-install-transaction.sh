@@ -217,9 +217,6 @@ cleanup() {
   local status=$?
   trap - EXIT
   if [[ -n ${verify_root:-} ]]; then rm -rf "$verify_root"; fi
-  cleanup_protected
-  [[ -z ${upgrade_dir:-} ]] || rm -rf "$upgrade_dir"
-  [[ -z ${test_home:-} ]] || rm -rf "$test_home"
   local -a present=()
   for name in "${package_names[@]}"; do
     if pacman -Q "$name" >/dev/null 2>&1; then present+=("$name"); fi
@@ -227,6 +224,9 @@ cleanup() {
   if (("${#present[@]}" > 0)); then
     pacman -Rdd --noconfirm "${present[@]}" >/dev/null || true
   fi
+  cleanup_protected
+  [[ -z ${upgrade_dir:-} ]] || rm -rf "$upgrade_dir"
+  [[ -z ${test_home:-} ]] || rm -rf "$test_home"
   cleanup_test_config
   exit "$status"
 }
