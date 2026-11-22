@@ -185,7 +185,7 @@ sudo pacman -S --needed \
   qt6-base qt6-declarative qt6-multimedia qt6-shadertools \
   qt6-quick3d qt6-svg qt6-5compat qt6-imageformats qt6-wayland \
   vulkan-headers imagemagick quickshell i3-wm i3lock \
-  xorg-server-xvfb xorg-xrandr maim xclip slop dbus
+  xorg-server-xvfb xorg-xrandr maim xclip slop dbus mesa
 ```
 
 The package list may change with the pinned upstream PKGBUILDs. If `makepkg` reports a missing build dependency, stop and update the documented dependency set rather than using `--nodeps` to bypass a missing tool.
