@@ -4,7 +4,9 @@ set -euo pipefail
 [[ -n ${DISPLAY:-} ]] || exit 1
 [[ -z ${WAYLAND_DISPLAY:-} ]] || exit 1
 
-socket="${I3SOCK:-}"
+# Never trust an inherited I3SOCK: it may belong to a previous i3/Sway session.
+# Discover the socket from the i3 process started by this RXB session only.
+socket=""
 for _ in $(seq 1 50); do
   if [[ -z "$socket" || ! -S "$socket" ]]; then
     # i3 and Sway share the IPC protocol; explicitly ignore SWAYSOCK so this
