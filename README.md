@@ -6,8 +6,8 @@
 
 An X11 compatibility layer for the original Ryoku desktop, using **Xorg, i3 and Quickshell**.
 
-[![i3 provider](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/go-provider.yml/badge.svg?branch=main)](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/go-provider.yml)
-[![Pinned upstream integration](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/upstream-integration.yml/badge.svg?branch=main)](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/upstream-integration.yml)
+[![i3 provider](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/go-provider.yml/badge.svg?branch=rxb%2Fdisposable-install-validation)](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/go-provider.yml)
+[![Pinned upstream integration](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/upstream-integration.yml/badge.svg?branch=rxb%2Fdisposable-install-validation)](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/upstream-integration.yml)
 ![X11](https://img.shields.io/badge/session-X11-0d0d0d?style=for-the-badge)
 ![Window manager](https://img.shields.io/badge/window%20manager-i3-0d0d0d?style=for-the-badge)
 ![Quickshell](https://img.shields.io/badge/Quickshell-0.3.2-0d0d0d?style=for-the-badge)
@@ -489,6 +489,12 @@ Stop testing if protected configuration changes, the existing desktop stops work
 7. Do not mark host installation ready until disposable installation/removal, full-shell runtime, security and target-hardware acceptance are complete.
 
 CI keeps validation runs per commit so a newer push does not cancel the result for an earlier commit. Always check the run associated with the exact commit under review.
+
+## • license and attribution •
+
+The RXB i3 package metadata currently declares `GPL-3.0-or-later`. The RXB repository does not yet contain a top-level `LICENSE` file, and the combined upstream-derived distribution still requires a final license and notice audit. Do not infer that every upstream asset, font, QML plugin or bundled component shares the RXB package license.
+
+Before publishing a release artifact for redistribution, the project owner must confirm the RXB source license, add the corresponding repository license file, and preserve all upstream and third-party notices. This is tracked as risk **R16** in the [risk register](docs/risk-register.md).
 
 ## • upstream and project links •
 
