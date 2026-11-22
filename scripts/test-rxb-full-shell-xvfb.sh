@@ -58,6 +58,8 @@ export DISPLAY=":$display_number"
 cat >"$tmp/i3.conf" <<'EOF'
 font pango:monospace 8
 focus_follows_mouse no
+set $mod Mod4
+bindsym $mod+Return exec --no-startup-id true
 EOF
 i3 -c "$tmp/i3.conf" >"$tmp/i3.log" 2>&1 &
 i3_pid=$!
@@ -91,6 +93,14 @@ jq -e 'any(.[]; .name == "i3" and .active == true and .caps.name == "i3" and (.c
   printf '%s\n' "$hub_providers" >&2
   exit 1
 }
+provider_binds="$(ryoku-wm-i3 binds)"
+jq -e 'any(.[]; .chord == "SUPER + ENTER" and .kind == "custom" and .rebindable == false)' <<<"$provider_binds" >/dev/null || {
+  echo "RXB bind legend did not report the binding from the live i3 config:" >&2
+  printf '%s\n' "$provider_binds" >&2
+  exit 1
+}
+echo "RXB bind legend reflects the live i3 config."
+
 echo "Pinned upstream Hub detected the live RXB i3 provider and capability manifest."
 
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME"
