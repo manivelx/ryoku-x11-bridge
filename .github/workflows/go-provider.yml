@@ -1,8 +1,9 @@
 name: i3 provider
 
 concurrency:
-  group: rxb-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Keep each commit's validation result; newer pushes must not cancel an active run.
+  group: rxb-${{ github.workflow }}-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
 on:
   push:
     paths:
