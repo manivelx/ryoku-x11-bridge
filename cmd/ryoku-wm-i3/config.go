@@ -94,6 +94,9 @@ func parseI3BindRows(config string) ([]bindRow, error) {
 			continue
 		}
 		fields := strings.Fields(line)
+		if strings.Contains(line, "# RXB:") {
+			continue
+		}
 		if len(fields) < 3 || (fields[0] != "bindsym" && fields[0] != "bindcode") {
 			if len(fields) >= 3 && fields[0] == "set" && strings.HasPrefix(fields[1], "$") {
 				variables[fields[1]] = fields[2]
