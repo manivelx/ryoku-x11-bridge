@@ -347,7 +347,7 @@ def patch_x11_suspend(root: pathlib.Path) -> None:
         }
 
         lock();
-        _hibernateTimer.restart();
+        _hibernateTimer.restart()
     }''',
         '''    function hibernate() {
         if (Quickshell.env("DISPLAY") && !Quickshell.env("WAYLAND_DISPLAY")) {
