@@ -147,13 +147,11 @@ func i3Action(id string, workspace int) (string, string) {
 	case "window.pin":
 		return "sticky toggle", ""
 	case "window.presetHeight":
-		return actExec("window.presetHeight"), ""
+		return "", "i3 cannot preserve Ryoku's tiled preset-height behaviour without changing the window's floating state."
 	case "column.tabbed":
 		return "layout toggle tabbed split", ""
 	case "column.center":
-		return actExec("window.center"), ""
-	case "window.focusPrevious":
-		return "focus prev", ""
+		return "", "i3 cannot center a tiled column without converting the window to floating."
 	case "focus.left", "focus.right", "focus.up", "focus.down":
 		return "focus " + strings.TrimPrefix(id, "focus."), ""
 	case "move.left", "move.right", "move.up", "move.down":
@@ -166,10 +164,8 @@ func i3Action(id string, workspace int) (string, string) {
 		return actExec("window.resizeBy", "shorter"), ""
 	case "resize.taller":
 		return actExec("window.resizeBy", "taller"), ""
-	case "resize.grow":
-		return actExec("window.resizeBy", "wider"), ""
-	case "resize.shrink":
-		return actExec("window.resizeBy", "narrower"), ""
+	case "resize.grow", "resize.shrink":
+		return "", "i3 has incremental resize commands but no equivalent to Ryoku's preset-width cycling."
 	case "workspace.focus", "workspace.focus.numpad":
 		return fmt.Sprintf("workspace number %d", workspace), ""
 	case "workspace.moveWindow", "workspace.moveWindow.numpad":
@@ -280,6 +276,15 @@ func i3Action(id string, workspace int) (string, string) {
 	}
 }
 
+func i3Rebindable(cb CatalogBind) bool {
+	for _, token := range strings.Split(cb.Chord, " + ") {
+		if strings.HasPrefix(token, "mouse") || strings.HasPrefix(token, "XF86") {
+			return false
+		}
+	}
+	return true
+}
+
 func expandCatalogueChord(cb CatalogBind, index int) string {
 	chord := cb.Chord
 	if cb.Family {
@@ -347,7 +352,7 @@ func resolveShippedBinds(store keybindStore) ([]resolvedI3Bind, []bindRow, []Unh
 		row := bindRow{
 			ID: cb.ID, Category: cb.Category, Label: cb.Label, Hint: cb.Hint,
 			Keys: DisplayKeys(effective), Default: defaultChord, Chord: effective,
-			Kind: string(cb.Kind), Rebindable: !cb.Locked, Locked: cb.Locked,
+			Kind: string(cb.Kind), Rebindable: i3Rebindable(cb), Locked: cb.Locked,
 			Disabled: disabled[defaultChord],
 		}
 		if row.Disabled {
