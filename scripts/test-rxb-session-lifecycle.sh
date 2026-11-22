@@ -78,7 +78,8 @@ case "$*" in
   *"start ryoku-session.target"*)
     env_file="$XDG_RUNTIME_DIR/ryoku-x11-session.env"
     [[ -f "$env_file" ]] || { echo "session EnvironmentFile missing" >&2; exit 1; }
-    grep -Fqx "RYOKU_QUICKSHELL_CONFIG_HOME=\"$XDG_CONFIG_HOME/ryoku-x11/quickshell\"" "$env_file"
+    grep -Fqx "RYOKU_CONFIG_HOME=\"$XDG_CONFIG_HOME/ryoku-x11/config\"" "$env_file"
+    grep -Fqx "RYOKU_QUICKSHELL_CONFIG_HOME=\"$XDG_CONFIG_HOME/ryoku-x11/config/quickshell\"" "$env_file"
     grep -Fqx 'XDG_SESSION_TYPE="x11"' "$env_file"
     ;;
 esac
