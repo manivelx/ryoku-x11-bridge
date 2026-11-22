@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 )
 
 type bindRow struct {
@@ -22,11 +24,122 @@ type bindRow struct {
 	Disabled   bool     `json:"disabled,omitempty"`
 }
 
+type i3ConfigReply struct {
+	Config string `json:"config"`
+}
+
 func runBinds(_ []string) error {
-	// Do not fabricate an effective bind legend. The i3 config is currently
-	// fixed, while the upstream catalogue/rebind resolver has not yet been
-	// ported. An empty answer is more accurate than reporting made-up chords.
-	return json.NewEncoder(out).Encode([]bindRow{})
+	conn, err := dial(socketPath())
+	if err != nil {
+		return fmt.Errorf("binds: connect to active i3 session: %w", err)
+	}
+	defer conn.close()
+
+	raw, err := conn.request(msgGetConfig, nil)
+	if err != nil {
+		return fmt.Errorf("binds: read active i3 configuration: %w", err)
+	}
+	var reply i3ConfigReply
+	if err := json.Unmarshal(raw, &reply); err != nil {
+		return fmt.Errorf("binds: decode i3 configuration: %w", err)
+	}
+	rows, err := parseI3BindRows(reply.Config)
+	if err != nil {
+		return fmt.Errorf("binds: parse active i3 configuration: %w", err)
+	}
+	return json.NewEncoder(out).Encode(rows)
+}
+
+// parseI3BindRows reports only bindings actually declared in the active i3
+// configuration. It deliberately does not pretend that the upstream Ryoku
+// catalogue is implemented: unknown/custom i3 commands remain visible as
+// compositor-owned rows, and no default/rebind is invented.
+func parseI3BindRows(config string) ([]bindRow, error) {
+	if strings.TrimSpace(config) == "" {
+		return nil, errors.New("i3 returned an empty configuration")
+	}
+	variables := map[string]string{}
+	scanner := bufio.NewScanner(strings.NewReader(config))
+	scanner.Buffer(make([]byte, 4096), 1024*1024)
+	rows := make([]bindRow, 0)
+	lineNumber := 0
+	for scanner.Scan() {
+		lineNumber++
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 3 || (fields[0] != "bindsym" && fields[0] != "bindcode") {
+			if len(fields) >= 3 && fields[0] == "set" && strings.HasPrefix(fields[1], "$") {
+				variables[fields[1]] = fields[2]
+			}
+			continue
+		}
+		index := 1
+		for index < len(fields) && strings.HasPrefix(fields[index], "--") {
+			index++
+		}
+		if index >= len(fields)-1 {
+			continue
+		}
+		chord := fields[index]
+		for key, value := range variables {
+			chord = strings.ReplaceAll(chord, key, value)
+		}
+		keys := displayI3Chord(chord)
+		if len(keys) == 0 {
+			continue
+		}
+		label := strings.TrimSpace(strings.Join(fields[index+1:], " "))
+		if label == "" {
+			label = fmt.Sprintf("i3 binding on line %d", lineNumber)
+		}
+		rows = append(rows, bindRow{
+			ID: fmt.Sprintf("i3.custom.%d", lineNumber), Category: "i3", Label: label,
+			Keys: keys, Default: "", Chord: strings.Join(keys, " + "),
+			Kind: "custom", Rebindable: false, Locked: false,
+		})
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func displayI3Chord(chord string) []string {
+	parts := strings.Split(chord, "+")
+	keys := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			return nil
+		}
+		switch strings.ToLower(part) {
+		case "mod4", "super":
+			part = "SUPER"
+		case "mod1", "alt":
+			part = "ALT"
+		case "control", "ctrl":
+			part = "CTRL"
+		case "shift":
+			part = "SHIFT"
+		case "return":
+			part = "ENTER"
+		case "space":
+			part = "SPACE"
+		case "escape", "esc":
+			part = "ESC"
+		case "prior":
+			part = "PAGE UP"
+		case "next":
+			part = "PAGE DOWN"
+		default:
+			part = strings.ToUpper(part)
+		}
+		keys = append(keys, part)
+	}
+	return keys
 }
 
 func runApply(args []string) error {
@@ -56,7 +169,7 @@ func runApply(args []string) error {
 	report := ApplyReport{
 		Provider: "i3",
 		Unhonored: []Unhonored{
-			{Key: "desktop.keybinds", Reason: "i3 keybinding translation is not implemented; the active session config is unchanged."},
+			{Key: "desktop.keybinds", Reason: "i3 keybinding edits are not yet translated; the active session config is unchanged."},
 			{Key: "desktop.windowRules", Reason: "Window rules are not yet translated into i3 criteria."},
 			{Key: "desktop.input", Reason: "Input settings remain managed by the existing X11 input configuration."},
 			{Key: "desktop.appearance", Reason: "Provider-specific appearance settings are not generated from the neutral store yet."},
