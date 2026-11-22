@@ -38,6 +38,15 @@ class QMLAuditTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
+            (hub / "Hub.qml").write_text(
+                "import Quickshell.Wayland\\nWlrLayershell.layer: WlrLayer.Top\\n",
+                encoding="utf-8",
+            )
+            (picker / "Picker.qml").write_text(
+                "ScreencopyView { }\\n",
+                encoding="utf-8",
+            )
+
             report = AUDIT.build_report(repo)
             self.assertEqual(report["schema_version"], 1)
             self.assertEqual(report["roots"]["main_shell"]["qml_files"], 2)
