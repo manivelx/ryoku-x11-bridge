@@ -7,7 +7,7 @@
 [x] Initial compositor/provider comparison
 [x] Initial X11 compatibility matrix and risk register
 [x] Reproducible CI source census covers main shell, key-hint and screenshot QML trees; JSON inventory artifact is uploaded per integration run
-[~] Active-profile transitive QML dependency graph and exhaustive API-use classification remain open
+[~] Static active-shell QML dependency candidate graph now runs in CI; dynamic/profile reachability and exhaustive API-use classification remain open
 [ ] Go service and runtime dependency inventory
 [x] Quickshell 0.3.2 API and basic full-shell daemon/QML-load smoke passed in disposable Xvfb+i3 CI
 [ ] Architecture review and acceptance
@@ -73,7 +73,7 @@ Evidence is deliberately separate. A checked implementation item does not imply 
 |---|---|---|---|---|---|---|---|
 | i3 IPC provider | Yes | Yes, initial | Yes | Yes | Pending | No | No |
 | Watch debounce/incremental frames | Yes, upstream frame contract | Yes | Yes | Yes | Pending | No | No |
-| Quickshell I3/PanelWindow + full shell daemon smoke | Quickshell 0.3.2 API reviewed | Full-shell Xvfb/i3 daemon harness | Yes | Yes, Xvfb CI | Yes, smoke only | No | No |
+| Quickshell I3/PanelWindow + full shell daemon smoke | Quickshell 0.3.2 API reviewed; static active-shell QML graph artifact added | Full-shell Xvfb/i3 daemon harness; static dependency candidate graph | Yes | Yes, Xvfb CI | Yes, smoke only | No | No |
 | X11 lock wrapper | XSecureLock/i3lock command paths | Yes, wrapper only | Yes, Arch package CI | Yes, wrapper test | No | No | No |
 | Settings/keybind translation | Upstream schema inspected; i3 GET_CONFIG contract exercised | Partial: live i3 bind introspection only; neutral catalogue/rebind/apply translation remains fail-closed | Yes, provider CI | Yes, parser and race tests | Pending current Xvfb integration | No | No |
 | RXB systemd service isolation | Dedicated target and X11-only units reviewed | Session EnvironmentFile, graphical-session binding and no upstream unit drop-ins | Yes | Systemd unit verification + lifecycle tests | No, unit/lifecycle smoke only | No | No |
