@@ -98,6 +98,7 @@ fi
 cleanup() {
   local status=$?
   trap - EXIT
+  if [[ -n ${verify_root:-} ]]; then rm -rf "$verify_root"; fi
   local -a present=()
   for name in "${package_names[@]}"; do
     if pacman -Q "$name" >/dev/null 2>&1; then present+=("$name"); fi
@@ -171,7 +172,6 @@ command -v systemd-analyze >/dev/null 2>&1 || {
   exit 1
 }
 verify_root="$(mktemp -d)"
-trap 'rm -rf "$verify_root"; cleanup' EXIT
 mkdir -p "$verify_root/usr/lib/systemd/system" "$verify_root/usr/bin"
 for unit in graphical-session.target graphical-session-pre.target sysinit.target; do
   printf '[Unit]\\nDescription=RXB offline verification stub (%s)\\n' "$unit" \
@@ -192,7 +192,7 @@ systemd-analyze verify --root="$verify_root" --man=no \
   "$verify_root/usr/lib/systemd/system/ryoku-shell-x11.service" \
   "$verify_root/usr/lib/systemd/system/ryogami-x11.service"
 rm -rf "$verify_root"
-trap cleanup EXIT
+verify_root=""
 
 # Exercise the installed upstream QML entry point with the packaged i3 provider.
 # Run as an unprivileged account, but only after the disposable package set is installed.
