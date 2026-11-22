@@ -1243,6 +1243,49 @@ func TestRXBSameSessionEnvIncludesRyokuConfigRoots(t *testing.T) {
 }
 """)
 
+    test = root / "ryoku/hub/backend/config_rxb_test.go"
+    test.write_text("""package main
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestRXBConfigHomeIsolatedFromExternalAppConfig(t *testing.T) {
+	xdg := t.TempDir()
+	rxb := filepath.Join(xdg, "ryoku-x11", "ryoku-config")
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+	t.Setenv("RYOKU_CONFIG_HOME", rxb)
+
+	if got := ryokuConfigHome(); got != rxb {
+		t.Fatalf("Ryoku config home = %q, want %q", got, rxb)
+	}
+	if got := configPath(); got != filepath.Join(rxb, "ryoku", "hub.toml") {
+		t.Fatalf("Hub config path = %q, want RXB root", got)
+	}
+	if got := profileDir(); got != filepath.Join(rxb, "ryoku") {
+		t.Fatalf("profile dir = %q, want RXB root", got)
+	}
+	if got := configHome(); got != xdg {
+		t.Fatalf("external app config home = %q, want standard XDG %q", got, xdg)
+	}
+}
+
+func TestRXBThemeWritesDoNotTouchSharedAppConfig(t *testing.T) {
+	xdg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+	t.Setenv("RYOKU_CONFIG_HOME", filepath.Join(xdg, "ryoku-x11", "ryoku-config"))
+	t.Setenv("RYOKU_X11_BRIDGE", "1")
+
+	renderActiveTemplates(matugenConfig{}, nil)
+	blankGtk()
+	if _, err := os.Stat(filepath.Join(xdg, "gtk-3.0")); !os.IsNotExist(err) {
+		t.Fatalf("RXB theme pipeline touched shared GTK config: %v", err)
+	}
+}
+""")
+
     test = root / "ryoku/cli/internal/sys/paths_rxb_test.go"
     test.write_text("""package sys
 
