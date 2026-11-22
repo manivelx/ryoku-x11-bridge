@@ -1,8 +1,8 @@
-# Pinned Ryoku QML / Wayland API audit (partial)
+# Pinned Ryoku QML / Wayland API audit (in progress)
 
 Source reviewed: upstream Ryoku commit `0bf11741b22f69f22ad2733025671c7d0a5e1a47`.
 
-This is a **representative source audit, not an exhaustive file-by-file inventory**. GitHub code search returned its 100-result cap for `WlrLayershell` and `Quickshell.Wayland`; those counts cannot be treated as complete unique-file totals. Search results included bundled themes, optional modules, helper apps, docs, patches and the main shell, so presence in the repository does not prove that a file is loaded by the default shell profile.
+The audit now has two reproducible CI reports: a whole-subtree source inventory and a static candidate dependency graph rooted at the main shell entrypoint. The earlier GitHub code-search census below is retained as historical reconnaissance only; its 100-result cap is not a complete file count. Neither static report proves runtime activation or full X11 compatibility. Optional profiles, dynamic Loader paths, JavaScript-created components and plugin-provided components still require runtime tracing and interaction tests.
 
 ## Search census
 
