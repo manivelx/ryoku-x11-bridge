@@ -164,6 +164,7 @@ for required in \
   'usr/bin/ryoku-x11-session' \
   'usr/bin/ryoku-x11-session-init' \
   'usr/bin/ryoku-x11-lock' \
+  'usr/bin/ryoku-x11-suspend' \
   'usr/bin/ryoku-wm-i3' \
   'usr/share/ryoku/config/ryoku-x11/config'; do
   grep -Fq "$required" <<<"$variant_list" || {
@@ -172,4 +173,13 @@ for required in \
   }
 done
 
-echo "RXB package safety checks passed: no global environment, SDDM, lockscreen, boot, or GPU policy changes."
+if ! grep -Fq 'Suspend and hibernate are disabled on X11' "$root/payload/bin/ryoku-x11-suspend"; then
+  echo "X11 suspend wrapper must fail closed with an explicit user-facing explanation." >&2
+  exit 1
+fi
+if grep -Eq 'systemctl (suspend|hibernate)|loginctl (suspend|hibernate)' "$root/payload/bin/ryoku-x11-suspend"; then
+  echo "X11 suspend wrapper must not issue a direct sleep command." >&2
+  exit 1
+fi
+
+echo "RXB package safety checks passed: no global environment, SDDM, lockscreen, boot, GPU policy, or unguarded suspend changes."
