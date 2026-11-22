@@ -986,6 +986,14 @@ func ryokuConfigDir() string {
 
     # Keep Ryoku-owned Hub state isolated, but leave external app configuration
     # (GTK, Qt, Kitty, Starship, Voxtype, Fastfetch, etc.) on normal XDG paths.
+    p = root / "ryoku/hub/backend/schemes.go"
+    replace_once(p, 'p := filepath.Join(configHome(), "ryoku", name)',
+                 'p := filepath.Join(ryokuConfigHome(), "ryoku", name)')
+    replace_once(p, '''	_ = exec.Command("gsettings", "set", "org.gnome.desktop.interface", "font-name", "Space Grotesk 11").Run()''',
+                 '''	if os.Getenv("RYOKU_X11_BRIDGE") != "1" {
+		_ = exec.Command("gsettings", "set", "org.gnome.desktop.interface", "font-name", "Space Grotesk 11").Run()
+	}''')
+
     p = root / "ryoku/hub/backend/icon_theme.go"
     replace_once(p, "func applyIconTheme(theme string) error {",
                  '''func applyIconTheme(theme string) error {
