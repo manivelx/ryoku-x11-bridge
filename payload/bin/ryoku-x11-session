@@ -10,6 +10,9 @@ if [[ -n ${WAYLAND_DISPLAY:-} ]]; then
   exit 1
 fi
 
+# Do not let a stale socket from a previous i3/Sway session steer this one.
+unset SWAYSOCK I3SOCK
+
 export XDG_SESSION_TYPE=x11
 export XDG_CURRENT_DESKTOP=Ryoku
 export RYOKU_WM=i3
