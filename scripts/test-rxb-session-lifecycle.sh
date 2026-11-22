@@ -132,7 +132,7 @@ grep -Fqx 'generated seed' "$config_home/ryoku-x11/generated.conf"
 grep -Fqx 'my own keybinds' "$config_home/ryoku-x11/user.conf"
 grep -Fqx 'preserve this desktop config' "$config_home/quickshell/keep.qml"
 grep -Fqx 'isolated RXB shell config' "$config_home/ryoku-x11/ryoku-config/quickshell/shell/shell.qml"
-grep -Fq -- '--user start ryoku-session.target' "$TEST_SYSTEMCTL_LOG"
+grep -Fq -- '--user start ryoku-x11-session.target' "$TEST_SYSTEMCTL_LOG"
 grep -Fq -- '--user stop ryoku-x11-session.target' "$TEST_SYSTEMCTL_LOG"
 ! grep -Fq 'import-environment' "$TEST_SYSTEMCTL_LOG"
 
