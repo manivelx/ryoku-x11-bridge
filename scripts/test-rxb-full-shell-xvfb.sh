@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-for command in Xvfb i3 qs ryoku dbus-run-session timeout; do
+for command in Xvfb i3 qs ryoku ryoku-shell dbus-run-session timeout; do
   command -v "$command" >/dev/null 2>&1 || {
     echo "RXB full-shell Xvfb test requires $command" >&2
     exit 127
@@ -73,70 +73,104 @@ export I3SOCK="$socket"
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME"
 shell_root="$RYOKU_QUICKSHELL_CONFIG_HOME/shell"
 
-# Match ryoku-shell setupQmlImportPath(): the shell imports sibling modules
-# such as shell.services, shell.modules.phone and stage.modules.common. A
-# direct qs -p invocation does not add their parent config root.
-for name in QML_IMPORT_PATH QML2_IMPORT_PATH; do
-  current="${!name:-}"
-  value="$RYOKU_QUICKSHELL_CONFIG_HOME"
-  [[ -z "$current" ]] || value="$value:$current"
-  export "$name=$value"
-done
-
-# Materialization and the QML runtime share one disposable D-Bus session, as
-# they would in the real login session.
-set +e
+# Exercise the real upstream daemon, not a direct Quickshell invocation. The
+# daemon performs setupQmlImportPath(), selects the isolated RXB shell tree,
+# supervises Quickshell and owns the session IPC socket just as it does after login.
 dbus-run-session -- bash -c '
   set -euo pipefail
+  shell_root="$1"
+  tmp="$2"
+  quickshell_root="$3"
+
   timeout --signal=TERM --kill-after=3s 30s ryoku materialize
-  [[ -f "$1/shell.qml" ]]
-  touch "$2/materialized"
-  timeout --signal=TERM --kill-after=3s 20s qs -p "$1"
-' _ "$shell_root" "$tmp" >"$tmp/quickshell.log" 2>&1
-status=$?
-set -e
-
-[[ -f "$tmp/materialized" ]] || {
-  cat "$tmp/quickshell.log"
-  echo "Ryoku config materialization did not finish before the timeout." >&2
-  exit 1
-}
-
-[[ -f "$shell_root/shell.qml" ]] || {
-  cat "$tmp/quickshell.log"
-  echo "Ryoku materializer did not create the RXB shell entry point: $shell_root/shell.qml" >&2
-  find "$RYOKU_CONFIG_HOME" -maxdepth 4 -type f -print >&2 || true
-  exit 1
-}
-
-# These are the module roots imported by the upstream shell entry point. Check
-# the materialized layout before starting Qt so a broken package/materializer
-# fails with a precise path instead of a generic QML import message.
-for module in \
-  shell/services/qmldir \
-  shell/modules/phone/qmldir \
-  stage/qmldir \
-  stage/modules/common/qmldir; do
-  [[ -f "$RYOKU_QUICKSHELL_CONFIG_HOME/$module" ]] || {
-    echo "Required upstream QML module is missing: $RYOKU_QUICKSHELL_CONFIG_HOME/$module" >&2
-    find "$RYOKU_QUICKSHELL_CONFIG_HOME" -maxdepth 4 -type f -name qmldir -print >&2 || true
-    cat "$tmp/quickshell.log"
+  [[ -f "$shell_root/shell.qml" ]] || {
+    echo "Ryoku materializer did not create $shell_root/shell.qml" >&2
+    find "$RYOKU_CONFIG_HOME" -maxdepth 4 -type f -print >&2 || true
     exit 1
   }
-done
 
-if [[ $status -ne 124 ]]; then
-  cat "$tmp/quickshell.log"
-  echo "Full Ryoku Quickshell shell exited unexpectedly (status $status)." >&2
-  exit 1
-fi
+  for module in \
+    shell/services/qmldir \
+    shell/modules/phone/qmldir \
+    stage/qmldir \
+    stage/modules/common/qmldir; do
+    [[ -f "$quickshell_root/$module" ]] || {
+      echo "Required upstream QML module is missing: $quickshell_root/$module" >&2
+      find "$quickshell_root" -maxdepth 4 -type f -name qmldir -print >&2 || true
+      exit 1
+    }
+  done
+  touch "$tmp/materialized"
 
-if grep -Eiq \
-  'QQmlApplicationEngine failed to load|failed to load root|module .* is not installed|Type .* unavailable|No such file or directory.*\.qml' \
-  "$tmp/quickshell.log"; then
-  cat "$tmp/quickshell.log"
-  echo "Full Ryoku shell reported a fatal QML load/import error." >&2
-  exit 1
-fi
+  timeout --signal=TERM --kill-after=3s 35s ryoku-shell daemon >"$tmp/daemon.log" 2>&1 &
+  daemon_pid=$!
+  cleanup_daemon() {
+    local status=$?
+    trap - EXIT
+    ryoku-shell quit >/dev/null 2>&1 || true
+    if kill -0 "$daemon_pid" 2>/dev/null; then
+      kill -TERM "$daemon_pid" 2>/dev/null || true
+    fi
+    wait "$daemon_pid" 2>/dev/null || true
+    exit "$status"
+  }
+  trap cleanup_daemon EXIT
 
-echo "RXB full upstream Ryoku shell QML stayed alive under Xvfb + i3 for the smoke window."
+  for _ in $(seq 1 100); do
+    if ryoku-shell ping >/dev/null 2>&1; then break; fi
+    if ! kill -0 "$daemon_pid" 2>/dev/null; then
+      cat "$tmp/daemon.log"
+      echo "ryoku-shell daemon exited before its IPC socket became ready." >&2
+      exit 1
+    fi
+    sleep 0.1
+  done
+  ryoku-shell ping >/dev/null || {
+    cat "$tmp/daemon.log"
+    echo "ryoku-shell daemon did not answer ping." >&2
+    exit 1
+  }
+
+  status=""
+  for _ in $(seq 1 100); do
+    status="$(ryoku-shell status 2>/dev/null || true)"
+    grep -q "^shell: running$" <<<"$status" && break
+    sleep 0.1
+  done
+  grep -q "^shell: running$" <<<"$status" || {
+    cat "$tmp/daemon.log"
+    cat "$XDG_STATE_HOME/ryoku/surfaces/shell.log" 2>/dev/null || true
+    echo "Ryoku daemon did not keep the full shell component running." >&2
+    exit 1
+  }
+
+  sleep 3
+  status="$(ryoku-shell status 2>/dev/null || true)"
+  grep -q "^shell: running$" <<<"$status" || {
+    cat "$tmp/daemon.log"
+    cat "$XDG_STATE_HOME/ryoku/surfaces/shell.log" 2>/dev/null || true
+    echo "Ryoku shell component exited during the daemon smoke window." >&2
+    exit 1
+  }
+
+  shell_log="$XDG_STATE_HOME/ryoku/surfaces/shell.log"
+  [[ -s "$shell_log" ]] || {
+    cat "$tmp/daemon.log"
+    echo "Ryoku daemon did not create its supervised shell log." >&2
+    exit 1
+  }
+  if grep -Eiq \
+    "QQmlApplicationEngine failed to load|failed to load root|module .* is not installed|Type .* unavailable|No such file or directory.*\\.qml|Failed to load configuration|Expected token" \
+    "$shell_log"; then
+    cat "$shell_log"
+    echo "Ryoku daemon reported a fatal QML load/import error." >&2
+    exit 1
+  fi
+
+  ryoku-shell quit
+  wait "$daemon_pid"
+  trap - EXIT
+  echo "RXB full upstream Ryoku shell daemon stayed healthy under Xvfb + i3."
+' _ "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HOME"
+
+echo "RXB full upstream Ryoku daemon/Xvfb acceptance passed."
