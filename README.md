@@ -142,4 +142,3 @@ See the [compatibility matrix](docs/compatibility-matrix.md), [QML audit](docs/q
 
 RXB targets the original [Ryoku desktop](https://github.com/Ryoku-dev/ryoku) and pins a specific upstream revision in [`UPSTREAM_PIN`](UPSTREAM_PIN). The overlay is applied only to a disposable worktree during package construction.
 
-</div>
