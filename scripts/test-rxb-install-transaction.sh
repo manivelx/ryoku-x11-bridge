@@ -58,9 +58,9 @@ for pkg in "${packages[@]}"; do
     if [[ -n "${local_provides[$dependency_name]:-}" ]]; then
       continue
     fi
-    if [[ -z "${seen_external_dependencies[$dependency]:-}" ]]; then
-      seen_external_dependencies["$dependency"]=1
-      external_dependencies+=("$dependency")
+    if [[ -z "${seen_external_dependencies[$dependency_name]:-}" ]]; then
+      seen_external_dependencies["$dependency_name"]=1
+      external_dependencies+=("$dependency_name")
     fi
   done < <(sed -n 's/^depend = //p' <<<"$metadata")
 done
