@@ -105,8 +105,12 @@ Do not treat the search census or successful source rewrite as runtime compatibi
 RXB now includes `scripts/audit-rxb-qml.py`. After applying the overlay to the pinned upstream checkout, CI inventories every QML file under these three source roots:
 
 - `ryoku/shell/quickshell/shell` — the main shell tree, including optional styles and modules.
+- `ryoku/hub/quickshell` — the Hub and its settings/control pages.
+- `ryoku/shell/ryogami/picker/qml` — the wallpaper picker UI.
 - `ryoku/shell/quickshell/keys` — the key-hint/Kit application.
 - `ryoku/shell/quickshell/ryoshot` — the screenshot/region-selection application.
+- `ryoku/shell/quickshell/reload-cover` and `ryopin` — reload and pin helper surfaces.
+- `ryoku/apps/ryostore/quickshell` and `ryovm/quickshell` — companion apps shipped in the upstream tree.
 
 The report counts and lists source occurrences of `Quickshell.Wayland`, `WlrLayershell`, `ScreencopyView`, `ToplevelManager`, `WlSessionLock`, `Quickshell.Hyprland`, `Quickshell.Niri` and `Quickshell.I3`. CI uploads the machine-readable JSON as the `rxb-qml-x11-inventory` artifact for each integration run.
 
