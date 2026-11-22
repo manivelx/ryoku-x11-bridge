@@ -78,7 +78,7 @@ case "$*" in
   *"start ryoku-session.target"*)
     env_file="$XDG_RUNTIME_DIR/ryoku-x11-session.env"
     [[ -f "$env_file" ]] || { echo "session EnvironmentFile missing" >&2; exit 1; }
-    grep -Fqx "RYOKU_CONFIG_HOME=\"$XDG_CONFIG_HOME/ryoku-x11/config\"" "$env_file"
+    grep -Fqx "RYOKU_CONFIG_HOME=\"$XDG_CONFIG_HOME/ryoku-x11/ryoku-config\"" "$env_file"
     grep -Fqx "RYOKU_QUICKSHELL_CONFIG_HOME=\"$XDG_CONFIG_HOME/ryoku-x11/ryoku-config/quickshell\"" "$env_file"
     grep -Fqx 'XDG_SESSION_TYPE="x11"' "$env_file"
     ;;
@@ -112,7 +112,7 @@ done
 bash "$repo_root/payload/bin/ryoku-x11-session"
 
 [[ ! -e "$runtime/ryoku-x11-session.env" ]]
-grep -Fqx 'i3 config seed' "$config_home/ryoku-x11/ryoku-config"
+grep -Fqx 'i3 config seed' "$config_home/ryoku-x11/config"
 grep -Fqx 'generated seed' "$config_home/ryoku-x11/generated.conf"
 grep -Fqx 'my own keybinds' "$config_home/ryoku-x11/user.conf"
 grep -Fqx 'preserve this desktop config' "$config_home/quickshell/keep.qml"
