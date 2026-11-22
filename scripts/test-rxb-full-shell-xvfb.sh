@@ -72,6 +72,16 @@ export I3SOCK="$socket"
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME"
 shell_root="$RYOKU_QUICKSHELL_CONFIG_HOME/shell"
 
+# Match ryoku-shell setupQmlImportPath(): the shell imports sibling modules
+# such as shell.services, shell.modules.phone and stage.modules.common. A
+# direct qs -p invocation does not add their parent config root.
+for name in QML_IMPORT_PATH QML2_IMPORT_PATH; do
+  current="${!name:-}"
+  value="$RYOKU_QUICKSHELL_CONFIG_HOME"
+  [[ -z "$current" ]] || value="$value:$current"
+  export "$name=$value"
+done
+
 # Materialization and the QML runtime share one disposable D-Bus session, as
 # they would in the real login session.
 set +e
@@ -97,6 +107,22 @@ set -e
   find "$RYOKU_CONFIG_HOME" -maxdepth 4 -type f -print >&2 || true
   exit 1
 }
+
+# These are the module roots imported by the upstream shell entry point. Check
+# the materialized layout before starting Qt so a broken package/materializer
+# fails with a precise path instead of a generic QML import message.
+for module in \
+  shell/services/qmldir \
+  shell/modules/phone/qmldir \
+  stage/qmldir \
+  stage/modules/common/qmldir; do
+  [[ -f "$RYOKU_QUICKSHELL_CONFIG_HOME/$module" ]] || {
+    echo "Required upstream QML module is missing: $RYOKU_QUICKSHELL_CONFIG_HOME/$module" >&2
+    find "$RYOKU_QUICKSHELL_CONFIG_HOME" -maxdepth 4 -type f -name qmldir -print >&2 || true
+    cat "$tmp/quickshell.log"
+    exit 1
+  }
+done
 
 if [[ $status -ne 124 ]]; then
   cat "$tmp/quickshell.log"
