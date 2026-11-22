@@ -12,6 +12,10 @@ for pkg in "${packages[@]}"; do
   metadata="$(bsdtar -xOf "$pkg" .PKGINFO)"
   name="$(sed -n 's/^pkgname = //p' <<<"$metadata" | head -n1)"
   [[ -n "$name" ]] || { echo "Could not read pkgname from $pkg" >&2; exit 1; }
+  if [[ "$name" == "ryogami" ]] && grep -Fqx 'depend = skwd-paper-bin' <<<"$metadata"; then
+    echo "Optional Paper wallpaper provider must not be a hard install dependency" >&2
+    exit 1
+  fi
   package_names+=("$name")
   local_provides["$name"]=1
   while IFS= read -r provided; do
@@ -37,12 +41,6 @@ for pkg in "${packages[@]}"; do
     esac
   done < <(sed -n 's/^depend = //p' <<<"$metadata")
 done
-
-ryogami_metadata="$(bsdtar -xOf "$dist"/ryogami-*.pkg.tar.* .PKGINFO)"
-if grep -Fqx 'depend = skwd-paper-bin' <<<"$ryogami_metadata"; then
-  echo "Optional Paper wallpaper provider must not be a hard install dependency" >&2
-  exit 1
-fi
 
 cleanup() {
   local status=$?
