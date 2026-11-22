@@ -129,7 +129,7 @@ jobs:
           sudo apt-get install -y imagemagick ffmpeg
       - name: Validate RXB overlay script and unit tests
         run: |
-          python3 -m py_compile scripts/apply-upstream-overlay.py
+          python3 -m py_compile scripts/apply-upstream-overlay.py scripts/audit-rxb-qml.py scripts/audit-rxb-qml-graph.py
           python3 -m unittest discover -s tests
           python3 scripts/test-rxb-readme.py
       - name: Validate RXB package scripts
@@ -161,6 +161,16 @@ jobs:
           ! grep -R -E '\\.WlrLayershell\\.keyboardFocus' upstream/ryoku --include='*.qml'
       - name: Inventory pinned Ryoku QML APIs
         run: python3 scripts/audit-rxb-qml.py upstream --output dist/qml-x11-inventory.json
+      - name: Resolve active shell QML dependency candidates
+        run: python3 scripts/audit-rxb-qml-graph.py upstream --output dist/qml-active-shell-graph.json
+      - name: Upload active shell QML graph
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rxb-active-shell-qml-graph
+          path: dist/qml-active-shell-graph.json
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Upload QML API inventory
         if: always()
         uses: actions/upload-artifact@v4
