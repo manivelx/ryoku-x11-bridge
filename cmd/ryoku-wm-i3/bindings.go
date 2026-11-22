@@ -293,12 +293,9 @@ func i3Rebindable(cb CatalogBind) bool {
 func expandCatalogueChord(cb CatalogBind, index int) string {
 	chord := cb.Chord
 	if cb.Family {
-		digit := index % 10
-		if cb.Numpad {
-			chord = strings.ReplaceAll(chord, "{n}", fmt.Sprintf("KP_%d", digit))
-		} else {
-			chord = strings.ReplaceAll(chord, "{n}", strconv.Itoa(digit))
-		}
+		// Numpad catalogue chords already contain the KP_ prefix before
+		// the placeholder (KP_{n}); substitute only the digit.
+		chord = strings.ReplaceAll(chord, "{n}", strconv.Itoa(index%10))
 	}
 	return chord
 }

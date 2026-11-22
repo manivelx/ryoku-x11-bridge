@@ -50,10 +50,10 @@ func TestResolveShippedBindsMapsAndReportsCatalogue(t *testing.T) {
 		t.Fatalf("catalogue support reporting incomplete: close=%v unsupported=%v family=%v", foundClose, foundUnsupported, foundFamily)
 	}
 	generated := renderGeneratedI3Config(binds)
-	if !strings.Contains(generated, "bindsym Mod4+q ") || !strings.Contains(generated, "workspace number 1") {
+	if !strings.Contains(generated, "bindsym Mod4+Q ") || !strings.Contains(generated, "workspace number 1") {
 		t.Fatalf("generated i3 config is missing semantic Ryoku actions:\n%s", generated)
 	}
-	if strings.Contains(generated, "Mod4+r") {
+	if strings.Contains(generated, "Mod4+R") {
 		t.Fatal("unsupported pin action must not be invented or emitted")
 	}
 }
@@ -75,7 +75,7 @@ func TestResolveShippedBindsHonoursFamilyRebindAndDisabledRows(t *testing.T) {
 	if !contains("Mod4+Control+1") || contains("Mod4+1") {
 		t.Fatalf("workspace family rebind not applied with upstream semantics: %+v", binds)
 	}
-	if contains("Mod4+f") {
+	if contains("Mod4+F") {
 		t.Fatal("disabled fullscreen chord was emitted")
 	}
 	for _, row := range rows {
@@ -93,7 +93,7 @@ func TestReboundDefaultWinsChordCollisionBeforeStaticDefault(t *testing.T) {
 	binds, _, _ := resolveShippedBinds(store)
 	var owner string
 	for _, bind := range binds {
-		if bind.chord == "Mod4+f" {
+		if bind.chord == "Mod4+F" {
 			owner = bind.id
 			break
 		}
@@ -110,7 +110,7 @@ func TestCustomBindWinsShippedChordAndCanUseRelease(t *testing.T) {
 		t.Fatalf("custom bind did not claim the chord first: %+v", binds)
 	}
 	generated := renderGeneratedI3Config(binds)
-	if !strings.Contains(generated, "bindsym --release Mod4+q") {
+	if !strings.Contains(generated, "bindsym --release Mod4+Q") {
 		t.Fatalf("release flag missing from generated custom binding: %s", generated)
 	}
 }

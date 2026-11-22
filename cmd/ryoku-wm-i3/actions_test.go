@@ -149,10 +149,10 @@ func TestApplyPreviewsAndWritesGeneratedKeybindings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(generated), "Mod4+x") {
+	if !strings.Contains(string(generated), "Mod4+X") {
 		t.Fatalf("rebound close action was not generated: %s", generated)
 	}
-	if strings.Contains(string(generated), "Mod4+f") {
+	if strings.Contains(string(generated), "Mod4+F") {
 		t.Fatalf("disabled fullscreen action was unexpectedly generated: %s", generated)
 	}
 	if len(report.Unhonored) == 0 {
