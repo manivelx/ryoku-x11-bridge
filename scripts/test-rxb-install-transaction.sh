@@ -125,6 +125,7 @@ for pkg in "${packages[@]}"; do
   metadata="$(bsdtar -xOf "$pkg" .PKGINFO)"
   name="$(sed -n 's/^pkgname = //p' <<<"$metadata" | head -n1)"
   current_version="${package_versions[$name]}"
+  package_arch="$(sed -n 's/^arch = //p' <<<"$metadata" | head -n1)"
   current_rel="${current_version##*-}"
   version_base="${current_version%-*}"
   [[ "$current_rel" =~ ^[0-9]+$ ]] || {
@@ -136,7 +137,7 @@ for pkg in "${packages[@]}"; do
   mkdir -p "$stage"
   bsdtar -xpf "$pkg" -C "$stage"
   sed -i "s|^pkgver = .*|pkgver = $next_version|" "$stage/.PKGINFO"
-  upgraded_pkg="$upgrade_dir/upgrade/$name-$next_version-x86_64.pkg.tar.zst"
+  upgraded_pkg="$upgrade_dir/upgrade/$name-$next_version-$package_arch.pkg.tar.zst"
   bsdtar --zstd -cf "$upgraded_pkg" -C "$stage" .
   upgrade_packages+=("$upgraded_pkg")
   upgrade_versions["$name"]="$next_version"
