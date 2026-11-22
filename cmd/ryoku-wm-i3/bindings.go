@@ -101,6 +101,10 @@ func i3Chord(raw string) (string, bool) {
 			token = "Prior"
 		case "PAGEDOWN":
 			token = "Next"
+		case "MOUSE_UP":
+			token = "button4"
+		case "MOUSE_DOWN":
+			token = "button5"
 		}
 		if strings.HasPrefix(strings.ToLower(token), "mouse:") {
 			switch strings.TrimPrefix(strings.ToLower(token), "mouse:") {
