@@ -117,8 +117,10 @@ for name in "${package_names[@]}"; do
 done
 
 # A fresh disposable Arch container must not acquire these Wayland-only tools
-# or DKMS as a side effect of installing the RXB X11 runtime.
-for forbidden in dkms hypridle hyprpicker wtype wl-clipboard wl-clip-persist grim slurp weston xorg-xwayland qt5-wayland qt6-wayland; do
+# or DKMS as a side effect of installing the RXB X11 runtime. qt6-wayland is
+# intentionally checked in RXB package metadata above, not here: the Arch
+# Quickshell package may bring it as its own optional backend/build prerequisite.
+for forbidden in dkms hypridle hyprpicker wtype wl-clipboard wl-clip-persist grim slurp weston xorg-xwayland qt5-wayland; do
   if pacman -Q "$forbidden" >/dev/null 2>&1; then
     echo "RXB X11 install unexpectedly installed forbidden dependency: $forbidden" >&2
     exit 1
