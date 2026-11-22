@@ -76,5 +76,5 @@ umask 077
 } > "$env_file"
 
 systemctl --user daemon-reload
-# The package links ryoku-shell.service only into ryoku-session.target.wants.
+# The package links RXB-owned shell and Ryogami units only into the dedicated RXB target.
 systemctl --user start ryoku-x11-session.target
