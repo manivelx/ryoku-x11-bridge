@@ -1189,9 +1189,9 @@ func configPath() string {''')
 	}
 	myRyokuCfg := os.Getenv("RYOKU_CONFIG_HOME")
 	myQuickshell := os.Getenv("RYOKU_QUICKSHELL_CONFIG_HOME")''')
-    replace_once(p, "if !sameSessionEnv(string(envRaw), myHome, myCfg, myQuickshell) {",
+    replace_once(p, "if !sameSessionEnv(string(envRaw), myHome, myCfg) {",
                  "if !sameSessionEnv(string(envRaw), myHome, myCfg, myRyokuCfg, myQuickshell) {")
-    replace_once(p, "func sameSessionEnv(environ, home, cfgDir, quickshellDir string) bool {",
+    replace_once(p, "func sameSessionEnv(environ, home, cfgDir string) bool {",
                  "func sameSessionEnv(environ, home, cfgDir, ryokuCfgDir, quickshellDir string) bool {")
     replace_once(p, '''	if c != cfgDir {
 		return false
