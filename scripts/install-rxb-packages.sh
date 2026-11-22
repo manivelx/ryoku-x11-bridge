@@ -24,7 +24,7 @@ if (( EUID != 0 )); then
     "$script_path" "$package_dir"
 fi
 
-for command in pacman bsdtar awk sed head sort grep install mktemp; do
+for command in pacman bsdtar awk sed head sort comm grep install mktemp; do
   command -v "$command" >/dev/null 2>&1 || {
     echo "install-rxb-packages: required command is missing: $command" >&2
     exit 1
@@ -192,12 +192,12 @@ fi
 # Record and mark newly installed external dependencies before the local
 # package transaction. If that transaction fails, the rollback script can
 # still remove the dependencies this installer introduced.
-declare -a external_dependency_packages=()
-for name in "${external_dependencies[@]}"; do
-  if ! grep -Fxq "$name" "$before_file"; then
-    owned_packages["$name"]=1
-    external_dependency_packages+=("$name")
-  fi
+external_after_file="$(mktemp)"
+pacman_exec -Qq | sort -u > "$external_after_file"
+mapfile -t external_dependency_packages < <(comm -13 "$before_file" "$external_after_file")
+rm -f -- "$external_after_file"
+for name in "${external_dependency_packages[@]}"; do
+  owned_packages["$name"]=1
 done
 if (("${#external_dependency_packages[@]}" > 0)); then
   write_manifest
