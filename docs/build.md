@@ -6,7 +6,7 @@ This script builds the original Ryoku runtime packages from the pinned upstream 
 
 **It does not install any packages.** Do not install the resulting package set on the existing CachyOS host until the disposable-VM validation phase passes. The build may require development tools already installed on the build machine; use an Arch/CachyOS VM rather than the daily-use desktop.
 
-The overlay explicitly skips the upstream distribution-level SDDM/qylock bundle, system services manifest, hardware helper binaries, udev/modprobe/polkit/logind rules, and boot/UKI integration. It replaces the desktop package install scriptlet with metadata refresh only. The RXB i3 package adds a systemd user drop-in for the Ryoku shell service and starts it only through `ryoku-session.target`; it does not call `systemctl --user enable` or import X11 variables into the shared user-manager environment. The session writes a mode-0600 environment file for the Ryoku shell unit and removes it when i3 exits. The Ryogami Go daemon is linked only into `ryoku-session.target` and receives the same session-scoped environment file. Its picker QML is covered by the panel-property overlay, but wallpaper/picker runtime behavior remains unvalidated. It does not change the existing SDDM configuration, Orbital theme, Quickshell lockscreen files, NVIDIA driver, kernel, or bootloader.
+The overlay explicitly skips the upstream distribution-level SDDM/qylock bundle, system services manifest, hardware helper binaries, udev/modprobe/polkit/logind rules, and boot/UKI integration. It replaces the desktop package install scriptlet with metadata refresh only. The RXB i3 package adds a systemd user drop-in for the Ryoku shell service and starts it only through `ryoku-session.target`; it does not call `systemctl --user enable` or import X11 variables into the shared user-manager environment. The session writes a mode-0600 environment file for the Ryoku shell unit and removes it when i3 exits. The Ryogami Go daemon is linked only into `ryoku-session.target` and receives the same session-scoped environment file. Its picker QML is covered by the panel-property overlay, but wallpaper/picker runtime behavior remains unvalidated. It does not change the existing SDDM configuration, Orbital theme, Quickshell lockscreen files, the existing `~/.config/quickshell` tree, NVIDIA driver, kernel, or bootloader. RXB's own Quickshell tree is materialized separately under `~/.config/ryoku-x11/quickshell`; the overlay routes both the materializer and `ryoku-shell` daemon to that tree without changing the session's normal `XDG_CONFIG_HOME`.
 
 ## Prerequisites
 
@@ -46,7 +46,7 @@ The build order is:
 4. The original Ryoku desktop payload, built from the patched checkout.
 5. `ryoku-desktop-i3`, which provides the upstream `ryoku-desktop-compositor` virtual package.
 
-The upstream desktop package's `.install` script is replaced in the patched checkout with a non-destructive scriptlet. The i3 variant follows the same provider/base dependency pattern as the upstream Hyprland and niri variants: it depends on the matching `ryoku-desktop` base and provides `ryoku-desktop-compositor`. Treat the base and variant as one package transaction in the disposable test environment; do not try to install them one at a time.
+The upstream desktop package's `.install` script is replaced in the patched checkout with a non-destructive scriptlet. The i3 variant follows the same provider/base dependency pattern as the upstream Hyprland and niri variants: it depends on the matching `ryoku-desktop` base and provides `ryoku-desktop-compositor`. Treat the base, cursor dependencies and variant as one package set. CI verifies that all Ryoku-owned dependencies are represented in the artifact set, then performs an install/remove transaction inside a disposable Arch container with external dependency resolution disabled. This validates package registration, payload paths, session wiring and removal; it is not a host install or a full dependency-install test.
 
 ## Verify package artifacts
 
@@ -62,7 +62,7 @@ Do not run `pacman -U` on the daily-use system. First install into a disposable 
 ## Current limitations
 
 - This is a package-build pipeline, not an installation or rollback tool.
-- The X11 provider's i3 settings generator and user keybinding translation are not yet implemented; the initial i3 config is a conservative seed.
+- The X11 provider's i3 settings generator and user keybinding translation are not yet implemented; the initial i3 config is a conservative seed. The session lifecycle test verifies that RXB uses its own `~/.config/ryoku-x11` and `~/.config/ryoku-x11/quickshell` trees while preserving an existing `~/.config/quickshell` directory.
 - The original shell's Wayland-only services and features remain gated or unavailable on X11.
 - Screen recording, wallpaper daemon behavior, some overlays, and complete multi-monitor behavior still need runtime testing.
 - The X11 lock command prefers XSecureLock and falls back to i3lock. The wrapper selection is testable, but PAM authentication, input grabs, multi-monitor coverage, failure behavior and crash recovery still need security tests. Suspend remains disabled/fail-closed until a secure lock-before-suspend handoff is implemented.
