@@ -309,7 +309,6 @@ func TestFormatModeNormalizesMillihertzAndOmitsMissingData(t *testing.T) {
 	}
 }
 
-
 func TestSnapshotAlwaysSerializesCollectionArrays(t *testing.T) {
 	snapshot := Snapshot{
 		Outputs:    []Output{},
