@@ -46,6 +46,10 @@ base_pkg=""
 variant_pkg=""
 for pkg in "${packages[@]}"; do
   pkg_name="$(bsdtar -xOf "$pkg" .PKGINFO 2>/dev/null | sed -n 's/^pkgname = //p' | head -n1)"
+  if [[ "$pkg_name" == *-debug ]]; then
+    echo "Split debug packages must not be included in the RXB runtime artifact set: $pkg_name" >&2
+    exit 1
+  fi
   case "$pkg_name" in
     ryoku-desktop) base_pkg="$pkg" ;;
     ryoku-desktop-i3) variant_pkg="$pkg" ;;
