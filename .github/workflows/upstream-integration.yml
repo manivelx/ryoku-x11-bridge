@@ -24,6 +24,7 @@ on:
       - "payload/**"
       - "release/packages/ryoku-desktop-i3/**"
       - "docs/**"
+      - "README.md"
       - "UPSTREAM_PIN"
       - "RXB_VERSION"
       - "cmd/ryoku-wm-i3/**"
@@ -116,7 +117,6 @@ jobs:
           python3 scripts/test-rxb-readme.py
       - name: Validate RXB package scripts
         run: |
-          bash -n payload/bin/ryoku-x11-session
           bash -n payload/bin/ryoku-x11-session
           bash -n payload/bin/ryoku-x11-session-init
           bash -n payload/bin/ryoku-x11-lock
