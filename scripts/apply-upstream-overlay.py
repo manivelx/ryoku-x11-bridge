@@ -1182,8 +1182,7 @@ func configPath() string {''')
     replace_once(p, '''	myCfg := os.Getenv("XDG_CONFIG_HOME")
 	if myCfg == "" {
 		myCfg = myHome + "/.config"
-	}
-	myQuickshell := os.Getenv("RYOKU_QUICKSHELL_CONFIG_HOME")''',
+	}''',
                  '''	myCfg := os.Getenv("XDG_CONFIG_HOME")
 	if myCfg == "" {
 		myCfg = myHome + "/.config"
