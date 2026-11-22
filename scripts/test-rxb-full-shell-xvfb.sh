@@ -27,8 +27,10 @@ export RYOKU_WM=i3
 export RYOKU_CONFIG_HOME="$XDG_CONFIG_HOME/ryoku-x11/ryoku-config"
 export RYOKU_QUICKSHELL_CONFIG_HOME="$RYOKU_CONFIG_HOME/quickshell"
 export QT_QPA_PLATFORM=xcb
-export QT_QUICK_BACKEND=software
+export QT_QUICK_BACKEND=opengl
 export QT_OPENGL=software
+export LIBGL_ALWAYS_SOFTWARE=1
+export MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
 unset WAYLAND_DISPLAY SWAYSOCK I3SOCK
 
 xvfb_pid=""
