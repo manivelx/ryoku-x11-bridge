@@ -14,7 +14,7 @@ func runAction(args []string) error {
 	id, rest := args[0], args[1:]
 	switch id {
 	case "window.focus", "window.close", "window.fullscreen", "window.float":
-		windowID, err := requiredWindowID(rest, 0)
+		windowID, err := focusedOrExplicitWindowID(rest)
 		if err != nil {
 			return fmt.Errorf("act %s: %w", id, err)
 		}
@@ -214,6 +214,21 @@ func runAction(args []string) error {
 	default:
 		return fmt.Errorf("unsupported or unknown action %q", id)
 	}
+}
+
+func focusedOrExplicitWindowID(args []string) (int64, error) {
+	if len(args) > 0 {
+		return requiredWindowID(args, 0)
+	}
+	snapshot, err := readState()
+	if err != nil {
+		return 0, fmt.Errorf("read focused window: %w", err)
+	}
+	window, err := focusedWindow(snapshot)
+	if err != nil {
+		return 0, err
+	}
+	return requiredWindowID([]string{window.ID}, 0)
 }
 
 func requiredWindowID(args []string, index int) (int64, error) {
