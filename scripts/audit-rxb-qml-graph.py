@@ -14,21 +14,21 @@ import re
 from collections import deque
 from pathlib import Path
 
-IMPORT_RE = re.compile(r'^\\s*import\\s+(?:"([^"]+)"|([A-Za-z_][\\w.] *))(?:\\s+as\\s+(\\w+))?', re.M)
+IMPORT_RE = re.compile(r'^\s*import\s+(?:"([^"]+)"|([A-Za-z_][\w.] *))(?:\s+as\s+(\w+))?', re.M)
 # Keep module URI parsing separate from quoted directory imports.
-MODULE_IMPORT_RE = re.compile(r'^\\s*import\\s+([A-Za-z_][\\w.]*)', re.M)
-TYPE_RE = re.compile(r'\\b([A-Z][A-Za-z0-9_]*)\\s*\\{')
+MODULE_IMPORT_RE = re.compile(r'^\s*import\s+([A-Za-z_][\w.]*)', re.M)
+TYPE_RE = re.compile(r'\b([A-Z][A-Za-z0-9_]*)\s*\{')
 API_PATTERNS = {
-    "Quickshell.Wayland": re.compile(r'\\bimport\\s+Quickshell\\.Wayland\\b'),
-    "WlrLayershell": re.compile(r'\\bWlrLayershell\\b'),
-    "ScreencopyView": re.compile(r'\\bScreencopyView\\b'),
-    "ToplevelManager": re.compile(r'\\bToplevelManager\\b'),
-    "WlSessionLock": re.compile(r'\\bWlSessionLock(?:Surface)?\\b'),
-    "Quickshell.Hyprland": re.compile(r'\\bimport\\s+Quickshell\\.Hyprland\\b'),
-    "Quickshell.Niri": re.compile(r'\\bimport\\s+Quickshell\\.Niri\\b'),
-    "Quickshell.I3": re.compile(r'\\bimport\\s+Quickshell\\.I3\\b'),
+    "Quickshell.Wayland": re.compile(r'\bimport\s+Quickshell\.Wayland\b'),
+    "WlrLayershell": re.compile(r'\bWlrLayershell\b'),
+    "ScreencopyView": re.compile(r'\bScreencopyView\b'),
+    "ToplevelManager": re.compile(r'\bToplevelManager\b'),
+    "WlSessionLock": re.compile(r'\bWlSessionLock(?:Surface)?\b'),
+    "Quickshell.Hyprland": re.compile(r'\bimport\s+Quickshell\.Hyprland\b'),
+    "Quickshell.Niri": re.compile(r'\bimport\s+Quickshell\.Niri\b'),
+    "Quickshell.I3": re.compile(r'\bimport\s+Quickshell\.I3\b'),
 }
-DYNAMIC_RE = re.compile(r'\\b(?:Loader|Component)\\s*\\{|\\bsource\\s*:\\s*(?:Qt\.resolvedUrl|[A-Za-z_$])')
+DYNAMIC_RE = re.compile(r'\b(?:Loader|Component)\s*\{|\bsource\s*:\s*(?:Qt\.resolvedUrl|[A-Za-z_$])')
 
 
 def qml_files(root: Path) -> list[Path]:
@@ -42,7 +42,7 @@ def module_map(root: Path) -> dict[str, Path]:
             text = qmldir.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
-        for match in re.finditer(r'^\\s*module\\s+([A-Za-z_][\\w.]*)', text, re.M):
+        for match in re.finditer(r'^\s*module\s+([A-Za-z_][\w.]*)', text, re.M):
             found[match.group(1)] = qmldir.parent
     return found
 
@@ -70,7 +70,7 @@ def graph(root: Path, entry: Path) -> dict:
         visited.add(path)
         source = path.read_text(encoding="utf-8", errors="replace")
         visible_dirs = {path.parent}
-        for match in re.finditer(r'^\\s*import\\s+"([^"]+)"(?:\\s+as\\s+\\w+)?', source, re.M):
+        for match in re.finditer(r'^\s*import\s+"([^"]+)"(?:\s+as\s+\w+)?', source, re.M):
             target = (path.parent / match.group(1)).resolve()
             if target.is_dir():
                 visible_dirs.add(target)
@@ -136,7 +136,7 @@ def main() -> int:
     if not root.is_dir() or not entry.is_file():
         parser.error(f"missing QML root or entry: {root} / {entry}")
     report = graph(root, entry)
-    rendered = json.dumps(report, indent=2) + "\\n"
+    rendered = json.dumps(report, indent=2) + "\n"
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(rendered, encoding="utf-8")
