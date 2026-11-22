@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-for command in Xvfb i3 qs ryoku ryoku-shell ryoku-wm-i3 ryoku-hub jq dbus-run-session timeout; do
+for command in Xvfb i3 qs ryoku ryoku-shell ryoku-wm-i3 ryoku-hub jq dbus-run-session timeout ps pgrep; do
   command -v "$command" >/dev/null 2>&1 || {
     echo "RXB full-shell Xvfb test requires $command" >&2
     exit 127
@@ -36,10 +36,35 @@ unset WAYLAND_DISPLAY SWAYSOCK I3SOCK
 
 xvfb_pid=""
 i3_pid=""
+cleanup_quickshell_processes() {
+  local pass pids pid
+  for pass in $(seq 1 50); do
+    pids="$(ps -eo pid=,comm=,args= | awk -v root="$tmp" '$2 ~ /^(quickshell|qmlcachegen|qmlcachegen6)$/ && index($0, root) > 0 { print $1 }')"
+    [[ -z "$pids" ]] && return 0
+    while IFS= read -r pid; do
+      [[ -n "$pid" ]] && kill -TERM "$pid" 2>/dev/null || true
+    done <<<"$pids"
+    sleep 0.1
+  done
+  pids="$(ps -eo pid=,comm=,args= | awk -v root="$tmp" '$2 ~ /^(quickshell|qmlcachegen|qmlcachegen6)$/ && index($0, root) > 0 { print $1 }')"
+  while IFS= read -r pid; do
+    [[ -n "$pid" ]] && kill -KILL "$pid" 2>/dev/null || true
+  done <<<"$pids"
+}
 cleanup() {
+  local status=$?
+  trap - EXIT
+  cleanup_quickshell_processes
   [[ -z "$i3_pid" ]] || kill "$i3_pid" 2>/dev/null || true
   [[ -z "$xvfb_pid" ]] || kill "$xvfb_pid" 2>/dev/null || true
-  rm -rf "$tmp"
+  [[ -z "$i3_pid" ]] || wait "$i3_pid" 2>/dev/null || true
+  [[ -z "$xvfb_pid" ]] || wait "$xvfb_pid" 2>/dev/null || true
+  sleep 0.2
+  rm -rf "$tmp" || {
+    sleep 0.2
+    rm -rf "$tmp"
+  }
+  exit "$status"
 }
 trap cleanup EXIT
 
