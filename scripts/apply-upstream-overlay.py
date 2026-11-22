@@ -1193,14 +1193,8 @@ func configPath() string {''')
                  "if !sameSessionEnv(string(envRaw), myHome, myCfg, myRyokuCfg, myQuickshell) {")
     replace_once(p, "func sameSessionEnv(environ, home, cfgDir string) bool {",
                  "func sameSessionEnv(environ, home, cfgDir, ryokuCfgDir, quickshellDir string) bool {")
-    replace_once(p, '''	if c != cfgDir {
-		return false
-	}
-	return env["RYOKU_QUICKSHELL_CONFIG_HOME"] == quickshellDir''',
-                 '''	if c != cfgDir || env["RYOKU_CONFIG_HOME"] != ryokuCfgDir {
-		return false
-	}
-	return env["RYOKU_QUICKSHELL_CONFIG_HOME"] == quickshellDir''')
+    replace_once(p, "return c == cfgDir",
+                 'return c == cfgDir && env["RYOKU_CONFIG_HOME"] == ryokuCfgDir && env["RYOKU_QUICKSHELL_CONFIG_HOME"] == quickshellDir')
 
     test = root / "ryoku/cli/internal/updater/materialize_rxb_test.go"
     test.write_text("""package updater
