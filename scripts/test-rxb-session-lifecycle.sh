@@ -42,7 +42,7 @@ if [[ ${1:-} == --get-socketpath ]]; then
 fi
 if [[ ${1:-} == -c ]]; then
   [[ -f ${2:-} ]] || { echo "i3 config missing" >&2; exit 1; }
-  exec ryoku-x11-session-init
+  exec bash "$(command -v ryoku-x11-session-init)"
 fi
 echo "unexpected fake i3 arguments: $*" >&2
 exit 2
