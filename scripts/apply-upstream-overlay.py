@@ -366,7 +366,7 @@ def patch_x11_suspend(root: pathlib.Path) -> None:
 
     p = root / "ryoku/shell/quickshell/stage/services/Battery.qml"
     replace_once(p, "readonly property bool allowAutomaticSuspend: Config.options.battery.automaticSuspend",
-                 "readonly property bool allowAutomaticSuspend: Config.options.battery.automaticSuspend && !(Quickshell.env(\\\"DISPLAY\\\") && !Quickshell.env(\\\"WAYLAND_DISPLAY\\\"))")
+                 "readonly property bool allowAutomaticSuspend: Config.options.battery.automaticSuspend && !(Quickshell.env(\"DISPLAY\") && !Quickshell.env(\"WAYLAND_DISPLAY\"))")
     tick = chr(96)
     old = 'Quickshell.execDetached(["bash", "-c", ' + tick + 'systemctl suspend || loginctl suspend' + tick + ']);'
     replace_once(p, old, 'Quickshell.execDetached(["ryoku-x11-suspend"]);')
