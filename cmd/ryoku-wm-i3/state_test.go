@@ -288,3 +288,23 @@ func TestFocusedWindowSentinelDoesNotClaimHistory(t *testing.T) {
 		}
 	}
 }
+
+func TestFormatModeNormalizesMillihertzAndOmitsMissingData(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		mode mode
+		want string
+	}{
+		{name: "millihertz", mode: mode{Width: 1920, Height: 1080, Refresh: 60000}, want: "1920x1080@60"},
+		{name: "fractional millihertz", mode: mode{Width: 1920, Height: 1080, Refresh: 59940}, want: "1920x1080@59.94"},
+		{name: "already hertz", mode: mode{Width: 1280, Height: 720, Refresh: 60}, want: "1280x720@60"},
+		{name: "unknown refresh", mode: mode{Width: 1024, Height: 768}, want: "1024x768"},
+		{name: "missing mode", mode: mode{}, want: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := formatMode(tc.mode); got != tc.want {
+				t.Fatalf("formatMode(%+v) = %q, want %q", tc.mode, got, tc.want)
+			}
+		})
+	}
+}
