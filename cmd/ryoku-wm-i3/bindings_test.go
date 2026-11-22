@@ -117,6 +117,25 @@ func TestCustomBindWinsShippedChordAndCanUseRelease(t *testing.T) {
 	}
 }
 
+func TestUnsupportedCustomBindStillOverridesShippedDefault(t *testing.T) {
+	store := keybindStore{Keybinds: []keybind{{Keys: "SUPER + Q", Action: "unsupported-action"}}}
+	binds, rows, report := resolveShippedBinds(store)
+	for _, bind := range binds {
+		if bind.chord == "Mod4+Q" {
+			t.Fatalf("unsupported custom action fell through to a shipped default: %+v", bind)
+		}
+	}
+	found := false
+	for _, row := range rows {
+		if row.ID == "custom.0" {
+			found = row.Unhonored != ""
+		}
+	}
+	if !found || len(report) == 0 {
+		t.Fatalf("unsupported custom action must remain visible with an explicit reason: rows=%+v report=%+v", rows, report)
+	}
+}
+
 func TestMouseGesturesUseI3FloatingModifierWithoutGeneratedBind(t *testing.T) {
 	binds, rows, _ := resolveShippedBinds(keybindStore{})
 	for _, row := range rows {
