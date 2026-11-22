@@ -2,6 +2,7 @@
 set -euo pipefail
 
 dist="${1:-dist}"
+repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 shopt -s nullglob
 packages=("$dist"/*.pkg.tar.*)
 (("${#packages[@]}" > 0)) || { echo "No Arch package artifacts found in $dist" >&2; exit 1; }
@@ -110,6 +111,13 @@ grep -q '^TryExec=i3$' /usr/share/xsessions/ryoku-x11.desktop
 # outside the explicit RXB X11 session.
 [[ ! -e /usr/lib/systemd/user/default.target.wants/ryoku-shell.service ]]
 [[ ! -e /usr/lib/systemd/user/default.target.wants/ryogami.service ]]
+
+# Exercise the installed upstream QML entry point with the packaged i3 provider.
+# Run as an unprivileged account, but only after the disposable package set is installed.
+if ! id builder >/dev/null 2>&1; then
+  useradd --create-home --shell /bin/bash builder
+fi
+runuser -u builder -- bash "$repo_root/scripts/test-rxb-full-shell-xvfb.sh"
 
 echo "[install-test] Removing the complete package set from the disposable container."
 pacman -Rdd --noconfirm "${package_names[@]}"
