@@ -54,9 +54,34 @@ cleanup() {
   local status=$?
   trap - EXIT
   systemctl --user stop ryoku-x11-session.target >/dev/null 2>&1 || true
-  rm -f "$env_file" || true
+  rm -f "$env_file" "$runtime_config" || true
   exit "$status"
 }
 trap cleanup EXIT
 
-i3 -c "$config_dir/config"
+# i3's include directive uses the user's home config path. RXB stores its
+# isolated files under XDG_CONFIG_HOME, which may be non-default. Build a
+# session-only runtime copy with those two RXB include paths resolved exactly;
+# never rewrite the user-owned config file.
+runtime_config="$runtime_dir/ryoku-x11-i3.conf"
+if [[ -L "$runtime_config" ]]; then
+  echo "ryoku-x11-session: refusing a symlinked runtime i3 config." >&2
+  exit 1
+fi
+umask 077
+: > "$runtime_config"
+while IFS= read -r line || [[ -n "$line" ]]; do
+  case "$line" in
+    "include ~/.config/ryoku-x11/generated.conf")
+      printf 'include "%s/generated.conf"\n' "$config_dir"
+      ;;
+    "include ~/.config/ryoku-x11/user.conf")
+      printf 'include "%s/user.conf"\n' "$config_dir"
+      ;;
+    *)
+      printf '%s\n' "$line"
+      ;;
+  esac
+done < "$config_dir/config"
+chmod 600 "$runtime_config"
+i3 -c "$runtime_config"

@@ -29,6 +29,7 @@ export TEST_STALE_I3_SOCKET="$runtime/stale-i3-ipc.sock"
 # Simulate a valid socket leaked by a previous desktop session; RXB must ignore it.
 export I3SOCK="$TEST_STALE_I3_SOCKET"
 export TEST_SYSTEMCTL_LOG="$tmp/systemctl.log"
+export TEST_RYOKU_APPLY_LOG="$tmp/ryoku-apply.log"
 export RYOKU_X11_SEED_DIR="$seed"
 export PATH="$fakebin:$repo_root/payload/bin:$PATH"
 
@@ -52,11 +53,39 @@ if [[ ${1:-} == -c ]]; then
     exit 1
   }
   [[ -f ${2:-} ]] || { echo "i3 config missing" >&2; exit 1; }
+  [[ ${2:-} == "$XDG_RUNTIME_DIR/ryoku-x11-i3.conf" ]] || {
+    echo "i3 must use the session-only runtime config copy" >&2
+    exit 1
+  }
+  grep -Fq "include \"$XDG_CONFIG_HOME/ryoku-x11/generated.conf\"" "$2" || {
+    echo "runtime i3 config did not resolve generated.conf through XDG_CONFIG_HOME" >&2
+    exit 1
+  }
+  grep -Fq "include \"$XDG_CONFIG_HOME/ryoku-x11/user.conf\"" "$2" || {
+    echo "runtime i3 config did not resolve user.conf through XDG_CONFIG_HOME" >&2
+    exit 1
+  }
+  [[ -s "$TEST_RYOKU_APPLY_LOG" ]] || {
+    echo "Ryoku keybind apply must complete before i3 starts" >&2
+    exit 1
+  }
   exec bash "$(command -v ryoku-x11-session-init)"
 fi
 echo "unexpected fake i3 arguments: $*" >&2
 exit 2
 SH
+
+cat > "$fakebin/ryoku-wm-i3" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ ${1:-} == apply ]] || { echo "unexpected provider command: $*" >&2; exit 2; }
+[[ ${2:-} == "$RYOKU_CONFIG_HOME/desktop.json" ]] || {
+  echo "provider did not receive the isolated neutral desktop store path" >&2
+  exit 1
+}
+printf 'apply\n' >> "$TEST_RYOKU_APPLY_LOG"
+SH
+chmod +x "$fakebin/ryoku-wm-i3"
 
 cat > "$fakebin/ryoku" <<'SH'
 #!/usr/bin/env bash
