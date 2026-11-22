@@ -55,11 +55,22 @@ display_number="$(tr -d '[:space:]' < "$tmp/display-number")"
 [[ "$display_number" =~ ^[0-9]+$ ]] || { echo "Xvfb returned invalid display: $display_number" >&2; exit 1; }
 export DISPLAY=":$display_number"
 
+# Generate the original Ryoku keybinding catalogue before i3 starts, exactly
+# as the installed session wrapper does. Validate the actual generated include
+# with i3's own config parser before starting the compositor.
+ryoku-wm-i3 apply "$RYOKU_CONFIG_HOME/desktop.json" >/dev/null
 cat >"$tmp/i3.conf" <<'EOF'
 font pango:monospace 8
 focus_follows_mouse no
 set $mod Mod4
+floating_modifier $mod
 EOF
+printf 'include "%s"\n' "$XDG_CONFIG_HOME/ryoku-x11/generated.conf" >>"$tmp/i3.conf"
+i3 -C -c "$tmp/i3.conf" >"$tmp/i3-validate.log" 2>&1 || {
+  cat "$tmp/i3-validate.log"
+  echo "i3 rejected the generated RXB keybinding configuration." >&2
+  exit 1
+}
 i3 -c "$tmp/i3.conf" >"$tmp/i3.log" 2>&1 &
 i3_pid=$!
 socket=""
