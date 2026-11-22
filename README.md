@@ -1,6 +1,6 @@
 <div align="center">
 
-# RXB — Ryoku X11 Bridge
+# 〖 RXB — Ryoku X11 Bridge 〗
 
 **力と美のために** · *The original Ryoku desktop, brought to X11.*
 
@@ -20,25 +20,9 @@ An X11 compatibility layer for the original Ryoku desktop, using **Xorg, i3 and 
 > **Development status — not ready for installation on a daily-use machine.**
 > RXB is still in integration and acceptance testing. The package build and parts of the automated test suite exist, but a passing build is not proof that the complete Ryoku desktop works on X11. Do not install RXB on your primary CachyOS system until this README explicitly marks the release as approved and the project owner has completed the pre-install review.
 
-## Contents
+## • overview •
 
-- [What RXB is](#what-rxb-is)
-- [Architecture](#architecture)
-- [Project boundaries and protected configuration](#project-boundaries-and-protected-configuration)
-- [Target platform](#target-platform)
-- [Feature and validation status](#feature-and-validation-status)
-- [Build from source](#build-from-source)
-- [Package inspection and automated validation](#package-inspection-and-automated-validation)
-- [Installation and first login](#installation-and-first-login)
-- [Starting and using the Ryoku desktop](#starting-and-using-the-ryoku-desktop)
-- [Configuration locations](#configuration-locations)
-- [Troubleshooting](#troubleshooting)
-- [Uninstallation and recovery](#uninstallation-and-recovery)
-- [Security model and known limitations](#security-model-and-known-limitations)
-- [Development workflow](#development-workflow)
-- [Documentation and upstream](#documentation-and-upstream)
-
-## What RXB is
+### What RXB is
 
 RXB is a compatibility port for the **original [Ryoku desktop](https://github.com/Ryoku-dev/ryoku)**. It keeps Ryoku's QML shell, Go services, Hub and CLI as the desktop experience, while replacing the Wayland compositor boundary with an X11/i3 provider and X11-specific adapters.
 
@@ -55,7 +39,7 @@ The intended result is a separate login session named **Ryoku (X11 / i3)**:
 
 The goal is to run the original Ryoku experience on X11—not to imitate it with a different shell.
 
-## Architecture
+### Architecture
 
 ```text
              Original Ryoku shell, Hub, CLI and services
@@ -93,7 +77,7 @@ The provider reports capabilities conservatively. Features that depend on Waylan
 
 RXB does not enable the Ryoku shell globally or import X11 variables into the shared systemd user-manager environment.
 
-## Project boundaries and protected configuration
+### What RXB is / isn't
 
 RXB is an **integration package set**, not a standalone operating-system installer. It is designed to add one separate X11 session alongside the user's existing desktop.
 
@@ -111,7 +95,22 @@ RXB stores its own Ryoku configuration below `~/.config/ryoku-x11/`. It does not
 
 **Do not run an installer, package removal command, driver change, kernel change or SDDM reconfiguration as part of RXB testing unless the specific step is documented and approved.**
 
-## Target platform
+### Software overview
+
+| Component | Purpose in RXB |
+|---|---|
+| Original Ryoku | Upstream QML shell, Hub, CLI and desktop services |
+| Quickshell | QtQuick runtime for panels, popups, widgets and shell surfaces |
+| Xorg | X11 display server |
+| i3 | Window management, workspaces, focus, outputs and IPC |
+| RXB provider | Implements the upstream `ryoku-wm` contract through i3 IPC |
+| Picom | Existing X11 compositor; RXB does not replace or rewrite its configuration |
+| X11 adapters | Compatibility layer for selected clipboard, capture, lock and session behaviors |
+| systemd user session | Starts Ryoku services only inside the RXB session target |
+
+## • platform and compatibility •
+
+### Target platform
 
 ### Supported development target
 
@@ -140,7 +139,7 @@ The primary hardware acceptance target is the existing CachyOS desktop:
 
 This table describes the test target, not a claim that RXB has already passed on this hardware. No RXB step should replace the existing NVIDIA driver, kernel, boot configuration, SDDM theme or working recovery session.
 
-## Feature and validation status
+### Feature and validation status
 
 A source implementation, a successful compile, an Xvfb smoke test and a real desktop acceptance test are different evidence levels. Do not treat them as interchangeable.
 
@@ -167,7 +166,9 @@ Detailed evidence and remaining gates:
 - [Risk register](docs/risk-register.md)
 - [Roadmap and acceptance gates](docs/roadmap.md)
 
-## Build from source
+## • instructions •
+
+### Build from source
 
 > **Build only in a disposable Arch/CachyOS VM.** The build script does not install packages, but it does compile upstream components and requires a complete set of build dependencies.
 
@@ -232,7 +233,7 @@ done
 
 Do not install the packages on your primary desktop. Package inspection is not installation acceptance.
 
-## Package inspection and automated validation
+### Package inspection and automated validation
 
 The repository contains these checks:
 
@@ -254,7 +255,7 @@ The disposable installation transaction is privileged and must run only inside t
 
 For the complete CI workflow, see [`.github/workflows/upstream-integration.yml`](.github/workflows/upstream-integration.yml).
 
-## Installation and first login
+### Installation and first login
 
 <blockquote>
 <strong>Not approved for host installation yet.</strong> The steps in this section describe the intended release installation flow so it is documented in advance. Do not execute them on your primary CachyOS desktop until the release gate is changed by the project owner and the pre-install review is complete.
@@ -288,7 +289,7 @@ After installation is explicitly approved:
 
 The package adds an X11 session desktop entry; it must not replace the SDDM configuration or the Orbital theme. No manual `systemctl --user enable ryoku-shell` command should be used. RXB starts the shell only through `ryoku-session.target` while the RXB X11 session is active.
 
-## Starting and using the Ryoku desktop
+### Starting and using the Ryoku desktop
 
 The normal launch method is the SDDM session selector described above. The desktop entry invokes `ryoku-x11-session`, which starts i3 and initializes the Ryoku session.
 
@@ -313,7 +314,34 @@ Expected session identifiers are `x11`, `Ryoku` and `i3`. The shell and wallpape
 
 Use the session's logout action or log out through the desktop/session controls. The session wrapper is responsible for stopping `ryoku-session.target` and removing its temporary environment file when i3 exits.
 
-## Configuration locations
+### Starter keybindings
+
+These are the bindings in the current RXB i3 seed configuration. They are a conservative starting point, not a claim that every upstream shell action is fully functional yet. The `Super` key is `Mod4`.
+
+| Key | Action |
+|---|---|
+| `Super + Return` | Launch the configured Ryoku terminal action |
+| `Super + Space` | Open the Ryoku launcher action |
+| `Super + Escape` | Open quick settings |
+| `Super + ,` | Open Ryoku Hub |
+| `Super + W` | Open the Ryogami wallpaper UI |
+| `Super + Shift + S` | Screenshot action |
+| `Super + L` | Lock through the RXB X11 locker wrapper |
+| `Super + Q` | Close the focused window |
+| `Super + F` | Toggle fullscreen |
+| `Super + Shift + F` | Toggle floating |
+| `Super + Arrow` | Move focus |
+| `Super + Shift + Arrow` | Move the focused window |
+| `Super + 1…9` | Switch workspace |
+| `Super + Shift + 1…9` | Move window to workspace |
+| `Super + Shift + R` | Reload the i3 configuration action |
+| `Super + Shift + E` | Exit the session action |
+
+User-owned overrides belong in `~/.config/ryoku-x11/user.conf`. Do not edit the packaged seed expecting changes to survive package upgrades.
+
+## • configuration •
+
+### Configuration locations
 
 RXB keeps its configuration separate from the existing desktop:
 
@@ -328,7 +356,9 @@ RXB keeps its configuration separate from the existing desktop:
 
 The existing `~/.config/quickshell` directory remains separate and must not be overwritten. Do not copy the entire old Quickshell directory into the RXB configuration root unless a migration step is explicitly documented.
 
-## Troubleshooting
+## • support and recovery •
+
+### Troubleshooting
 
 These commands are diagnostic only; they do not change the system configuration.
 
@@ -384,7 +414,7 @@ Do not start the service globally as a workaround. The session environment file 
 
 Before changing anything, collect the commands above, the exact Git commit or package versions, and the SDDM/session logs. Redact usernames, tokens, private paths and other personal data before sharing logs publicly.
 
-## Uninstallation and recovery
+### Uninstallation and recovery
 
 Host uninstallation is not approved yet. The package-removal test currently runs in a disposable Arch environment; it does not prove that removing RXB from a machine with pre-existing Ryoku packages is safe.
 
@@ -392,7 +422,9 @@ For current development, use a disposable VM snapshot and test the complete pack
 
 If an RXB session fails on a test machine, select the existing BSPWM session at SDDM. RXB must not require changing the default session or disabling the existing desktop.
 
-## Security model and known limitations
+## • limitations and safety •
+
+### Security model and known limitations
 
 - X11 does not provide the same compositor-enforced session-lock semantics as Wayland. The current XSecureLock/i3lock wrapper selection is not proof of secure PAM authentication, focus/input grabs, crash recovery or lock-before-suspend behavior.
 - Lock-before-suspend remains disabled until the secure handoff is implemented and tested.
@@ -408,7 +440,9 @@ If an RXB session fails on a test machine, select the existing BSPWM session at 
 
 Stop testing if protected configuration changes, the existing desktop stops working, a lock/security behavior is uncertain, or the package manager proposes removing unrelated desktop components.
 
-## Development workflow
+## • development •
+
+### Development workflow
 
 1. Read [`UPSTREAM_PIN`](UPSTREAM_PIN) before modifying upstream-derived behavior.
 2. Keep upstream changes in the overlay; do not modify the original Ryoku checkout.
@@ -420,7 +454,9 @@ Stop testing if protected configuration changes, the existing desktop stops work
 
 CI keeps validation runs per commit so a newer push does not cancel the result for an earlier commit. Always check the run associated with the exact commit under review.
 
-## Documentation and upstream
+## • upstream and project links •
+
+### Documentation and upstream
 
 | Document | Scope |
 |---|---|
