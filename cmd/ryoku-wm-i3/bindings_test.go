@@ -26,6 +26,15 @@ func TestI3ChordTranslatesRyokuModifiersAndMouseButtons(t *testing.T) {
 	if _, ok := i3Chord("SUPER + mouse:999"); ok {
 		t.Fatal("unknown mouse button must be rejected")
 	}
+	for _, unsafe := range []string{
+		"SUPER + Q; exec touch /tmp/rxb-injected",
+		"SUPER + Q\\\" exec --no-startup-id touch /tmp/rxb-injected",
+		"SUPER + Q\\\\bar",
+	} {
+		if _, ok := i3Chord(unsafe); ok {
+			t.Errorf("unsafe i3 config token must be rejected: %q", unsafe)
+		}
+	}
 }
 
 func TestResolveShippedBindsMapsAndReportsCatalogue(t *testing.T) {
