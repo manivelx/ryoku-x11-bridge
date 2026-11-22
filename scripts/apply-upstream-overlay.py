@@ -1124,8 +1124,11 @@ func configPath() string {''')
 }''',
                  '''func paletteBridgeConfigRoot() string { return ryokuConfigHome() }''')
     p = root / "ryoku/hub/backend/fastfetch.go"
-    replace_once(p, 'filepath.Join(configHome(), "ryoku", "shell.json")',
-                 'filepath.Join(ryokuConfigHome(), "ryoku", "shell.json")')
+    text = p.read_text()
+    old_path = 'filepath.Join(configHome(), "ryoku", "shell.json")'
+    if old_path not in text:
+        raise RuntimeError(f"{p}: expected Fastfetch Ryoku settings path")
+    p.write_text(text.replace(old_path, 'filepath.Join(ryokuConfigHome(), "ryoku", "shell.json")'))
 
     p = root / "ryoku/rashin/backend/paths.go"
     replace_once(p, 'cfg := os.Getenv("XDG_CONFIG_HOME")',
