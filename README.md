@@ -23,7 +23,7 @@ An X11 compatibility port for Ryoku using **Xorg, i3 and Quickshell**.
 
 <div align="center"><sub>Upstream Ryoku visual reference — illustrative only; not an RXB X11 screenshot.</sub></div>
 
-### What RXB is
+## What it is
 
 RXB is a compatibility port for the **original [Ryoku desktop](https://github.com/Ryoku-dev/ryoku)**. It keeps Ryoku's QML shell, Go services, Hub and CLI as the desktop experience, while replacing the Wayland compositor boundary with an X11/i3 provider and X11-specific adapters.
 
@@ -82,10 +82,6 @@ RXB does not enable the Ryoku shell globally or import X11 variables into the sh
 
 ## Hardware and compatibility
 
-## • platform and compatibility •
-
-### Target platform
-
 ### Supported development target
 
 - Arch Linux or CachyOS, x86_64.
@@ -119,12 +115,12 @@ A source implementation, a successful compile, an Xvfb smoke test and a real des
 
 | Area | Current evidence |
 |---|---|
-| i3 provider | Implemented; Go formatting, vet, race tests and build have passed in CI on earlier validated commits |
-| Pinned upstream overlay | Implemented; upstream Go test suites have passed in CI on earlier validated commits |
-| Arch package build | Builds in a disposable Arch CI container on earlier validated commits |
-| Package safety inspection | Implemented; earlier CI checks passed |
-| Quickshell 0.3.2 + i3 smoke | Minimal Xvfb smoke has passed; not full-shell acceptance |
-| Disposable install/uninstall | Test and dependency resolution are being hardened; latest branch acceptance is pending |
+| i3 provider | Implemented; Go formatting, vet, race tests and build passed on the current validated commit |
+| Pinned upstream overlay | Implemented; upstream Go test suites passed on the current validated commit |
+| Arch package build | Passed in a disposable Arch CI container on the current validated commit |
+| Package safety inspection | Passed in the current disposable Arch CI run |
+| Quickshell 0.3.2 + i3 smoke | Full upstream daemon/QML process smoke passed under Xvfb+i3; not interactive acceptance |
+| Disposable install/uninstall | Passed in the current disposable Arch CI transaction; not host rollback acceptance |
 | Full original Ryoku shell on X11 | Not accepted |
 | Active-profile QML / Wayland audit | Partial; exhaustive audit remains open |
 | Lock/PAM and lock-before-suspend | Security validation pending; suspend handoff remains disabled |
@@ -132,7 +128,7 @@ A source implementation, a successful compile, an Xvfb smoke test and a real des
 | GT 740 + NVIDIA 470 + Picom rendering | Not tested to acceptance on target hardware |
 | Host installation and rollback | Not accepted |
 
-Check the [live GitHub Actions runs](https://github.com/manivelx/ryoku-x11-bridge/actions) for the result associated with the current commit. A result from an older commit does not validate later changes.
+The current implementation validation is commit `a6fe85702c3f6d46937c84992f0d0fe388d62033`. The README-only follow-up is being checked separately; its result does not change the feature acceptance gates below.
 
 Detailed evidence and remaining gates:
 - [Compatibility matrix](docs/compatibility-matrix.md)
