@@ -501,7 +501,7 @@ Stop testing if protected configuration changes, the existing desktop stops work
 6. Update the compatibility matrix, QML audit, risk register and roadmap with evidence—not assumptions.
 7. Do not mark host installation ready until disposable installation/removal, full-shell runtime, security and target-hardware acceptance are complete.
 
-CI keeps validation runs per commit so a newer push does not cancel the result for an earlier commit. Always check the run associated with the exact commit under review.
+The upstream integration workflow prioritizes the current branch head: a newer push cancels an older in-progress integration run so stale package builds do not occupy the runner. The Go provider workflow is serialized separately. Always review the workflow result associated with the exact commit under review.
 
 ## • license and attribution •
 
