@@ -257,8 +257,9 @@ done
 verify_protected
 
 echo "[install-test] Rolling back every RXB package to its original built version."
-# A malformed archive must abort the whole transaction before any RXB
-# package is registered. A subsequent valid install proves recovery.
+# A malformed archive must abort the whole transaction without changing
+# the already-installed upgraded package set. A subsequent valid install
+# proves recovery and rolls every package back to its original built version.
 invalid_pkg="$upgrade_dir/invalid.pkg.tar.zst"
 printf 'not an Arch package archive\n' > "$invalid_pkg"
 if pacman -U --noconfirm "${packages[@]}" "$invalid_pkg"; then
@@ -266,10 +267,11 @@ if pacman -U --noconfirm "${packages[@]}" "$invalid_pkg"; then
   exit 1
 fi
 for name in "${package_names[@]}"; do
-  if pacman -Q "$name" >/dev/null 2>&1; then
-    echo "RXB package was partially installed after a rejected transaction: $name" >&2
+  actual_version="$(pacman -Q "$name" | awk '{print $2}')"
+  [[ "$actual_version" == "${upgrade_versions[$name]}" ]] || {
+    echo "Rejected transaction changed the installed RXB package state: $name ($actual_version)" >&2
     exit 1
-  fi
+  }
 done
 verify_protected
 
