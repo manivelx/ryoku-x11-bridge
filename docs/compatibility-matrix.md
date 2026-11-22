@@ -7,6 +7,7 @@ Legend: Direct candidate = Quickshell/X11 API likely covers it; Adapter = implem
 | QML rendering | Quickshell QtQuick X11 | Direct candidate | Full shell loads on target Qt/driver |
 | User config isolation | RYOKU_CONFIG_HOME + RXB-only Quickshell path | Adapter | Existing XDG/Quickshell config unchanged; RXB settings persist separately |
 | App-wide theming | Gated while RXB safety flag is set | Gated | Requires an explicit per-session app-config adapter |
+| Lock/greeter management | RXB XSecureLock wrapper; upstream qylock/greeter mutations disabled | Gated | PAM, lock-before-suspend and secure-lock acceptance still required |
 | Panels and bars | Quickshell X11 windows + i3 struts/stacking | Adapter | Stacking, struts, focus and multi-monitor |
 | Popups and overlays | Quickshell X11 windows | Adapter | Placement, transient behavior, dismissal |
 | Workspaces/monitors | Quickshell i3 integration | Direct candidate | Real workspace/output events |
