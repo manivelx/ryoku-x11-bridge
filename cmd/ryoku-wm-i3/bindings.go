@@ -240,9 +240,9 @@ func i3Action(id string, workspace int) (string, string) {
 	case "shell.stageEditor":
 		return shellExec("ryoku-shell hub open widgets"), ""
 	case "shell.screenshot", "shell.screenshotPrint":
-		return shellExec("ryoku-cmd-ryoshot"), ""
+		return shellExec(`env QML_IMPORT_PATH="$HOME/.local/lib/qt6/qml" QML2_IMPORT_PATH="$HOME/.local/lib/qt6/qml" ryoku-cmd-ryoshot`), ""
 	case "shell.screenshotMonitor":
-		return shellExec("RYOSHOT_MODE=monitor ryoku-cmd-ryoshot"), ""
+		return shellExec(`env QML_IMPORT_PATH="$HOME/.local/lib/qt6/qml" QML2_IMPORT_PATH="$HOME/.local/lib/qt6/qml" RYOSHOT_MODE=monitor ryoku-cmd-ryoshot`), ""
 	case "shell.restartAudio":
 		return shellExec("ryoku-restart-audio"), ""
 	case "media.volumeUp", "media.volumeDown", "media.mute", "media.micMute",
@@ -308,11 +308,16 @@ func effectiveCatalogueChord(chord string, rebinds map[string]string) string {
 }
 
 func effectiveFamilyChord(chord string, index int, rebinds map[string]string) string {
+	// A legacy per-member rebind takes precedence over a family-level rebind,
+	// matching the pinned upstream provider's resolution order.
+	if value := strings.TrimSpace(rebinds[chord]); value != "" {
+		return value
+	}
 	familyKey := strings.ReplaceAll(chord, strconv.Itoa(index%10), "{n}")
 	if value := strings.TrimSpace(rebinds[familyKey]); value != "" {
 		return strings.ReplaceAll(value, "{n}", strconv.Itoa(index%10))
 	}
-	return effectiveCatalogueChord(chord, rebinds)
+	return chord
 }
 
 func resolveShippedBinds(store keybindStore) ([]resolvedI3Bind, []bindRow, []Unhonored) {
@@ -505,7 +510,7 @@ func runKeybindApply(args []string) error {
 		Unhonored{Key: "desktop.appearance", Reason: "Provider-specific appearance settings are not generated from the neutral store yet."},
 		Unhonored{Key: "desktop.autostart", Reason: "Autostart settings are not yet applied by the i3 provider."},
 	)
-	report := ApplyReport{Provider: "i3", Unhonored: unhonored, ReloadNeeded: len(binds) > 0}
+	report := ApplyReport{Provider: "i3", Unhonored: unhonored, ReloadNeeded: true}
 	if preview {
 		return json.NewEncoder(out).Encode(report)
 	}

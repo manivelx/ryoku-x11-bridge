@@ -130,3 +130,22 @@ func TestMouseGesturesUseI3FloatingModifierWithoutGeneratedBind(t *testing.T) {
 		}
 	}
 }
+
+func TestFamilySpecificLegacyRebindOverridesFamilyRebind(t *testing.T) {
+	store := keybindStore{KeybindRebinds: map[string]string{
+		"SUPER + {n}": "SUPER + CTRL + {n}",
+		"SUPER + 1":   "SUPER + ALT + 1",
+	}}
+	binds, _, _ := resolveShippedBinds(store)
+	contains := func(chord string) bool {
+		for _, bind := range binds {
+			if bind.chord == chord && bind.id == "workspace.focus" {
+				return true
+			}
+		}
+		return false
+	}
+	if !contains("Mod4+Alt+1") || contains("Mod4+Control+1") {
+		t.Fatalf("member-specific rebind must override family rebind: %+v", binds)
+	}
+}
