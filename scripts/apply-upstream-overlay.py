@@ -792,7 +792,7 @@ func TestRXBX11SecureSuspendFailsClosed(t *testing.T) {
 
     p = root / "ryoku/cli/internal/host/power.go"
     text = p.read_text()
-    if '"os"' not in text.split("import (",1)[1].split(")",1)[0]:
+    if not text.startswith('package host\n\nimport "os"'):
         text = text.replace('package host\n\n', 'package host\n\nimport "os"\n\n', 1)
     old = '''	case "poweroff", "reboot", "suspend", "hibernate":
 		if len(args) != 1 {
