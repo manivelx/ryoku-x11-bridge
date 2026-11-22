@@ -7,10 +7,35 @@ packages=("$dist"/*.pkg.tar.*)
 (("${#packages[@]}" > 0)) || { echo "No Arch package artifacts found in $dist" >&2; exit 1; }
 
 declare -a package_names=()
+declare -A local_provides=()
 for pkg in "${packages[@]}"; do
-  name="$(bsdtar -xOf "$pkg" .PKGINFO | sed -n 's/^pkgname = //p' | head -n1)"
+  metadata="$(bsdtar -xOf "$pkg" .PKGINFO)"
+  name="$(sed -n 's/^pkgname = //p' <<<"$metadata" | head -n1)"
   [[ -n "$name" ]] || { echo "Could not read pkgname from $pkg" >&2; exit 1; }
   package_names+=("$name")
+  local_provides["$name"]=1
+  while IFS= read -r provided; do
+    provided_name="${provided%%[<>=]*}"
+    [[ -n "$provided_name" ]] && local_provides["$provided_name"]=1
+  done < <(sed -n 's/^provides = //p' <<<"$metadata")
+done
+
+# Every Ryoku-owned dependency must be supplied by this exact package set.
+# External Arch dependencies are deliberately outside this package-transaction
+# test; pacman -dd below skips dependency resolution in the throwaway container.
+for pkg in "${packages[@]}"; do
+  metadata="$(bsdtar -xOf "$pkg" .PKGINFO)"
+  while IFS= read -r dependency; do
+    dependency_name="${dependency%%[<>=]*}"
+    case "$dependency_name" in
+      ryoku*|gpk)
+        [[ -n "${local_provides[$dependency_name]:-}" ]] || {
+          echo "Missing local Ryoku package dependency: $dependency_name (required by $pkg)" >&2
+          exit 1
+        }
+        ;;
+    esac
+  done < <(sed -n 's/^depend = //p' <<<"$metadata")
 done
 
 cleanup() {
@@ -28,7 +53,7 @@ cleanup() {
 trap cleanup EXIT
 
 echo "[install-test] Installing the complete built package set into this disposable Arch container."
-pacman -U --noconfirm --nodeps "${packages[@]}"
+pacman -U --noconfirm -dd "${packages[@]}"
 
 for name in "${package_names[@]}"; do
   pacman -Q "$name" >/dev/null || { echo "Package was not registered after install: $name" >&2; exit 1; }
