@@ -1338,6 +1338,22 @@ func TestRXBConfigHomeIsolatedFromExternalAppConfig(t *testing.T) {
 	}
 }
 
+func TestRXBBlocksHostLockAndAppConfigMutations(t *testing.T) {
+	t.Setenv("RYOKU_X11_BRIDGE", "1")
+	if err := runLock([]string{"set", "example"}); err == nil {
+		t.Fatal("RXB allowed upstream lock theme mutation")
+	}
+	if err := applyIconTheme("Papirus"); err == nil {
+		t.Fatal("RXB allowed shared icon theme mutation")
+	}
+	if err := applyStarship(starshipState{}, false); err == nil {
+		t.Fatal("RXB allowed shared Starship config mutation")
+	}
+	if err := runFastfetch([]string{"reset"}); err == nil {
+		t.Fatal("RXB allowed shared Fastfetch config mutation")
+	}
+}
+
 func TestRXBThemeWritesDoNotTouchSharedAppConfig(t *testing.T) {
 	xdg := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", xdg)
