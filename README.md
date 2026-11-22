@@ -1,13 +1,15 @@
 <div align="center">
 
+<img src="https://raw.githubusercontent.com/Ryoku-dev/ryoku/main/ryoku/assets/brand/logo-mark-v2.png" alt="Ryoku" width="132" />
+
 # Ryoku X11 Bridge
 
-**力と美のために** · *The original Ryoku desktop, adapted for X11.*
+**力と美のために** · *For the sake of power and beauty.*
 
-An X11 compatibility port for Ryoku using **Xorg, i3 and Quickshell**.
+The original Ryoku desktop, brought to X11.
 
-[![i3 provider](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/go-provider.yml/badge.svg?branch=rxb%2Fdisposable-install-validation)](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/go-provider.yml)
-[![Pinned upstream integration](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/upstream-integration.yml/badge.svg?branch=rxb%2Fdisposable-install-validation)](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/upstream-integration.yml)
+[![Provider CI](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/go-provider.yml/badge.svg?branch=rxb%2Fdisposable-install-validation)](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/go-provider.yml)
+[![Upstream integration](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/upstream-integration.yml/badge.svg?branch=rxb%2Fdisposable-install-validation)](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/upstream-integration.yml)
 ![X11](https://img.shields.io/badge/session-X11-0d0d0d?style=for-the-badge)
 ![i3](https://img.shields.io/badge/window%20manager-i3-0d0d0d?style=for-the-badge)
 ![Quickshell](https://img.shields.io/badge/Quickshell-0.3.2-0d0d0d?style=for-the-badge)
@@ -17,17 +19,18 @@ An X11 compatibility port for Ryoku using **Xorg, i3 and Quickshell**.
 
 </div>
 
-> **Development build — not ready for installation on a daily-use machine.** Do not install on your daily-use PC yet. The exact current commit has passed CI provider, upstream Go tests, Arch package build, Quickshell/Xvfb shell smoke, and disposable Arch install/removal. This is package and integration evidence, not proof that every desktop feature works. Secure locking, feature interactions, multi-monitor behavior and your GT 740 / NVIDIA 470 desktop have not passed acceptance.
+> **Development build — not ready for installation on a daily-use machine.** RXB has passed provider tests, pinned upstream Go tests, an Arch package build, and an isolated Quickshell/i3 startup smoke. Disposable Arch package transaction checks have also passed on a prior validated commit. This is not a completed desktop acceptance: interactive shell surfaces, secure locking, multi-monitor behavior, host rollback and the target GT 740 / NVIDIA 470 desktop still need validation.
 
-<img src="https://raw.githubusercontent.com/Ryoku-dev/ryoku/main/docs/media/showroom/blue-hour.webp" alt="Ryoku upstream desktop visual reference. RXB has not yet reproduced or validated this complete appearance on X11." width="100%" />
-
-<div align="center"><sub>Upstream Ryoku visual reference — illustrative only; not an RXB X11 screenshot.</sub></div>
+<div align="center">
+  <img src="https://raw.githubusercontent.com/Ryoku-dev/ryoku/main/docs/media/showroom/blue-hour.webp" alt="Original Ryoku desktop visual reference" width="100%" />
+  <sub>Original Ryoku upstream showroom image — design reference only, not an RXB X11 screenshot.</sub>
+</div>
 
 ## What it is
 
-RXB is a compatibility port for the **original [Ryoku desktop](https://github.com/Ryoku-dev/ryoku)**. It keeps Ryoku's QML shell, Go services, Hub and CLI as the desktop experience, while replacing the Wayland compositor boundary with an X11/i3 provider and X11-specific adapters.
+Ryoku is a complete Linux desktop with its own shell, services, Hub and command-line tools. **RXB (Ryoku X11 Bridge)** is the compatibility port that aims to run that original desktop in an X11 session.
 
-RXB is not a new desktop shell, a communication window, or a hybrid of unrelated shells. It is a separate desktop integration project and does not replace, merge with, or modify **MRX-Desktop**. MRX-Desktop remains unfinished and under active development; it is not being treated as a daily-use desktop.
+The goal is not to recreate Ryoku with another shell, build a generic communication window, or combine unrelated desktop projects. RXB keeps the original Ryoku experience and replaces the Wayland compositor-facing boundary with an i3 provider and narrowly scoped X11 adapters.
 
 The intended result is a separate login session named **Ryoku (X11 / i3)**:
 
@@ -38,11 +41,27 @@ The intended result is a separate login session named **Ryoku (X11 / i3)**:
 - **X11 adapters** replace selected Wayland-facing services where a safe equivalent exists.
 - **Original Ryoku services** run only inside the RXB session, not as global user-session services.
 
-The goal is to run the original Ryoku experience on X11—not to imitate it with a different shell.
+RXB is separate from MRX-Desktop. It does not replace, merge with or modify MRX.
 
-## The X11 port
+## The desktop
 
-### Architecture
+The original Ryoku shell is the visual and interaction target. Its bar styles, launcher, control sidebar, Hub, widgets, dock, overview and desktop services are upstream Ryoku components; RXB's task is to make those components behave correctly on X11 rather than to substitute a new interface.
+
+<div align="center">
+<table>
+  <tr>
+    <td width="50%"><img src="https://raw.githubusercontent.com/Ryoku-dev/ryoku/main/docs/media/showroom/red-august.webp" alt="Ryoku Red August theme reference" width="100%" /><br /><sub>Red August — upstream reference</sub></td>
+    <td width="50%"><img src="https://raw.githubusercontent.com/Ryoku-dev/ryoku/main/docs/media/showroom/rose.webp" alt="Ryoku Rose theme reference" width="100%" /><br /><sub>Rose — upstream reference</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="https://raw.githubusercontent.com/Ryoku-dev/ryoku/main/docs/media/showroom/teal.webp" alt="Ryoku Teal theme reference" width="100%" /><br /><sub>Teal — upstream reference</sub></td>
+    <td width="50%"><img src="https://raw.githubusercontent.com/Ryoku-dev/ryoku/main/docs/media/showroom/aether.webp" alt="Ryoku Aether theme reference" width="100%" /><br /><sub>Aether — upstream reference</sub></td>
+  </tr>
+</table>
+<sub>These images belong to the original Ryoku project. They illustrate the intended visual direction and do not claim that these surfaces are already validated in RXB.</sub>
+</div>
+
+### X11 architecture
 
 ```text
              Original Ryoku shell, Hub, CLI and services
@@ -53,44 +72,125 @@ The goal is to run the original Ryoku experience on X11—not to imitate it with
                               |
                         i3 IPC socket
                               |
-                         i3 on Xorg
+                           i3 / Xorg
 
              Quickshell 0.3.2 / QtQuick on X11
                     |                    |
               Quickshell.I3         X11 PanelWindow
               workspaces/outputs    panels, popups, overlays
 
-             X11 capture / clipboard / lock adapters
-                       RXB-owned session config
+             RXB session adapters and isolated config
 ```
 
-The provider reports capabilities conservatively. Features that depend on Wayland-only protocols are disabled or left unavailable rather than being simulated with fake Wayland objects.
+The provider advertises capabilities conservatively. A Wayland-only feature is unavailable until an X11 implementation has been proven; RXB does not fabricate Wayland objects or report unsupported actions as successful.
 
-### Session startup sequence
+### Session lifecycle
 
-1. The display manager starts the `Ryoku (X11 / i3)` X11 session entry.
-2. `ryoku-x11-session` validates the X11 environment and starts i3 with the RXB-owned starter configuration.
-3. The i3 startup command runs `ryoku-x11-session-init`.
-4. The initializer discovers the active i3 IPC socket, ignoring inherited stale i3/Sway socket variables.
-5. RXB materializes the original Ryoku QML/configuration into its dedicated configuration root.
-6. A mode-restricted session environment file is written under `$XDG_RUNTIME_DIR`.
-7. The initializer starts `ryoku-x11-session.target`; the Ryoku shell and Ryogami services are linked only to this target.
-8. Quickshell loads the original Ryoku shell against the X11/i3 provider.
-9. When i3 exits, the session wrapper stops the RXB target and removes the temporary environment file.
+1. The display manager starts **Ryoku (X11 / i3)**.
+2. `ryoku-x11-session` validates the X11 environment and starts i3 with RXB's session configuration.
+3. The initializer discovers the active i3 IPC socket, ignoring inherited stale i3/Sway socket variables.
+4. RXB materializes Ryoku's QML and settings into its dedicated configuration root.
+5. A mode-restricted session environment file is written under `$XDG_RUNTIME_DIR`.
+6. `ryoku-x11-session.target` starts the RXB-owned shell and Ryogami services.
+7. Quickshell loads the original Ryoku shell against the i3 provider.
+8. When i3 exits, the wrapper stops the RXB target and removes the temporary environment file.
 
-RXB does not enable the Ryoku shell globally or import X11 variables into the shared systemd user-manager environment.
+The shell is not enabled globally, and X11 variables are not imported into the shared systemd user-manager environment.
 
-## Hardware and compatibility
+## Editions and platform
 
-### Supported development target
+RXB is currently an **Arch Linux / CachyOS x86_64 development integration**. It targets an Xorg session, i3, systemd user sessions and Quickshell 0.3.2 / QtQuick on X11. It is not an upstream Ryoku edition and does not currently provide an ISO or a stable release.
 
-- Arch Linux or CachyOS, x86_64.
-- systemd user sessions.
-- Xorg and i3.
-- Quickshell 0.3.2 / QtQuick X11.
-- The pinned Ryoku upstream revision recorded in [`UPSTREAM_PIN`](UPSTREAM_PIN).
+| Environment | Status |
+|---|---|
+| Arch Linux x86_64, Xorg + i3 | Development and disposable CI target |
+| CachyOS x86_64, Xorg + i3 | Intended target; host acceptance pending |
+| Wayland sessions | Not supported by RXB |
+| Other distributions | Not currently validated |
+| Daily-use installation | Not ready |
 
-### Target-machine validation profile
+The exact Ryoku source revision is pinned in [`UPSTREAM_PIN`](UPSTREAM_PIN). Builds must use that revision; moving upstream branches are not treated as reproducible inputs.
+
+## Feature and validation status
+
+A source adapter, a successful build, an Xvfb smoke test and real desktop acceptance are separate evidence levels.
+
+| Area | Current evidence |
+|---|---|
+| i3 provider | Implemented; Go formatting, vet, race tests and build passed on a recorded CI commit |
+| Upstream overlay | Applied to a disposable pinned worktree; upstream Go test suites passed on a recorded CI commit |
+| Quickshell i3 integration | Quickshell.I3 and X11 PanelWindow smoke passed under Xvfb |
+| Original shell daemon | Basic daemon IPC and QML-process startup smoke passed in isolated Xvfb+i3 |
+| Arch packages | Package build and safety inspection passed in disposable Arch CI |
+| Package transaction | Install/remove transaction passed in disposable Arch CI on the recorded successful baseline |
+| Full interactive Ryoku shell | Not accepted |
+| Active-profile QML / Wayland audit | Partial; exhaustive inventory remains open |
+| Keybinding translation | Not implemented; no custom RXB keybindings are shipped |
+| Secure lock / PAM / lock-before-suspend | Not security-validated; suspend handoff remains disabled |
+| Multi-monitor, capture and previews | Not accepted |
+| GT 740 / NVIDIA 470 / Picom rendering | Not tested to acceptance on target hardware |
+| Daily-host installation and rollback | Not accepted |
+
+See the [compatibility matrix](docs/compatibility-matrix.md), [QML / Wayland audit](docs/qml-x11-audit.md), [risk register](docs/risk-register.md), and [roadmap](docs/roadmap.md) for evidence and release gates.
+
+## Install
+
+**There is no safe daily-host installation procedure yet.**
+
+Do not run `pacman -U`, the upstream Ryoku installer, package-removal commands, or SDDM/session changes on your everyday CachyOS installation. The current workflow is for building and testing inside a disposable Arch/CachyOS VM or snapshot.
+
+RXB's package design deliberately avoids the upstream distribution-level SDDM/qylock bundle, boot/UKI integration, udev/modprobe/polkit/logind rules and global service enablement. It uses a separate `RYOKU_CONFIG_HOME` under `~/.config/ryoku-x11/ryoku-config`, preserving the normal `XDG_CONFIG_HOME` and existing `~/.config/quickshell` tree.
+
+The intended session must coexist with the existing **BSPWM session, SDDM Orbital theme, Quickshell X11 lockscreen, Picom configuration, NVIDIA driver, kernel and boot setup**. Host rollback, lock security, interactive acceptance and target hardware testing remain release gates.
+
+## Build and test
+
+Use a disposable Arch or CachyOS VM with a non-root build account. Install the build prerequisites described in [the build guide](docs/build.md).
+
+Clone the sources:
+
+```bash
+git clone https://github.com/Ryoku-dev/ryoku.git ryoku
+git clone https://github.com/manivelx/ryoku-x11-bridge.git ryoku-x11-bridge
+
+cd ryoku
+git checkout "$(tr -d '[:space:]' < ../ryoku-x11-bridge/UPSTREAM_PIN)"
+cd ../ryoku-x11-bridge
+```
+
+Build the package set as a normal user:
+
+```bash
+bash scripts/build-rxb-packages.sh ../ryoku
+```
+
+The script checks the upstream pin, creates a disposable detached worktree, applies the RXB overlay there, builds the original Ryoku packages and the i3 provider package, then removes the temporary worktree. It does **not** install packages.
+
+Run the non-installing checks:
+
+```bash
+python3 -m py_compile scripts/apply-upstream-overlay.py
+python3 -m unittest discover -s tests
+
+bash -n payload/bin/ryoku-x11-session
+bash -n payload/bin/ryoku-x11-session-init
+bash -n payload/bin/ryoku-x11-lock
+
+bash scripts/test-x11-lock-wrapper.sh
+bash scripts/test-rxb-session-lifecycle.sh
+bash scripts/test-rxb-package-safety.sh dist
+bash scripts/test-quickshell-i3-smoke.sh
+```
+
+The privileged package transaction/removal check runs in disposable Arch CI. It is not a test of installing or rolling back on your real CachyOS host.
+
+## Day to day
+
+Not available yet. The original shell daemon can start in the isolated Xvfb+i3 smoke environment, but the user-facing workflows have not been accepted for everyday use.
+
+RXB does not add custom keybindings. The upstream Ryoku binding catalogue and faithful i3 translation/rebinding are still work in progress. The current binding view reports only bindings actually present in the active i3 configuration.
+
+## Hardware
 
 The primary hardware acceptance target is the existing CachyOS desktop:
 
@@ -107,130 +207,25 @@ The primary hardware acceptance target is the existing CachyOS desktop:
 | Existing desktop | BSPWM / SDDM / Ryoku Orbital |
 | Existing lockscreen | Quickshell X11 lockscreen |
 
-This table describes the test target, not a claim that RXB has already passed on this hardware. No RXB step should replace the existing NVIDIA driver, kernel, boot configuration, SDDM theme or working recovery session.
-
-### Feature and validation status
-
-A source implementation, a successful compile, an Xvfb smoke test and a real desktop acceptance test are different evidence levels. Do not treat them as interchangeable.
-
-| Area | Current evidence |
-|---|---|
-| i3 provider | Implemented; Go formatting, vet, race tests and build passed on the current validated commit |
-| Pinned upstream overlay | Implemented; upstream Go test suites passed on the current validated commit |
-| Arch package build | Passed in a disposable Arch CI container on the current validated commit |
-| Package safety inspection | Passed in the current disposable Arch CI run |
-| Quickshell 0.3.2 + i3 smoke | Full upstream daemon/QML process smoke passed under Xvfb+i3; not interactive acceptance |
-| Disposable install/uninstall | Passed in the current disposable Arch CI transaction; not host rollback acceptance |
-| Full original Ryoku shell on X11 | Not accepted |
-| Active-profile QML / Wayland audit | Partial; exhaustive audit remains open |
-| Lock/PAM and lock-before-suspend | Security validation pending; suspend handoff remains disabled |
-| Multi-monitor behavior | Not accepted |
-| GT 740 + NVIDIA 470 + Picom rendering | Not tested to acceptance on target hardware |
-| Host installation and rollback | Not accepted |
-
-The current implementation validation is commit `a6fe85702c3f6d46937c84992f0d0fe388d62033`. The README-only follow-up is being checked separately; its result does not change the feature acceptance gates below.
-
-Detailed evidence and remaining gates:
-- [Compatibility matrix](docs/compatibility-matrix.md)
-- [QML / Wayland audit](docs/qml-x11-audit.md)
-- [Risk register](docs/risk-register.md)
-- [Roadmap and acceptance gates](docs/roadmap.md)
-
-## Build and test
-
-RXB is currently a developer integration project. Build and disposable acceptance are available; a safe host installation is not.
-
-### 1. Build in a disposable Arch or CachyOS VM
-
-Install the build dependencies in a VM or snapshot that can be discarded:
-
-```bash
-sudo pacman -Syu --needed
-sudo pacman -S --needed \
-  base-devel git curl go jq cmake ninja pkgconf python fish librsvg \
-  xorg-xcursorgen hyprcursor xcur2png tesseract-data-eng \
-  wayland wayland-protocols ffmpeg \
-  qt6-base qt6-declarative qt6-multimedia qt6-shadertools \
-  qt6-quick3d qt6-svg qt6-5compat qt6-imageformats qt6-wayland \
-  vulkan-headers imagemagick quickshell i3-wm i3lock \
-  xorg-server-xvfb xorg-xrandr maim xclip slop dbus mesa
-```
-
-### 2. Clone the pinned sources
-
-```bash
-git clone https://github.com/Ryoku-dev/ryoku.git
-git clone https://github.com/manivelx/ryoku-x11-bridge.git
-
-cd ryoku
-git checkout "$(tr -d '[:space:]' < ../ryoku-x11-bridge/UPSTREAM_PIN)"
-```
-
-### 3. Build RXB packages
-
-Run as a normal user, not root:
-
-```bash
-cd ../ryoku-x11-bridge
-bash scripts/build-rxb-packages.sh ../ryoku
-```
-
-Packages are written to `dist/`. This creates a disposable worktree at the pinned upstream revision, applies the RXB overlay there and builds the package set. It does not patch the original Ryoku checkout or install packages on the build host.
-
-### 4. Run non-installing checks
-
-```bash
-python3 -m py_compile scripts/apply-upstream-overlay.py
-python3 -m unittest discover -s tests
-
-bash -n payload/bin/ryoku-x11-session
-bash -n payload/bin/ryoku-x11-session-init
-bash -n payload/bin/ryoku-x11-lock
-
-bash scripts/test-x11-lock-wrapper.sh
-bash scripts/test-rxb-session-lifecycle.sh
-bash scripts/test-rxb-package-safety.sh dist
-bash scripts/test-quickshell-i3-smoke.sh
-```
-
-The privileged full package transaction/removal test runs in the disposable Arch CI environment only. Review the exact [GitHub Actions run](https://github.com/manivelx/ryoku-x11-bridge/actions/runs/45008912887) and its artifacts for the current commit.
-
-## Install
-
-<blockquote>
-
-**Not available for host installation.**
-
-Do not run `pacman -U`, the Ryoku upstream installer, package removal commands, or any SDDM/session changes on your daily CachyOS installation. RXB has not completed host rollback, security, interactive feature or GT 740/NVIDIA 470 acceptance. This is not an install guide yet.
-
-</blockquote>
-
-The intended release design is a separate **Ryoku (X11 / i3)** login session. It must leave the existing BSPWM session, SDDM Orbital theme, Quickshell lockscreen, Picom configuration, NVIDIA driver, kernel and boot setup untouched. The release installer and rollback procedure will be documented only after those guarantees have been tested on an isolated target.
-
-## Day to day
-
-Not available yet. The upstream Ryoku shell daemon can be started in the disposable Xvfb+i3 smoke environment, but user-facing desktop workflows and controls are not accepted for daily use. RXB does not add custom keybindings: the upstream Ryoku binding catalogue and faithful i3 translation are still being ported. The active-bind view currently reports actual i3 config bindings only.
+This table is the target test profile, not a compatibility claim. The GT 740 has no iGPU fallback in this machine, so RXB must not replace the current NVIDIA stack or jeopardize the working recovery desktop.
 
 ## Where things are
 
-| Guide | Scope |
+| Guide | What it covers |
 |---|---|
 | [Architecture](docs/architecture.md) | Session ownership, provider contract and X11 adapters |
-| [Build guide](docs/build.md) | Pinned source, build prerequisites and package generation |
-| [Compatibility matrix](docs/compatibility-matrix.md) | X11 strategy and feature acceptance evidence |
-| [QML / Wayland audit](docs/qml-x11-audit.md) | QML API dependencies and migration status |
+| [Build guide](docs/build.md) | Pinned source, prerequisites and package generation |
+| [Compatibility matrix](docs/compatibility-matrix.md) | X11 strategies and feature acceptance evidence |
+| [QML / Wayland audit](docs/qml-x11-audit.md) | QML APIs and migration status |
 | [Risk register](docs/risk-register.md) | Security, packaging and runtime risks |
 | [Roadmap](docs/roadmap.md) | Phases, release gates and evidence ledger |
 
-## Upstream, credits and license
+## Credits and license
 
-RXB targets the original [Ryoku desktop](https://github.com/Ryoku-dev/ryoku). The pinned upstream source revision is recorded in [`UPSTREAM_PIN`](UPSTREAM_PIN); the overlay is applied to a disposable worktree during builds.
+RXB targets the original [Ryoku desktop](https://github.com/Ryoku-dev/ryoku), maintained in the [Ryoku upstream repository](https://github.com/Ryoku-dev/ryoku). The upstream revision is recorded in [`UPSTREAM_PIN`](UPSTREAM_PIN), and the overlay is applied to a disposable worktree during builds.
 
-## • license and attribution •
+The RXB i3 package metadata declares `GPL-3.0-or-later`. The repository-level license and combined upstream/third-party notice audit are not yet complete. Preserve all upstream and third-party notices; do not assume that every bundled asset, font or plugin shares the RXB package license. See risk R16 in the [risk register](docs/risk-register.md).
 
-The RXB i3 package metadata currently declares `GPL-3.0-or-later`. The RXB repository does not yet contain a top-level `LICENSE` file, and the combined upstream-derived distribution still requires a final license and notice audit. Do not infer that every upstream asset, font, QML plugin or bundled component shares the RXB package license.
-
-Before publishing a release artifact for redistribution, the project owner must confirm the RXB source license, add the corresponding repository license file, and preserve all upstream and third-party notices. This is tracked as risk **R16** in the [risk register](docs/risk-register.md).
-
-- **RXB:** https://github.com/manivelx/ryoku-x11-bridge
-- **Ryoku upstream:** https://github.com/Ryoku-dev/ryoku
+<div align="center">
+  <sub>RXB is an independent X11 compatibility effort for the original Ryoku desktop. It is not an official Ryoku release.</sub>
+</div>
