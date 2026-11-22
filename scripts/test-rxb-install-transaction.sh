@@ -144,6 +144,10 @@ for pkg in "${packages[@]}"; do
   # archive those names directly instead.
   mapfile -d '' -t archive_entries < <(find "$stage" -mindepth 1 -maxdepth 1 -printf '%f\\0' | sort -z)
   bsdtar --zstd -cf "$upgraded_pkg" -C "$stage" -- "${archive_entries[@]}"
+  bsdtar -tf "$upgraded_pkg" | grep -Fxq '.PKGINFO' || {
+    echo "Synthetic upgrade archive is missing root-level .PKGINFO: $upgraded_pkg" >&2
+    exit 1
+  }
   upgrade_packages+=("$upgraded_pkg")
   upgrade_versions["$name"]="$next_version"
   rm -rf "$stage"
