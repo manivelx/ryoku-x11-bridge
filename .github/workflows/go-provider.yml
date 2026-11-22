@@ -2,7 +2,8 @@ name: i3 provider
 
 concurrency:
   # Keep each commit's validation result; newer pushes must not cancel an active run.
-  group: rxb-${{ github.workflow }}-${{ github.ref }}-${{ github.sha }}
+  group: rxb-${{ github.workflow }}-${{ github.ref }}
+  # Serialize builds on this branch without cancelling the active validation.
   cancel-in-progress: false
 on:
   push:
