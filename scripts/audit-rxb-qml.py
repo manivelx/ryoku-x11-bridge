@@ -2,7 +2,7 @@
 """Inventory Wayland/compositor-specific QML APIs in the pinned Ryoku shell tree.
 
 This is a source census, not a runtime-activation proof. It deliberately reports
-whole shell subtrees so optional styles and helper apps are not mistaken for the
+whole shell and companion-app subtrees so optional styles and helper apps are not mistaken for the
 default active profile.
 """
 from __future__ import annotations
