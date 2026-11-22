@@ -13,6 +13,10 @@ for pkg in "${packages[@]}"; do
   metadata="$(bsdtar -xOf "$pkg" .PKGINFO)"
   name="$(sed -n 's/^pkgname = //p' <<<"$metadata" | head -n1)"
   [[ -n "$name" ]] || { echo "Could not read pkgname from $pkg" >&2; exit 1; }
+  if [[ "$name" == *-debug ]]; then
+    echo "Split debug package must not be installed as part of the RXB runtime set: $name" >&2
+    exit 1
+  fi
   if [[ "$name" == "ryogami" ]] && grep -Fqx 'depend = skwd-paper-bin' <<<"$metadata"; then
     echo "Optional Paper wallpaper provider must not be a hard install dependency" >&2
     exit 1
