@@ -12,6 +12,7 @@ trap cleanup EXIT
 
 home="$tmp/home"
 config_home="$home/.config"
+export XDG_CONFIG_HOME="$config_home"
 runtime="$tmp/runtime"
 fakebin="$tmp/bin"
 seed="$tmp/seed"
