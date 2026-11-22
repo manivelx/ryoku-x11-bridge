@@ -98,7 +98,7 @@ set -e
   exit 1
 }
 
-if [[ $status -ne 124 && $status -ne 143 ]]; then
+if [[ $status -ne 124 ]]; then
   cat "$tmp/quickshell.log"
   echo "Full Ryoku Quickshell shell exited unexpectedly (status $status)." >&2
   exit 1
