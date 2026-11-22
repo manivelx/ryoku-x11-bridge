@@ -127,8 +127,8 @@ def graph(root: Path, entry: Path) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("upstream", type=Path, help="pinned Ryoku checkout root")
-    parser.add_argument("--root", default="ryoku/shell/quickshell/shell", help="QML root relative to upstream")
-    parser.add_argument("--entry", default="shell.qml", help="entry QML file relative to QML root")
+    parser.add_argument("--root", default="ryoku/shell/quickshell", help="QML root relative to upstream")
+    parser.add_argument("--entry", default="shell/shell.qml", help="entry QML file relative to QML root")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     root = (args.upstream / args.root).resolve()
