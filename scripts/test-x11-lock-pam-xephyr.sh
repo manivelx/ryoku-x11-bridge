@@ -54,6 +54,15 @@ dump_diagnostics() {
       echo "  $d after xsetroot -solid red: $(runuser -u "$user" -- env -i PATH=/usr/bin:/bin HOME="$tmp/home" DISPLAY="$d" import -window root -depth 8 -crop 1x1+640+360 +repage txt:- 2>&1 | tail -n 1)" >&2
       runuser -u "$user" -- env -i PATH=/usr/bin:/bin HOME="$tmp/home" DISPLAY="$d" xdpyinfo 2>/dev/null | grep -E 'extensions|XTEST|MIT-SCREEN|RANDR|XINERAMA|DOUBLE|SHAPE|XKEYBOARD|MIT-SHM|DPMS|Composite' | head -12 >&2 || true
     done
+    echo "-- paint/readback variants on $disp:" >&2
+    local ru="runuser -u $user -- env -i PATH=/usr/bin:/bin HOME=$tmp/home DISPLAY=$disp"
+    $ru xsetroot -solid '#ff0000' >&2 2>&1; sleep 1
+    echo "  x:root readback after xsetroot: $($ru convert x:root -depth 8 -format '%[pixel:p{640,360}]' info: 2>&1 | tail -n 1)" >&2
+    echo "  import png readback after xsetroot: $($ru import -window root -depth 8 png:- 2>/dev/null | convert png:- -depth 8 -format '%[pixel:p{640,360}] size=%wx%h' info: 2>&1 | tail -n 1)" >&2
+    $ru display -window root -geometry 1280x720+0+0 xc:'#00ff00' >&2 2>&1 &
+    sleep 2
+    echo "  readback after 'display -window root xc:green': $($ru import -window root -depth 8 -crop 1x1+640+360 +repage txt:- 2>&1 | tail -n 1)" >&2
+    echo "  xwininfo children: $($ru xwininfo -root -children 2>&1 | grep -c '0x')" >&2
     echo "-- raw pixel probe:" >&2
     runuser -u "$user" -- env -i PATH=/usr/bin:/bin HOME="$tmp/home" DISPLAY="$disp" import -window root -depth 8 -crop 1x1+640+360 +repage txt:- 2>&1 | head -5 >&2 || true
     runuser -u "$user" -- env -i PATH=/usr/bin:/bin HOME="$tmp/home" DISPLAY="$disp" xwininfo -root -tree 2>&1 | head -40 >&2 || true
