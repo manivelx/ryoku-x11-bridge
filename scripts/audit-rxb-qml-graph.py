@@ -14,7 +14,6 @@ import re
 from collections import deque
 from pathlib import Path
 
-IMPORT_RE = re.compile(r'^\s*import\s+(?:"([^"]+)"|([A-Za-z_][\w.] *))(?:\s+as\s+(\w+))?', re.M)
 # Keep module URI parsing separate from quoted directory imports.
 MODULE_IMPORT_RE = re.compile(r'^\s*import\s+([A-Za-z_][\w.]*)', re.M)
 TYPE_RE = re.compile(r'\b([A-Z][A-Za-z0-9_]*)\s*\{')
