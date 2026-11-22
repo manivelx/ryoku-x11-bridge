@@ -49,13 +49,17 @@ jobs:
           ref: ${{ steps.upstream-pin.outputs.sha }}
           path: upstream
       - name: Build all RXB packages in a disposable Arch container
+        timeout-minutes: 45
         run: |
+          mkdir -p dist
           docker run --rm \
             -v "$GITHUB_WORKSPACE:/workspace" \
             -w /workspace \
             archlinux:base-devel \
             bash -lc '
-              set -euo pipefail
+              set -euxo pipefail
+              exec > >(tee /workspace/dist/arch-ci.log) 2>&1
+              echo "[ci] Updating the disposable Arch build environment."
               pacman -Syu --noconfirm --needed \
                 git curl go jq cmake ninja pkgconf python fish librsvg xorg-xcursorgen hyprcursor xcur2png tesseract-data-eng \
                 wayland wayland-protocols ffmpeg \
@@ -66,11 +70,24 @@ jobs:
                 xorg-xrandr maim xclip slop dbus mesa
               builder_uid="$(stat -c %u /workspace)"
               useradd -m -u "$builder_uid" builder
+              echo "[ci] Building the complete RXB package set."
               su builder -c "bash /workspace/scripts/build-rxb-packages.sh /workspace/upstream /workspace/dist"
+              echo "[ci] Checking package safety."
               su builder -c "bash /workspace/scripts/test-rxb-package-safety.sh /workspace/dist"
+              echo "[ci] Running Quickshell/i3 API smoke."
               su builder -c "bash /workspace/scripts/test-quickshell-i3-smoke.sh"
+              echo "[ci] Running dependency resolution, installation, full-shell and removal tests."
               bash /workspace/scripts/test-rxb-install-transaction.sh /workspace/dist
+              echo "[ci] Disposable Arch package acceptance completed."
             '
+      - name: Upload Arch package build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rxb-arch-build-log
+          path: dist/arch-ci.log
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Bundle Arch packages for artifact upload
         run: |
           shopt -s nullglob
