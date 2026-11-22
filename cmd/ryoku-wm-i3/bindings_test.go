@@ -171,4 +171,3 @@ func TestReadKeybindStoreUsesIsolatedRyokuDesktopStorePath(t *testing.T) {
 		t.Fatalf("provider did not read the isolated Ryoku desktop store: %+v", store.KeybindRebinds)
 	}
 }
-
