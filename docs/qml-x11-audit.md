@@ -108,6 +108,7 @@ RXB now includes `scripts/audit-rxb-qml.py`. After applying the overlay to the p
 - `ryoku/hub/quickshell` — the Hub and its settings/control pages.
 - `ryoku/shell/ryogami/picker/qml` — the wallpaper picker UI.
 - `ryoku/shell/quickshell/keys` — the key-hint/Kit application.
+- `ryoku/shell/quickshell/keys-hint` — the lightweight key-hint overlay.
 - `ryoku/shell/quickshell/ryoshot` — the screenshot/region-selection application.
 - `ryoku/shell/quickshell/reload-cover` and `ryopin` — reload and pin helper surfaces.
 - `ryoku/apps/ryostore/quickshell` and `ryovm/quickshell` — companion apps shipped in the upstream tree.
