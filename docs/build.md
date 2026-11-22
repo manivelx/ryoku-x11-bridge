@@ -47,7 +47,7 @@ The build order is:
 5. The original Ryoku desktop payload, built from the patched checkout.
 6. `ryoku-desktop-i3`, which provides the upstream `ryoku-desktop-compositor` virtual package.
 
-The upstream desktop package's `.install` script is replaced in the patched checkout with a non-destructive scriptlet. The i3 variant follows the same provider/base dependency pattern as the upstream Hyprland and niri variants: it depends on the matching `ryoku-desktop` base and provides `ryoku-desktop-compositor`. Treat the base, cursor dependencies and variant as one package set. CI verifies that all Ryoku-owned dependencies are represented in the artifact set, then performs an install/remove transaction inside a disposable Arch container with external dependency resolution disabled. This validates package registration, payload paths, session wiring and removal; it is not a host install or a full dependency-install test.
+The upstream desktop package's `.install` script is replaced in the patched checkout with a non-destructive scriptlet. The i3 variant follows the same provider/base dependency pattern as the upstream Hyprland and niri variants: it depends on the matching `ryoku-desktop` base and provides `ryoku-desktop-compositor`. Treat the base, cursor dependencies and variant as one package set. CI verifies that all Ryoku-owned dependencies are represented in the artifact set, resolves external runtime dependencies from the official Arch repositories inside the disposable container, then performs an install/remove transaction. This validates package registration, payload paths, session wiring and removal; it is not a host install or a host rollback test.
 
 ## Verify package artifacts
 
