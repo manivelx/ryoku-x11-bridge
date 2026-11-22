@@ -274,7 +274,28 @@ When the package set has passed disposable installation/removal, runtime, securi
 7. Verify that the new `Ryoku (X11 / i3)` X11 session entry exists.
 8. Log out and select the new session from the SDDM session selector. Keep BSPWM available as the recovery session.
 
-The dependency and package transaction commands will be finalized against the exact release artifacts before host testing. Do not guess package versions or install a partial subset: the original Ryoku base packages and the RXB i3 variant are intended to be installed as one coherent package set.
+After release approval, from the directory containing the exact reviewed `dist/` artifacts, derive and install the external runtime dependencies from the package metadata, then install the complete local package set:
+
+```bash
+shopt -s nullglob
+packages=(dist/*.pkg.tar.*)
+(("${#packages[@]}" > 0)) || { echo "No RXB packages found in dist/"; exit 1; }
+
+mapfile -t external_dependencies < <(
+  for package in "${packages[@]}"; do
+    bsdtar -xOf "$package" .PKGINFO
+  done |
+    sed -n 's/^depend = //p' |
+    sed -E 's/[<>=].*$//' |
+    sort -u |
+    grep -Ev '^(ryoku|gpk)' || true
+)
+
+sudo pacman -S --needed "${external_dependencies[@]}"
+sudo pacman -U "${packages[@]}"
+```
+
+The local Ryoku packages are installed together by the final `pacman -U` transaction; the first command installs only external dependencies from the official repositories. The disposable CI transaction must prove this exact dependency set resolves before the commands are considered release-ready. Do not guess package versions or install a partial subset.
 
 ### First login
 
@@ -418,7 +439,20 @@ Before changing anything, collect the commands above, the exact Git commit or pa
 
 Host uninstallation is not approved yet. The package-removal test currently runs in a disposable Arch environment; it does not prove that removing RXB from a machine with pre-existing Ryoku packages is safe.
 
-For current development, use a disposable VM snapshot and test the complete package transaction and removal there. Do not run broad `pacman -Rns ryoku*` commands: they can remove unrelated or previously installed packages. A host rollback procedure will be published only after the installer records the exact packages it added and the removal path has been tested.
+For current development, use a disposable VM snapshot and test the complete package transaction and removal there. Once the package set is installed in a disposable VM, its package names can be read from the same artifact set:
+
+```bash
+mapfile -t package_names < <(
+  for package in dist/*.pkg.tar.*; do
+    bsdtar -xOf "$package" .PKGINFO
+  done |
+    sed -n 's/^pkgname = //p' |
+    sort -u
+)
+sudo pacman -Rns "${package_names[@]}"
+```
+
+**Run this removal example only in the disposable VM where the RXB package set was installed for testing.** On a real host, some of those packages may have existed before RXB; removing them blindly could remove software the user already relied on. Do not run broad `pacman -Rns ryoku*` commands. A host rollback procedure will be published only after the installer records the exact packages it added and the removal path has been tested.
 
 If an RXB session fails on a test machine, select the existing BSPWM session at SDDM. RXB must not require changing the default session or disabling the existing desktop.
 
