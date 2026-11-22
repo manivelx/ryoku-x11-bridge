@@ -36,13 +36,13 @@ Searches of the pinned tree identified use of:
 Search results are leads, not a complete dependency proof. Each imported type, usage, conditional and transitive dependency must be inventoried. Search coverage is currently incomplete.
 
 ## Quickshell
-The target host has Quickshell 0.3.2. Its documentation includes X11 windowing and i3 integration for workspace/monitor models, plus PAM, PipeWire, BlueZ, MPRIS and system-tray services. Confirm exact API availability against the installed 0.3.2 package and run QML load tests; current online documentation may differ.
+The target host and CI use Quickshell 0.3.2. CI passed the Quickshell.I3 + X11 PanelWindow API smoke and a basic full-shell daemon/QML-load smoke under Xvfb+i3. This confirms the tested API surface and startup path only; visual stacking, struts, focus, popups, tray, notifications, wallpaper picker, capture, lock and multi-monitor interactions remain separate acceptance items. Current online documentation may differ from the installed package.
 
 ## Lock security
 The original qylock depends on Wayland session-lock semantics. X11 cannot provide the same compositor-enforced ext_session_lock_v1 guarantee. Do not port it as a normal fullscreen QML window. Candidate: XSecureLock + PAM as the authoritative locker; QML visual only.
 
 ## Hardware risks
-The GT 740 is Kepler. NVIDIA 470.256.02 is the legacy proprietary stack currently working on Xorg. Test QtQuick/GLX/EGL, Picom interaction, shader/effect support, 1080p capture performance and multi-monitor redraw without changing the driver/kernel. No RXB runtime or hardware validation has yet been performed.
+The GT 740 is Kepler. NVIDIA 470.256.02 is the legacy proprietary stack currently working on Xorg. CI has exercised the shell with Xvfb/software rendering, not the target GPU. Still test QtQuick/GLX/EGL, Picom interaction, shader/effect support, 1080p capture performance and multi-monitor redraw without changing the driver/kernel. No target-hardware validation has been performed.
 
 ## Audit completeness
-Initial architecture/provider audit completed. Exhaustive QML import/use inventory, service dependency audit, and installed Quickshell 0.3.2 runtime checks remain open. This document must not be treated as a complete line-by-line certification of the upstream source tree.
+Initial architecture/provider audit, Quickshell 0.3.2 API smoke, package build, package-safety checks, basic full-shell daemon/QML-load smoke and disposable Arch install/removal have passed in CI. Exhaustive QML import/use inventory, complete service dependency audit, interactive feature validation and target-hardware/security acceptance remain open. This document must not be treated as a complete line-by-line certification of the upstream source tree.

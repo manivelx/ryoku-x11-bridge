@@ -9,7 +9,7 @@ StartLimitBurst=5
 
 [Service]
 EnvironmentFile=%t/ryoku-x11-session.env
-UnsetEnvironment=WAYLAND_DISPLAY
+UnsetEnvironment=WAYLAND_DISPLAY SWAYSOCK
 ExecStart=/usr/bin/ryogami
 Restart=always
 RestartSec=2

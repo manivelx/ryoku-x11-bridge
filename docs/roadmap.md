@@ -8,10 +8,10 @@
 [x] Initial X11 compatibility matrix and risk register
 [~] Partial QML import and Wayland API inventory recorded in qml-x11-audit.md; exhaustive active-profile inventory remains open
 [ ] Go service and runtime dependency inventory
-[ ] Installed Quickshell 0.3.2 smoke tests
+[x] Quickshell 0.3.2 API and basic full-shell daemon/QML-load smoke passed in disposable Xvfb+i3 CI
 [ ] Architecture review and acceptance
 
-Status: documentation baseline committed; audit is not yet exhaustive.
+Status: automated provider, overlay, package, basic shell-daemon and disposable transaction gates pass; exhaustive feature, security and target-hardware acceptance remain open.
 
 ## Phase 1 — i3 provider foundation
 [~] Provider CLI and conservative capability manifest
@@ -52,8 +52,8 @@ QtQuick, NVIDIA 470, Picom, animations, transparency, effects, resource use and 
 Acceptance: repeatable frame/resource measurements on target hardware.
 
 ## Phase 8 — Packaging and installer
-[~] Non-installing package build pipeline and X11 session payload
-[~] Package safety checks protect SDDM, Orbital, Quickshell lockscreen, boot and GPU integration
+[x] Non-installing package build pipeline and X11 session payload passed in Arch CI
+[x] Package safety checks protect SDDM, Orbital, Quickshell lockscreen, boot and GPU integration
 [x] Disposable Arch package transaction/uninstall and external dependency resolution passed in CI; host rollback remains separate
 Acceptance: package transaction/removal passes in disposable Arch; session tests prove shared XDG and Quickshell config are not overwritten. Host dependency resolution and actual login-session behavior remain target-machine checks.
 
@@ -72,10 +72,11 @@ Evidence is deliberately separate. A checked implementation item does not imply 
 |---|---|---|---|---|---|---|---|
 | i3 IPC provider | Yes | Yes, initial | Yes | Yes | Pending | No | No |
 | Watch debounce/incremental frames | Yes, upstream frame contract | Yes | Yes | Yes | Pending | No | No |
-| Quickshell I3/PanelWindow + full shell daemon smoke | Quickshell 0.3.2 API reviewed | Full-shell Xvfb/i3 daemon harness | Yes | Yes, Xvfb CI | Yes, smoke only | No |
+| Quickshell I3/PanelWindow + full shell daemon smoke | Quickshell 0.3.2 API reviewed | Full-shell Xvfb/i3 daemon harness | Yes | Yes, Xvfb CI | Yes, smoke only | No | No |
 | X11 lock wrapper | XSecureLock/i3lock command paths | Yes, wrapper only | Yes, Arch package CI | Yes, wrapper test | No | No | No |
 | Settings/keybind translation | Upstream schema inspected | No; fail-closed/empty | N/A | N/A | No | No | No |
-| Ryogami wallpaper service | Go daemon and picker entry inspected; full QML use-site audit pending | RXB-target-only unit + isolated config root | Yes, package CI | Unit/overlay CI | Pending | No | No |
+| RXB systemd service isolation | Dedicated target and X11-only units reviewed | Session EnvironmentFile, graphical-session binding and no upstream unit drop-ins | Yes | Systemd unit verification + lifecycle tests | No, unit/lifecycle smoke only | No | No |
+| Ryogami wallpaper service | Go daemon and picker entry inspected; full QML use-site audit pending | Dedicated RXB X11 unit + isolated config root | Yes, package CI | Unit/overlay CI | Daemon included in basic shell smoke; picker interaction pending | No | No |
 | User config isolation | Materializer and QML config paths inspected | RYOKU_CONFIG_HOME + separate Quickshell root; app theme writes gated | Pending | Pending | Pending | No | No |
 | NVIDIA GT 740 / 470 | Hardware constraints recorded | No hardware changes | N/A | N/A | No | No | No |
 

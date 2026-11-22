@@ -17,8 +17,8 @@ An X11 compatibility layer for the original Ryoku desktop, using **Xorg, i3 and 
 
 </div>
 
-> **Development status — not ready for installation on a daily-use machine.**
-> RXB is still in integration and acceptance testing. The package build and parts of the automated test suite exist, but a passing build is not proof that the complete Ryoku desktop works on X11. Do not install RXB on your primary CachyOS system until this README explicitly marks the release as approved and the project owner has completed the pre-install review.
+> **Development status — automated build and disposable acceptance passed; target-machine release approval is still pending.**
+> The pinned provider/overlay tests, Arch package build, package-safety checks, Quickshell 0.3.2 i3 smoke, basic full-shell daemon/QML smoke under Xvfb+i3, and disposable Arch install/removal transaction have passed in CI. These results do not prove complete feature interactions, secure locking, or compatibility with the target NVIDIA 470 hardware. Do not install RXB on the primary CachyOS system until the remaining hardware/security acceptance and pre-install review are complete.
 
 ## • overview •
 

@@ -24,6 +24,10 @@ The QML source rewrite prefers `Quickshell.env("RYOKU_CONFIG_HOME")` before `XDG
 
 External application theme writes are gated while `RYOKU_X11_BRIDGE=1`; app-wide GTK/Qt/terminal theming remains unavailable until a safe per-session adapter exists. This intentionally trades some visual integration for preservation of the user's existing application configuration.
 
+## Automated runtime evidence
+
+On 2026-11-22, CI built the pinned package set, installed it in a disposable Arch container, materialized the original shell, started the real `ryoku-shell daemon` under Xvfb+i3 with Quickshell 0.3.2, verified daemon IPC ping/status and a healthy QML shell process/log, then cleanly quit and removed the packages. This is a **basic startup/QML-load smoke**, not visual or interaction acceptance for every panel, popup, tray, notification, wallpaper, capture, lock or monitor feature. The session lifecycle test validates the wrapper and configuration isolation with a mocked systemd command; the disposable install transaction additionally verifies installed unit paths and systemd unit syntax.
+
 ## Feature classifications
 
 ### X11 panel and popup surfaces
@@ -83,14 +87,14 @@ These remain compositor-specific and are not reused by the i3 session. They are 
 
 ### Ryogami picker / wallpaper daemon
 
-The Ryogami picker contains Wayland layer-shell usage. The X11 package links `ryogami.service` only into `ryoku-session.target.wants` and supplies a session-scoped EnvironmentFile/ConditionPathExists drop-in. The Go daemon is compositor-neutral; the picker QML's WlrLayershell properties are transformed by the common X11 panel adapter. The service/picker still require runtime validation under i3 before this feature is accepted.
+The Ryogami picker contains Wayland layer-shell usage. RXB installs a dedicated `ryogami-x11.service` linked only to `ryoku-x11-session.target`; the original upstream `ryogami.service` and `ryoku-session.target` remain untouched. The X11 service receives the session-scoped EnvironmentFile and clears inherited Wayland/Sway variables. The Go daemon is compositor-neutral; the picker QML's WlrLayershell properties are transformed by the common X11 panel adapter. The daemon is included in the basic full-shell smoke, but picker interaction, wallpaper changes and display behavior still require runtime validation under i3.
 
 ## Still required for Phase 0/3 acceptance
 
 - Exhaustively enumerate QML files under the active default shell profile and all imported modules; distinguish active from optional themes/apps.
 - For every `Quickshell.Wayland` import, classify actual API uses, not only the import line.
 - Audit every remaining `WlrLayershell`, `ScreencopyView`, `ToplevelManager`, `WlSessionLock`, Wayland focus and portal use.
-- Validate the transformed full shell against Quickshell 0.3.2 under an isolated i3/Xvfb session.
+- [x] Basic transformed-shell daemon/QML-load smoke passed against Quickshell 0.3.2 under isolated i3/Xvfb; this does not constitute feature acceptance.
 - Exercise panels, bars, struts, popups, tray, notifications, overview, wallpaper, capture, lock and multi-monitor behavior separately.
 - Record source inspected, adapter implemented, build passed, unit passed, Xvfb/Xephyr passed, hardware passed and owner confirmed as separate evidence fields.
 

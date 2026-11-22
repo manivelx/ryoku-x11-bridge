@@ -12,7 +12,7 @@ Environment=RYOKU_POLKIT_AGENT=1
 Environment=QT_MEDIA_BACKEND=ffmpeg
 Environment=QT_FFMPEG_DECODING_HW_DEVICE_TYPES=
 EnvironmentFile=%t/ryoku-x11-session.env
-UnsetEnvironment=WAYLAND_DISPLAY
+UnsetEnvironment=WAYLAND_DISPLAY SWAYSOCK
 ExecStart=/usr/bin/ryoku-shell daemon
 TimeoutStartSec=0
 TimeoutStopSec=0

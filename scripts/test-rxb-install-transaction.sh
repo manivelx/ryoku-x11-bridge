@@ -152,10 +152,22 @@ grep -q '^TryExec=i3$' /usr/share/xsessions/ryoku-x11.desktop
 # outside the explicit RXB X11 session.
 [[ ! -e /usr/lib/systemd/user/default.target.wants/ryoku-shell.service ]]
 [[ ! -e /usr/lib/systemd/user/default.target.wants/ryogami.service ]]
+[[ ! -e /usr/lib/systemd/user/default.target.wants/ryoku-shell-x11.service ]]
+[[ ! -e /usr/lib/systemd/user/default.target.wants/ryogami-x11.service ]]
 [[ ! -e /usr/lib/systemd/user/ryoku-shell.service.d/10-rxb-x11.conf ]]
 [[ ! -e /usr/lib/systemd/user/ryogami.service.d/10-rxb-x11.conf ]]
 [[ ! -e /usr/lib/systemd/user/ryoku-session.target.wants/ryoku-shell.service ]]
 [[ ! -e /usr/lib/systemd/user/ryoku-session.target.wants/ryogami.service ]]
+
+# Verify the installed RXB user-unit syntax and dependency graph.
+command -v systemd-analyze >/dev/null 2>&1 || {
+  echo "systemd-analyze is required to verify the RXB user units." >&2
+  exit 1
+}
+systemd-analyze --user verify \
+  /usr/lib/systemd/user/ryoku-x11-session.target \
+  /usr/lib/systemd/user/ryoku-shell-x11.service \
+  /usr/lib/systemd/user/ryogami-x11.service
 
 # Exercise the installed upstream QML entry point with the packaged i3 provider.
 # Run as an unprivileged account, but only after the disposable package set is installed.

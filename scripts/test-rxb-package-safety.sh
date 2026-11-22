@@ -16,6 +16,12 @@ if grep -Eq 'systemctl --user (import-environment|unset-environment)' "$root/pay
   echo "X11 session init must not mutate the shared systemd user-manager environment." >&2
   exit 1
 fi
+target_file="$root/payload/systemd/ryoku-x11-session.target"
+if ! grep -Fq 'BindsTo=graphical-session.target' "$target_file" ||
+   ! grep -Fq 'After=graphical-session-pre.target graphical-session.target' "$target_file"; then
+  echo "RXB target must be bound to the active graphical session." >&2
+  exit 1
+fi
 for unit in ryoku-shell-x11.service ryogami-x11.service; do
   unit_file="$root/payload/systemd/$unit"
   if ! grep -Fq 'EnvironmentFile=%t/ryoku-x11-session.env' "$unit_file" ||
@@ -25,6 +31,10 @@ for unit in ryoku-shell-x11.service ryogami-x11.service; do
   fi
   if ! grep -Fq 'PartOf=ryoku-x11-session.target' "$unit_file"; then
     echo "$unit must be owned by the dedicated RXB target." >&2
+    exit 1
+  fi
+  if ! grep -Fq 'UnsetEnvironment=WAYLAND_DISPLAY SWAYSOCK' "$unit_file"; then
+    echo "$unit must clear inherited Wayland/Sway variables." >&2
     exit 1
   fi
 done
@@ -95,6 +105,8 @@ for forbidden in \
   'usr/bin/ryoku-qylock-activate' \
   'usr/bin/ryoku-qylock-lock' \
   'usr/lib/systemd/user/default.target.wants/ryogami.service' \
+  'usr/lib/systemd/user/default.target.wants/ryoku-shell-x11.service' \
+  'usr/lib/systemd/user/default.target.wants/ryogami-x11.service' \
   'usr/lib/systemd/user/ryoku-shell.service.d/10-rxb-x11.conf' \
   'usr/lib/systemd/user/ryogami.service.d/10-rxb-x11.conf' \
   'usr/lib/systemd/user/ryoku-session.target.wants/ryoku-shell.service' \
