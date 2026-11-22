@@ -124,3 +124,10 @@ RXB now includes `scripts/audit-rxb-qml.py`. After applying the overlay to the p
 The report counts and lists source occurrences of `Quickshell.Wayland`, `WlrLayershell`, `ScreencopyView`, `ToplevelManager`, `WlSessionLock`, `Quickshell.Hyprland`, `Quickshell.Niri` and `Quickshell.I3`. CI uploads the machine-readable JSON as the `rxb-qml-x11-inventory` artifact for each integration run.
 
 This is a reproducible **whole-subtree source census**, not an active-profile dependency graph: a file can belong to an optional bar style or helper surface that is not loaded in the user's current profile. The next audit step remains resolving the default shell's transitive QML imports and classifying every reachable Wayland API use by actual runtime path. The report must not be used to claim that the default profile is fully audited or that an API occurrence is already adapted.
+
+
+## Active-shell dependency candidate graph
+
+A second audit, `scripts/audit-rxb-qml-graph.py`, now starts at the pinned shell entrypoint `ryoku/shell/quickshell/shell/shell.qml`. It follows explicit quoted directory imports, QML module imports backed by `qmldir`, and statically visible QML component object declarations. The scan root is the complete `ryoku/shell/quickshell` tree so shared stage modules outside the shell subdirectory can be included. It records reachable and unreachable QML files, dependency edges, API occurrences among reachable files, unresolved local imports and files using dynamic Loader/source constructs.
+
+CI publishes this report as `rxb-active-shell-qml-graph` separately from the whole-subtree inventory. It is a **static candidate graph**, not a claim of complete runtime reachability: dynamic Loader paths, JavaScript-created components, plugin-provided components and profile-dependent branches can still load files not found by static object references. The report's limitations are part of the artifact; runtime tracing and profile-specific interactive tests remain mandatory.
