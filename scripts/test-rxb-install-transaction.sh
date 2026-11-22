@@ -33,7 +33,7 @@ for pkg in "${packages[@]}"; do
   while IFS= read -r dependency; do
     dependency_name="${dependency%%[<>=]*}"
     case "$dependency_name" in
-      ryoku*|gpk)
+      ryoku*|ryogami*|gpk)
         [[ -n "${local_provides[$dependency_name]:-}" ]] || {
           echo "Missing local Ryoku package dependency: $dependency_name (required by $pkg)" >&2
           exit 1
