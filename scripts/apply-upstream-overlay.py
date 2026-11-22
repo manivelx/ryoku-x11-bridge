@@ -947,32 +947,110 @@ func ryokuConfigDir() string {
     ):
         replace_once(root / rel, old, new)
 
-    # The Hub already centralizes many config paths through configHome(); make
-    # that helper RXB-aware and route the remaining per-feature paths through it.
-    p = root / "ryoku/hub/backend/voxtype.go"
-    replace_once(p, '''func configHome() string {
-	if b := os.Getenv("XDG_CONFIG_HOME"); b != "" {''',
-                 '''func configHome() string {
-	if b := os.Getenv("RYOKU_CONFIG_HOME"); b != "" {
-		return b
+    # Keep Ryoku-owned Hub state isolated, but leave external app configuration
+    # (GTK, Qt, Kitty, Starship, Voxtype, Fastfetch, etc.) on normal XDG paths.
+    p = root / "ryoku/hub/backend/config.go"
+    replace_once(p, 'func configPath() string {',
+                 '''func ryokuConfigHome() string {
+	if base := os.Getenv("RYOKU_CONFIG_HOME"); base != "" {
+		return base
 	}
-	if b := os.Getenv("XDG_CONFIG_HOME"); b != "" {''')
-    for p in (root / "ryoku/hub/backend").glob("*.go"):
-        if p.name.endswith("_test.go") or p == root / "ryoku/hub/backend/voxtype.go":
-            continue
-        text = p.read_text()
-        text = re.sub(
-            r'base := os.Getenv\\("XDG_CONFIG_HOME"\\)\\n\\s*if base == "" \\{\\n\\s*base = filepath.Join\\(os.Getenv\\("HOME"\\), "\\.config"\\)\\n\\s*\\}',
-            'base := configHome()',
-            text,
-        )
-        text = text.replace('xdgHome("XDG_CONFIG_HOME", ".config")', "configHome()")
-        text = re.sub(
-            r'if d := os.Getenv\\("XDG_CONFIG_HOME"\\); d != "" \\{\\n\\s*return d\\n\\s*\\}\\n\\s*return filepath.Join\\(os.Getenv\\("HOME"\\), "\\.config"\\)',
-            'return configHome()',
-            text,
-        )
-        p.write_text(text)
+	if base := os.Getenv("XDG_CONFIG_HOME"); base != "" {
+		return base
+	}
+	return filepath.Join(os.Getenv("HOME"), ".config")
+}
+
+func configPath() string {''')
+    replace_once(p, '''func configPath() string {
+	base := os.Getenv("XDG_CONFIG_HOME")
+	if base == "" {
+		base = filepath.Join(os.Getenv("HOME"), ".config")
+	}
+	return filepath.Join(base, "ryoku", "hub.toml")
+}''',
+                 '''func configPath() string {
+	return filepath.Join(ryokuConfigHome(), "ryoku", "hub.toml")
+}''')
+    for rel, old, new in (
+        ("ryoku/hub/backend/profile.go",
+         '''func profileDir() string {
+	base := os.Getenv("XDG_CONFIG_HOME")
+	if base == "" {
+		base = filepath.Join(os.Getenv("HOME"), ".config")
+	}
+	return filepath.Join(base, "ryoku")
+}''',
+         '''func profileDir() string { return filepath.Join(ryokuConfigHome(), "ryoku") }'''),
+        ("ryoku/hub/backend/matugen.go",
+         '''func matugenConfigPath() string {
+	base := os.Getenv("XDG_CONFIG_HOME")
+	if base == "" {
+		base = filepath.Join(os.Getenv("HOME"), ".config")
+	}
+	return filepath.Join(base, "ryoku", "matugen.json")
+}''',
+         '''func matugenConfigPath() string {
+	return filepath.Join(ryokuConfigHome(), "ryoku", "matugen.json")
+}'''),
+        ("ryoku/hub/backend/schemes.go",
+         '''func themeStatePath() string {
+	base := os.Getenv("XDG_CONFIG_HOME")
+	if base == "" {
+		base = filepath.Join(os.Getenv("HOME"), ".config")
+	}
+	return filepath.Join(base, "ryoku", "theme.json")
+}''',
+         '''func themeStatePath() string {
+	return filepath.Join(ryokuConfigHome(), "ryoku", "theme.json")
+}'''),
+        ("ryoku/hub/backend/gpupreset.go",
+         '''func presetsPath() string {
+	base := os.Getenv("XDG_CONFIG_HOME")
+	if base == "" {
+		base = filepath.Join(os.Getenv("HOME"), ".config")
+	}
+	return filepath.Join(base, "ryoku", "gpu-presets.json")
+}''',
+         '''func presetsPath() string {
+	return filepath.Join(ryokuConfigHome(), "ryoku", "gpu-presets.json")
+}'''),
+        ("ryoku/hub/backend/rice.go",
+         '''func ryokuConfigDir() string {
+	base := os.Getenv("XDG_CONFIG_HOME")
+	if base == "" {
+		base = filepath.Join(os.Getenv("HOME"), ".config")
+	}
+	return filepath.Join(base, "ryoku")
+}''',
+         '''func ryokuConfigDir() string { return filepath.Join(ryokuConfigHome(), "ryoku") }'''),
+        ("ryoku/hub/backend/lighting.go",
+         '''func lightingPath() string {
+	base := os.Getenv("XDG_CONFIG_HOME")
+	if base == "" {
+		base = filepath.Join(os.Getenv("HOME"), ".config")
+	}
+	return filepath.Join(base, "ryoku", "lighting.json")
+}''',
+         '''func lightingPath() string {
+	return filepath.Join(ryokuConfigHome(), "ryoku", "lighting.json")
+}'''),
+    ):
+        replace_once(root / rel, old, new)
+    p = root / "ryoku/hub/backend/lock.go"
+    replace_once(p, 'filepath.Join(xdgHome("XDG_CONFIG_HOME", ".config"), "ryoku", "shell.json")',
+                 'filepath.Join(ryokuConfigHome(), "ryoku", "shell.json")')
+    p = root / "ryoku/hub/backend/palettebridge.go"
+    replace_once(p, '''func paletteBridgeConfigRoot() string {
+	if d := os.Getenv("XDG_CONFIG_HOME"); d != "" {
+		return d
+	}
+	return filepath.Join(paletteBridgeHome(), ".config")
+}''',
+                 '''func paletteBridgeConfigRoot() string { return ryokuConfigHome() }''')
+    p = root / "ryoku/hub/backend/fastfetch.go"
+    replace_once(p, 'filepath.Join(configHome(), "ryoku", "shell.json")',
+                 'filepath.Join(ryokuConfigHome(), "ryoku", "shell.json")')
 
     p = root / "ryoku/rashin/backend/paths.go"
     replace_once(p, 'cfg := os.Getenv("XDG_CONFIG_HOME")',
