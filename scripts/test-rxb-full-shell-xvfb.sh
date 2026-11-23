@@ -291,10 +291,19 @@ dbus-run-session -- bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HO
   }
 
   surface_smoke launcher launcher toggle
+  surface_smoke settings settings toggle
   surface_smoke overview overview surface
   surface_smoke quicksettings sidebar-left surface
   surface_smoke clipboard clipboard toggle
   surface_smoke wallpaper-menu wallpaper surface
+  surface_smoke cheatsheet cheatsheet surface
+  surface_smoke tools tools surface
+  surface_smoke "ask chat" ask surface
+  surface_smoke "ask tools" ask surface
+  surface_smoke screenshot screenshot surface
+  surface_smoke visualizer visualizer surface
+  surface_smoke visualizer-overlay visualizer-overlay surface
+  surface_smoke visualizer-place visualizer-place surface
 
   # Exercise the X11 capture adapter with a real XRandR output. The installed
   # compatibility command must route to maim rather than the Wayland-only grim.
@@ -322,6 +331,10 @@ if (width, height) != (1600, 900):
     raise SystemExit(f"X11 capture dimensions were {width}x{height}, expected 1600x900")
 print(f"X11 capture adapter produced a {width}x{height} PNG.")
 PY
+  if [[ -n ${RXB_ARTIFACT_DIR:-} ]]; then
+    install -D -m 0644 "$capture_file" "$RXB_ARTIFACT_DIR/rxb-x11-shell-xvfb.png"
+    echo "Saved Xvfb shell screenshot to $RXB_ARTIFACT_DIR/rxb-x11-shell-xvfb.png"
+  fi
 
   # Exercise the real daemon lock dispatch on X11 and ensure status reflects
   # the live PAM locker, not a Wayland qylock proof marker.
