@@ -126,9 +126,20 @@ locker_pids() { # real locker processes owned by the test user
     case "$comm" in xsecurelock | i3lock) echo "${p#/proc/}" ;; esac
   done
 }
-count_lockers() { locker_pids | wc -l; }
+# i3lock forks a helper child even with --nofork, so count independent lockers:
+# locker processes whose parent is not itself a locker process.
+count_lockers() {
+  local all p pp n=0
+  all=" $(locker_pids | tr '\n' ' ') "
+  for p in $all; do
+    pp=$(awk '/^PPid:/{print $2; exit}' "/proc/$p/status" 2>/dev/null) || continue
+    [[ "$all" == *" $pp "* ]] || n=$((n + 1))
+  done
+  echo "$n"
+}
+# Every locker process, helpers included (used to prove full cleanup).
+no_lockers() { [[ -z "$(locker_pids)" ]]; }
 lockers_at_least() { [[ "$(count_lockers)" -ge "$1" ]]; }
-no_lockers() { [[ "$(count_lockers)" == 0 ]]; }
 wait_until() { local limit=$(( $1 * 10 )); shift; for _ in $(seq 1 "$limit"); do "$@" && return 0; sleep 0.1; done; return 1; }
 # The wrapper's record of the running locker must verify (pid + start time).
 state_recorded() {
