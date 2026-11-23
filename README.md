@@ -8,8 +8,8 @@
 
 The original Ryoku desktop, brought to X11.
 
-[![Provider CI](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/go-provider.yml/badge.svg?branch=rxb%2Fdisposable-install-validation)](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/go-provider.yml)
-[![Upstream integration](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/upstream-integration.yml/badge.svg?branch=rxb%2Fdisposable-install-validation)](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/upstream-integration.yml)
+[![Provider CI](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/go-provider.yml/badge.svg?branch=rxb%2Fdisposable-install-validation&style=for-the-badge)](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/go-provider.yml)
+[![Upstream integration](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/upstream-integration.yml/badge.svg?branch=rxb%2Fdisposable-install-validation&style=for-the-badge)](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/upstream-integration.yml)
 ![X11](https://img.shields.io/badge/session-X11-0d0d0d?style=for-the-badge)
 ![i3](https://img.shields.io/badge/window%20manager-i3-0d0d0d?style=for-the-badge)
 ![Quickshell](https://img.shields.io/badge/Quickshell-0.3.2-0d0d0d?style=for-the-badge)
