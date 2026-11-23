@@ -27,12 +27,12 @@ helperdir="$tmp/xsecurelock-lib"
 mkdir -p "$lockdir" "$helperdir" "$tmp/runtime"
 chmod 700 "$tmp/runtime"
 for helper in auth_x11 authproto_pam; do
-  printf '#!/bin/sh\\nexit 0\\n' > "$helperdir/$helper"
+  printf '#!/bin/sh\nexit 0\n' > "$helperdir/$helper"
   chmod 0755 "$helperdir/$helper"
 done
 grep -qx 'locker_dir=/usr/bin' "$root/payload/bin/ryoku-x11-lock" || fail "wrapper no longer defines locker_dir=/usr/bin"
-sed -e "s|^locker_dir=/usr/bin\\$|locker_dir=$lockdir|" \\
-  -e "s|/usr/lib/xsecurelock|$helperdir|g" \\
+sed -e "s|^locker_dir=/usr/bin\$|locker_dir=$lockdir|" \
+  -e "s|/usr/lib/xsecurelock|$helperdir|g" \
   "$root/payload/bin/ryoku-x11-lock" >"$tmp/ryoku-x11-lock"
 grep -qx "locker_dir=$lockdir" "$tmp/ryoku-x11-lock" || fail "could not point the wrapper at the test locker directory"
 grep -qx "  local auth_module=$helperdir/auth_x11" "$tmp/ryoku-x11-lock" || fail "could not point XSecureLock auth helper at the test fixture"
