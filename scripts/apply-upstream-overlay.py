@@ -1181,7 +1181,7 @@ def patch_x11_panel_properties(root: pathlib.Path) -> None:
             out.append(line)
             i += 1
         patched = "\n".join(out) + ("\n" if text.endswith("\n") else "")
-        if re.search(r"\bWlrLayershell\.(?:layer|keyboardFocus|namespace|focusable|exclusionMode)\s*:", patched):
+        if re.search(r"\bWlrLayershell\.\w+\s*:", patched):
             raise RuntimeError(f"{p}: X11 PanelWindow property conversion incomplete")
         if re.search(r"\bt\.WlrLayershell\b", patched):
             raise RuntimeError(f"{p}: dynamic Wayland attached-object access remains")
