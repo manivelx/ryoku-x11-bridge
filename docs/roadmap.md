@@ -12,7 +12,7 @@
 [x] Quickshell 0.3.2 API and basic full-shell daemon/QML-load smoke passed in disposable Xvfb+i3 CI
 [ ] Architecture review and acceptance
 
-Status: current-head provider, overlay, upstream Go, package, installer/rollback, session lifecycle and Xvfb+i3 shell/capture/lock smoke gates passed on 2026-11-23 (code-validation head `883fd28108f1dd62374d3c9cedc63453e17e6a93`). Real XSecureLock/i3lock PAM authentication also passed in isolated Xephyr. Full visual interaction, physical lock/VT/multi-monitor acceptance and target-hardware rendering remain separate gates.
+Status: current PR head `8350cd29313c7277d60630f99f07f0c02692ce11` passed the provider, pinned-upstream integration, disposable Arch package build and full install/upgrade/rejected-transaction/rollback/removal pipeline, full-shell Xvfb+i3 smoke, and isolated real-locker PAM acceptance on 2026-11-23. The successful upstream integration run is `45194622030`; provider run `45194622233`; PAM run `45194622135`. The install bundle and evidence artifacts were uploaded. Physical lock/VT/multi-monitor behavior, full visual interaction and target-hardware rendering remain separate owner gates. Real XSecureLock/i3lock PAM authentication also passed in isolated Xephyr. Full visual interaction, physical lock/VT/multi-monitor acceptance and target-hardware rendering remain separate gates.
 
 ## Phase 1 — i3 provider foundation
 [~] Provider CLI and conservative capability manifest
@@ -58,14 +58,14 @@ Acceptance: repeatable frame/resource measurements on target hardware.
 ## Phase 8 — Packaging and installer
 [x] Non-installing package build pipeline and X11 session payload passed in Arch CI
 [x] Package safety checks protect SDDM, Orbital, Quickshell lockscreen, boot and GPU integration
-[x] Current-head disposable Arch package install/upgrade/rejected-transaction/rollback/removal passed through the same RXB installer and ownership-manifest removal scripts shipped in the bundle (2026-11-23, commit `928aa9c8`); host rollback remains separate
+[x] Current PR-head disposable Arch package install/upgrade/rejected-transaction/rollback/removal passed through the same RXB installer and ownership-manifest removal scripts shipped in the bundle (2026-11-23, commit `8350cd29`); host rollback remains separate
 Acceptance: package transaction/removal passes in disposable Arch; session tests prove shared XDG and Quickshell config are not overwritten. Host dependency resolution and actual login-session behavior remain target-machine checks.
 
 ## Phase 9 — Release validation
 Automated Go/QML/build tests, protocol tests, Xephyr/Xvfb, visual tests, real hardware, install/uninstall and docs.
 Acceptance: all evidence recorded separately; hardware and user confirmation cannot be inferred.
 
-Latest PR-head rerun note (2026-11-23): the run for `418dad4` completed provider, upstream and PAM jobs successfully, and the Arch transaction reached the full-shell Xvfb acceptance stage. The shell then exited while opening `visualizer-place`; its Cava/PipeWire client attempted to connect before the PipeWire native server was ready. The test now waits for a successful `pw-cli info 0` readiness probe (commit `71ebfcfa`) before starting the shell. This correction is awaiting a fresh CI run. The earlier package transaction pass recorded below is prior-revision evidence and is not a substitute for the current PR-head rerun.
+Latest current-head validation (2026-11-23): the PipeWire readiness race was fixed by waiting for a successful `pw-cli info 0` probe before launching the shell. The subsequent current-head run `8350cd29` completed both upstream integration jobs successfully, including the disposable Arch package build, installer transaction suite, full-shell Xvfb+i3 acceptance and bundle generation. The separate provider and real-locker PAM workflows also passed for the same commit. The generated `rxb-install-bundle` artifact is the current automated test bundle; it is not approval for installation on the owner's daily-use desktop.
 
 A read-only target X11 inventory collector is available at `scripts/collect-x11-hardware-evidence.sh`; the physical acceptance sequence is documented in `docs/hardware-acceptance.md`. The collector records hardware/software inventory only and does not claim visual, input, PAM or lock acceptance.
 
