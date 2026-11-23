@@ -1,5 +1,7 @@
 # RXB installation and rollback
 
+> **Validation-only bundle:** use this procedure only in a disposable Arch/CachyOS VM or a dedicated test installation with a verified recovery path. Do not install RXB on the owner's daily-use desktop yet. The automated package transaction and Xvfb/Xephyr tests pass, but physical input/VT/lock behavior, multi-monitor coverage, and GT 740 / NVIDIA 470 / Picom rendering have not been accepted. Keep the existing BSPWM session, SDDM Orbital theme, Quickshell lockscreen, Picom, NVIDIA driver, kernel, EDID and boot configuration unchanged.
+
 RXB is distributed as an Arch package bundle built and tested against the pinned Ryoku source. The installer does not enable services globally or change the current desktop session.
 
 ## Before installing
