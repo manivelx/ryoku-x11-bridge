@@ -70,6 +70,8 @@ jobs:
                 xorg-xrandr maim xclip slop dbus mesa
               builder_uid="$(stat -c %u /workspace)"
               useradd -m -u "$builder_uid" builder
+              echo "[ci] Testing package-builder output and source-tree safety."
+              su builder -c "bash /workspace/scripts/test-build-output-safety.sh /workspace/upstream"
               echo "[ci] Building the complete RXB package set."
               su builder -c "bash /workspace/scripts/build-rxb-packages.sh /workspace/upstream /workspace/dist"
               echo "[ci] Checking package safety."
