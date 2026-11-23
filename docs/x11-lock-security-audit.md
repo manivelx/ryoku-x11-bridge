@@ -59,7 +59,7 @@ surface on X11; it only runs XSecureLock (PAM via its auth helper) or i3lock
 
 - Same-user processes can kill the locker; inherent to X11 lockers.
 - The wrapper clears all inherited `XSECURELOCK_*` variables and forces
-  `XSECURELOCK_AUTH=auth_x11` plus `XSECURELOCK_AUTHPROTO=authproto_pam`. A
+  `XSECURELOCK_AUTH=/usr/lib/xsecurelock/auth_x11` plus\n  `XSECURELOCK_AUTHPROTO=/usr/lib/xsecurelock/authproto_pam`. A
   custom `XSECURELOCK_PAM_SERVICE` is accepted only inside the guarded disposable
   PAM test container and only when its service file is root-owned and not
   group/other-writable; normal desktop sessions use XSecureLock's compiled-in
