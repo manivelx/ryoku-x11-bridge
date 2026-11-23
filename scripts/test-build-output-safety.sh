@@ -12,9 +12,10 @@ fi
 tmp="$(mktemp -d)"
 source_pkgdir="$RXB_ROOT/release/packages/ryoku-desktop-i3"
 sentinel="$source_pkgdir/rxb-preserve-test.pkg.tar.zst"
+sentinel_created=0
 cleanup() {
   rm -rf -- "$tmp"
-  rm -f -- "$sentinel"
+  if (( sentinel_created )); then rm -f -- "$sentinel"; fi
 }
 trap cleanup EXIT
 
