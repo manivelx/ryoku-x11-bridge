@@ -125,16 +125,28 @@ done
 # The manifest is the ownership boundary for safe upgrades and rollback.
 manifest_dir="/var/lib/rxb"
 manifest="$manifest_dir/installed-packages"
-[[ ! -L "$manifest_dir" && ! -L "$manifest" ]] || {
-  echo "install-rxb-packages: refusing symlinked RXB ownership paths." >&2
+refuse_manifest() {
+  echo "install-rxb-packages: refusing an unsafe RXB ownership manifest: $1" >&2
   exit 1
 }
+if [[ -L "$manifest_dir" ]]; then
+  refuse_manifest "$manifest_dir is a symlink"
+fi
+if [[ -e "$manifest_dir" ]]; then
+  [[ -d "$manifest_dir" && -O "$manifest_dir" ]] || refuse_manifest "$manifest_dir is not a root-owned directory"
+  manifest_dir_mode="$(stat -c '%a' -- "$manifest_dir")"
+  [[ "$manifest_dir_mode" =~ ^[0-7]{3,4}$ ]] || refuse_manifest "cannot read $manifest_dir permissions"
+  (( (8#$manifest_dir_mode & 077) == 0 )) || refuse_manifest "$manifest_dir is accessible to group or other users"
+fi
+if [[ -L "$manifest" ]]; then
+  refuse_manifest "$manifest is a symlink"
+fi
 declare -A owned_packages=()
 if [[ -e "$manifest" ]]; then
-  [[ -f "$manifest" && -O "$manifest" ]] || {
-    echo "install-rxb-packages: ownership manifest must be a root-owned regular file." >&2
-    exit 1
-  }
+  [[ -f "$manifest" && -O "$manifest" ]] || refuse_manifest "$manifest is not a root-owned regular file"
+  manifest_mode="$(stat -c '%a' -- "$manifest")"
+  [[ "$manifest_mode" =~ ^[0-7]{3,4}$ ]] || refuse_manifest "cannot read $manifest permissions"
+  (( (8#$manifest_mode & 077) == 0 )) || refuse_manifest "$manifest is accessible to group or other users"
   while IFS= read -r name; do
     [[ -n "$name" ]] || continue
     [[ "$name" =~ ^[a-z0-9][a-z0-9@._+-]*$ ]] || {
@@ -161,7 +173,30 @@ write_manifest() {
     echo "install-rxb-packages: ownership path became a symlink during installation." >&2
     return 1
   }
-  install -d -m700 "$manifest_dir"
+  if [[ -e "$manifest_dir" ]]; then
+    [[ -d "$manifest_dir" && -O "$manifest_dir" ]] || {
+      echo "install-rxb-packages: ownership directory changed ownership or type during installation." >&2
+      return 1
+    }
+    dir_mode="$(stat -c '%a' -- "$manifest_dir")"
+    [[ "$dir_mode" =~ ^[0-7]{3,4}$ ]] && (( (8#$dir_mode & 077) == 0 )) || {
+      echo "install-rxb-packages: ownership directory permissions became unsafe during installation." >&2
+      return 1
+    }
+  else
+    install -d -m700 "$manifest_dir"
+  fi
+  if [[ -e "$manifest" ]]; then
+    [[ -f "$manifest" && -O "$manifest" ]] || {
+      echo "install-rxb-packages: ownership file changed ownership or type during installation." >&2
+      return 1
+    }
+    file_mode="$(stat -c '%a' -- "$manifest")"
+    [[ "$file_mode" =~ ^[0-7]{3,4}$ ]] && (( (8#$file_mode & 077) == 0 )) || {
+      echo "install-rxb-packages: ownership file permissions became unsafe during installation." >&2
+      return 1
+    }
+  fi
   manifest_tmp="$(mktemp)"
   printf '%s\n' "${!owned_packages[@]}" | sort -u > "$manifest_tmp"
   install -D -m600 "$manifest_tmp" "$manifest"
