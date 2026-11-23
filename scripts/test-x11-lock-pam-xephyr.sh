@@ -40,6 +40,8 @@ wrong_password="not-$(rand_hex 6)"
 tmp="$(cd "$(mktemp -d /tmp/rxb-lock-pam.XXXXXX)" && pwd -P)"
 mkdir -p "$tmp/runtime" "$tmp/home" "$tmp/shots"
 pam_service_files=()
+pam_test_marker="/run/rxb-pam-test-disposable"
+pam_test_marker_created=0
 xvfb_pid="" xephyr_pid="" xterm_pid="" wrapper_pid=""
 
 dump_diagnostics() {
@@ -67,9 +69,14 @@ cleanup() {
   for f in "${pam_service_files[@]:-}"; do [[ -n $f ]] && rm -f -- "$f"; done
   if [[ -n $artifacts ]]; then mkdir -p "$artifacts"; cp -r "$tmp/shots" "$tmp"/*.log "$artifacts/" 2>/dev/null || true; fi
   userdel -r "$user" >/dev/null 2>&1 || true
+  if (( pam_test_marker_created )); then rm -f -- "$pam_test_marker"; fi
   rm -rf -- "$tmp"
 }
 trap cleanup EXIT
+
+[[ ! -e "$pam_test_marker" && ! -L "$pam_test_marker" ]] || die "disposable PAM test marker already exists"
+install -o root -g root -m 0600 /dev/null "$pam_test_marker"
+pam_test_marker_created=1
 
 # --- temporary user with a real password -----------------------------------
 id "$user" >/dev/null 2>&1 && die "test user $user already exists; refusing to reuse it"
@@ -164,7 +171,7 @@ lock_file_held() { ! as_user flock -n "$tmp/runtime/ryoku-x11-lock/$(printf '%s'
 
 start_wrapper() { # logfile [VAR=value...]
   local log="$1"; shift
-  as_user DISPLAY="$disp" XDG_RUNTIME_DIR="$tmp/runtime" "$@" "$tmp/ryoku-x11-lock" >"$log" 2>&1 &
+  as_user DISPLAY="$disp" XDG_RUNTIME_DIR="$tmp/runtime" RXB_PAM_TEST_DISPOSABLE=1 "$@" "$tmp/ryoku-x11-lock" >"$log" 2>&1 &
   wrapper_pid=$!
 }
 wrapper_alive() { kill -0 "$wrapper_pid" 2>/dev/null; }
@@ -198,7 +205,7 @@ exercise() {
   # Repeated lock requests: success, no second locker, same locker process.
   local before after status=0
   before="$(locker_pids | tr '\n' ' ')"
-  timeout 20 runuser -u "$user" -- env -i PATH=/usr/bin:/bin HOME="$tmp/home" DISPLAY="$disp" XDG_RUNTIME_DIR="$tmp/runtime" "$@" "$tmp/ryoku-x11-lock" >"$tmp/$label-repeat.log" 2>&1 || status=$?
+  timeout 20 runuser -u "$user" -- env -i PATH=/usr/bin:/bin HOME="$tmp/home" DISPLAY="$disp" XDG_RUNTIME_DIR="$tmp/runtime" RXB_PAM_TEST_DISPOSABLE=1 "$@" "$tmp/ryoku-x11-lock" >"$tmp/$label-repeat.log" 2>&1 || status=$?
   [[ "$status" == 0 ]] || die "$label: repeated lock request exited $status"
   after="$(locker_pids | tr '\n' ' ')"
   [[ "$before" == "$after" ]] || die "$label: repeated lock request changed the locker set ($before -> $after)"
