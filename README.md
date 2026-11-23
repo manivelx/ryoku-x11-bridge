@@ -219,6 +219,7 @@ This table is the target test profile, not a compatibility claim. The GT 740 has
 | [QML / Wayland audit](docs/qml-x11-audit.md) | QML APIs and migration status |
 | [Risk register](docs/risk-register.md) | Security, packaging and runtime risks |
 | [Roadmap](docs/roadmap.md) | Phases, release gates and evidence ledger |
+| [Hardware acceptance](docs/hardware-acceptance.md) | Read-only target inventory and physical X11 acceptance checklist |
 
 ## Credits and license
 
