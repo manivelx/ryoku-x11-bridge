@@ -8,8 +8,8 @@
 
 The original Ryoku desktop, brought to X11.
 
-[![i3 provider](https://img.shields.io/github/actions/workflow/status/manivelx/ryoku-x11-bridge/go-provider.yml?branch=rxb%2Fdisposable-install-validation&label=i3%20provider&logo=github&logoColor=white&style=for-the-badge)](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/go-provider.yml)
-[![Pinned upstream integration](https://img.shields.io/github/actions/workflow/status/manivelx/ryoku-x11-bridge/upstream-integration.yml?branch=rxb%2Fdisposable-install-validation&label=pinned%20upstream%20integration&logo=github&logoColor=white&style=for-the-badge)](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/upstream-integration.yml)
+[![i3 provider](https://img.shields.io/github/actions/workflow/status/manivelx/ryoku-x11-bridge/go-provider.yml?branch=rxb%2Fdisposable-install-validation&label=i3%20provider&logo=github&logoColor=white&color=0d0d0d&style=for-the-badge)](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/go-provider.yml)
+[![Pinned upstream integration](https://img.shields.io/github/actions/workflow/status/manivelx/ryoku-x11-bridge/upstream-integration.yml?branch=rxb%2Fdisposable-install-validation&label=pinned%20upstream%20integration&logo=github&logoColor=white&color=0d0d0d&style=for-the-badge)](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/upstream-integration.yml)
 ![Session: X11](https://img.shields.io/badge/session-X11-0d0d0d?style=for-the-badge)
 ![Window manager: i3](https://img.shields.io/badge/window%20manager-i3-0d0d0d?style=for-the-badge)
 ![Quickshell: 0.3.2](https://img.shields.io/badge/Quickshell-0.3.2-0d0d0d?style=for-the-badge)
@@ -117,16 +117,16 @@ A source adapter, a successful build, an Xvfb smoke test and real desktop accept
 
 | Area | Current evidence |
 |---|---|
-| i3 provider | Implemented; Go formatting, vet, race tests and build passed on a recorded CI commit |
-| Upstream overlay | Applied to a disposable pinned worktree; upstream Go test suites passed on a recorded CI commit |
-| Quickshell i3 integration | Quickshell.I3 and X11 PanelWindow smoke passed under Xvfb |
+| i3 provider | Implemented; Go formatting, vet, race tests and build passed on current PR head `8350cd29` |
+| Upstream overlay | Applied to a disposable pinned worktree; overlay checks and all pinned upstream Go suites passed on current PR head `8350cd29` |
+| Quickshell i3 integration | Quickshell.I3, X11 PanelWindow and full original shell-daemon Xvfb+i3 smoke passed on current PR head `8350cd29` |
 | Original shell daemon | Basic daemon IPC and QML-process startup smoke passed in isolated Xvfb+i3 |
-| Arch packages | Package build and safety inspection passed in disposable Arch CI |
-| Package transaction | Passed in the earlier disposable Arch validation (`928aa9c8`); the latest PR-head rerun is pending after a full-shell PipeWire readiness race fix |
-| Full interactive Ryoku shell | 15 lazy surfaces loaded in Xvfb; visual layout, user interaction and desktop-service acceptance remain open |
+| Arch packages | Full package build and package-safety inspection passed in disposable Arch CI on current PR head `8350cd29` |
+| Package transaction | Current PR head `8350cd29`: disposable Arch install, upgrade, rejected-transaction, rollback and removal checks all passed through the shipped scripts |
+| Full interactive Ryoku shell | 15 lazy surfaces, Hub navigation IPC and Ryoshot `maim` capture passed in Xvfb; visual layout, physical interaction and desktop-service acceptance remain open |
 | Active-profile QML / Wayland audit | Partial; exhaustive inventory remains open |
 | Keybinding translation | Original 105-action catalogue is resolved into i3 bindings where semantics match; remaining actions are visible with explicit unsupported reasons |
-| Secure lock / PAM / lock-before-suspend | Real XSecureLock and i3lock PAM acceptance passed in isolated Xephyr; real-host grabs, VT, multi-monitor and crash recovery remain pending; suspend handoff disabled |
+| Secure lock / PAM / lock-before-suspend | Real XSecureLock and i3lock PAM authentication passed in isolated Xephyr; Xvfb lock lifecycle passed; real-host grabs, VT, multi-monitor and crash recovery remain pending; suspend handoff disabled |
 | Screenshot / Ryoshot X11 fallback | Original Ryoshot QML app loaded; X11 `maim` fallback produced a valid 1600x900 PNG in Xvfb |
 | Multi-monitor, recording and live previews | Not accepted; persistent capture remains capability-gated off |
 | GT 740 / NVIDIA 470 / Picom rendering | Not tested to acceptance on target hardware |
