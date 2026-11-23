@@ -35,7 +35,7 @@ From the RXB checkout:
 bash scripts/build-rxb-packages.sh /path/to/ryoku-checkout
 ```
 
-Artifacts are written to `RXB/dist/` by default. An optional second argument selects another output directory.
+Artifacts are written to `RXB/dist/` by default. An optional second argument selects another output directory. The selected output directory must not already contain `*.pkg.tar.*` archives: the builder refuses a non-empty package-output directory instead of deleting or overwriting existing packages. The RXB i3 package is staged through a temporary `PKGDEST`; package archives are not written into or deleted from the source `release/packages/ryoku-desktop-i3` directory.
 
 The pinned upstream revision is read from `UPSTREAM_PIN`. The RXB provider version is read from `RXB_VERSION` and injected with Go linker flags. The Arch package `pkgver` for `ryoku-desktop-i3` follows the pinned upstream `VERSION`, while upstream packages such as `ryoku-desktop` and `ryogami` keep their own independent `pkgver`/`pkgrel` values. The i3 variant therefore depends on those package names without imposing a false version equality. The RXB provider module declares Go 1.22, its CI tests that minimum, and upstream integration uses Go 1.26.5 because the pinned shell/Hub modules declare that toolchain.
 
@@ -67,7 +67,7 @@ See [Installation and rollback](install.md). The CI artifact `rxb-install-bundle
 ## Current limitations
 
 - This is a package-build pipeline, not an installation or rollback tool.
-- The X11 provider's i3 settings generator and upstream Ryoku keybinding translation/rebinding are not yet implemented. RXB ships no default/custom i3 shortcuts; its bind view is read-only and reports only bindings declared in the active i3 config. The session lifecycle test verifies that RXB uses its own `~/.config/ryoku-x11` and `~/.config/ryoku-x11/ryoku-config` trees while preserving an existing `~/.config/quickshell` directory.
+- The i3 provider translates the pinned 105-action upstream Ryoku keybinding catalogue into supported i3 commands, reads the upstream rebind/disabled/custom-bind settings used by the provider, and reports unsupported actions rather than inventing shortcuts. Full interactive Hub keybinding-editor parity and end-user editing flows still need runtime acceptance. The session lifecycle test verifies that RXB uses its own `~/.config/ryoku-x11` and `~/.config/ryoku-x11/ryoku-config` trees while preserving an existing `~/.config/quickshell` directory.
 - The original shell's Wayland-only services and features remain gated or unavailable on X11.
 - App-wide GTK/Qt/terminal theming, system font changes, icon-theme changes, and upstream lock/greeter management are disabled in RXB until they have safe per-session adapters.
 - Screen recording, wallpaper daemon behavior, some overlays, and complete multi-monitor behavior still need runtime testing.
