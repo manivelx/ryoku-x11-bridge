@@ -44,6 +44,9 @@ xvfb_pid="" xephyr_pid="" xterm_pid="" wrapper_pid=""
 
 dump_diagnostics() {
   echo "----- diagnostics -----" >&2
+  { echo "uid=${uid:-unset} count_lockers=$(count_lockers 2>&1)";
+    for p in $(pgrep -u "$user" -x xsecurelock 2>/dev/null); do
+      echo "xsecurelock pid=$p status-uid=$(awk '/^Uid:/{print $2; exit}' /proc/$p/status 2>&1) exe=$(readlink /proc/$p/exe 2>&1)"; done; } >&2 || true
   { echo "display: ${disp:-unset}"; ps -eo pid,user,args --sort=pid | grep -E 'xsecurelock|i3lock|Xephyr|Xvfb|ryoku-x11-lock|auth_x11|saver_' | grep -v grep; } >&2 || true
   for f in "$tmp"/*.log; do [[ -f $f ]] && { echo "== $f"; tail -n 40 "$f"; } >&2; done
   if [[ -n ${disp:-} ]]; then
