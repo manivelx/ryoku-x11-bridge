@@ -23,11 +23,19 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 # line. Tests substitute that single line; they assert the substitution took
 # effect so they cannot silently exercise the real /usr/bin.
 lockdir="$tmp/trusted"
-mkdir -p "$lockdir" "$tmp/runtime"
+helperdir="$tmp/xsecurelock-lib"
+mkdir -p "$lockdir" "$helperdir" "$tmp/runtime"
 chmod 700 "$tmp/runtime"
+for helper in auth_x11 authproto_pam; do
+  printf '#!/bin/sh\\nexit 0\\n' > "$helperdir/$helper"
+  chmod 0755 "$helperdir/$helper"
+done
 grep -qx 'locker_dir=/usr/bin' "$root/payload/bin/ryoku-x11-lock" || fail "wrapper no longer defines locker_dir=/usr/bin"
-sed "s|^locker_dir=/usr/bin\$|locker_dir=$lockdir|" "$root/payload/bin/ryoku-x11-lock" >"$tmp/ryoku-x11-lock"
+sed -e "s|^locker_dir=/usr/bin\\$|locker_dir=$lockdir|" \\
+  -e "s|/usr/lib/xsecurelock|$helperdir|g" \\
+  "$root/payload/bin/ryoku-x11-lock" >"$tmp/ryoku-x11-lock"
 grep -qx "locker_dir=$lockdir" "$tmp/ryoku-x11-lock" || fail "could not point the wrapper at the test locker directory"
+grep -qx "  local auth_module=$helperdir/auth_x11" "$tmp/ryoku-x11-lock" || fail "could not point XSecureLock auth helper at the test fixture"
 bash -n "$tmp/ryoku-x11-lock"
 wrapper="$tmp/ryoku-x11-lock"
 export RXB_LOCK_TEST_MARKER="$tmp/marker"
@@ -89,8 +97,9 @@ run_wrapper :90 \
   XSECURELOCK_PAM_SERVICE=attacker-service \
   XSECURELOCK_NO_COMPOSITE=1 \
   XSECURELOCK_KEY_FOO_COMMAND=/tmp/attacker-command
-[[ "$(cat "$RXB_LOCK_TEST_MARKER")" == 'auth_x11|authproto_pam|||||' ]] || {
-  fail "XSecureLock environment was not sanitized to PAM defaults: $(cat "$RXB_LOCK_TEST_MARKER")"
+expected_xsecurelock_env="$helperdir/auth_x11|$helperdir/authproto_pam|||||"
+[[ "$(cat "$RXB_LOCK_TEST_MARKER")" == "$expected_xsecurelock_env" ]] || {
+  fail "XSecureLock environment was not sanitized to the absolute PAM helper paths: $(cat "$RXB_LOCK_TEST_MARKER")"
 }
 rm "$lockdir/xsecurelock" "$RXB_LOCK_TEST_MARKER"
 run_wrapper :91
