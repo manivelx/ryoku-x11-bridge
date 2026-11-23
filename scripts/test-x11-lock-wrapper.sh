@@ -59,6 +59,7 @@ count_lockers() { # directory
   done
   echo "$n"
 }
+no_lockers_in() { [[ "$(count_lockers "$1")" == 0 ]]; }
 has_lockers() { [[ "$(count_lockers "$1")" -ge "$2" ]]; }
 
 # 1. Wayland: preserved qylock passthrough.
@@ -151,6 +152,25 @@ wait_until 5 has_lockers "$lockdir" 1 || fail "could not lock again after the pr
 exec 8>&-
 wait "$second_pid" || true
 
+# 6b. A wrapper stopped with SIGTERM must leave a still-running locker
+# verifiable (its record must survive), so later requests stay idempotent.
+rm -rf "$lockdir" && mkdir -p "$lockdir"
+copy_binary cat "$lockdir/xsecurelock"
+mkfifo "$tmp/fifo-term"
+run_wrapper :106 <"$tmp/fifo-term" >/dev/null &
+term_pid=$!
+exec 8>"$tmp/fifo-term"
+wait_until 5 has_lockers "$lockdir" 1 || fail "SIGTERM case: locker did not start"
+sleep 0.3
+kill -TERM "$term_pid"
+wait "$term_pid" 2>/dev/null || true
+[[ "$(count_lockers "$lockdir")" == 1 ]] || fail "SIGTERM case: locker did not survive its wrapper"
+status=0; timeout 8 bash -c "$(declare -f run_wrapper); tmp='$tmp'; wrapper='$wrapper'; RXB_LOCK_TEST_MARKER='$RXB_LOCK_TEST_MARKER'; run_wrapper :106 </dev/null >/dev/null" || status=$?
+[[ "$status" == 0 ]] || fail "SIGTERM case: request after a signalled wrapper exited $status (record lost)"
+[[ "$(count_lockers "$lockdir")" == 1 ]] || fail "SIGTERM case: request stacked a locker"
+exec 8>&-
+wait_until 5 no_lockers_in "$lockdir" || true
+
 # 7. No false success: the lock is held but nothing verified is locking.
 # (a) a plain holder, (b) a binary NAMED xsecurelock outside the trusted
 # directory with the right DISPLAY (process-name spoofing).
@@ -182,4 +202,41 @@ for case_name in plain spoof; do
   exec 8>&-
 done
 
-echo "X11 lock wrapper tests passed: Wayland passthrough, session detection, trusted locker directory, PATH hijack refusal, lifetime of the per-display lock, idempotency, :D/:D.S normalisation, and refusal to report success without a verified locker."
+# 8. Forged or stale lock records are rejected. The lock is held by a plain
+# holder; the state file names (a) a renamed copy outside the trusted
+# directory with a correct start time, (b) a genuine trusted locker with a
+# WRONG start time (what a reused PID looks like), (c) garbage.
+starttime_of() { local s r; s=$(<"/proc/$1/stat"); r=${s##*) }; set -- $r; echo "${20}"; }
+rm -rf "$lockdir" && mkdir -p "$lockdir" "$tmp/spoof2"
+copy_binary cat "$lockdir/xsecurelock"
+copy_binary cat "$tmp/spoof2/xsecurelock"
+mkfifo "$tmp/fifo-trusted" "$tmp/fifo-spoof2"
+"$lockdir/xsecurelock" <"$tmp/fifo-trusted" >/dev/null & trusted_pid=$!
+"$tmp/spoof2/xsecurelock" <"$tmp/fifo-spoof2" >/dev/null & spoof_pid=$!
+exec 8>"$tmp/fifo-trusted"; exec 7>"$tmp/fifo-spoof2"
+sleep 0.3
+display=:105
+state="$tmp/runtime/ryoku-x11-lock/_105.state"
+( exec 9>"$tmp/runtime/ryoku-x11-lock/_105.lock"; flock -n 9; exec sleep 30 ) 9>/dev/null &
+holder=$!
+sleep 0.3
+check_rejected() { # label
+  local status=0
+  run_wrapper "$display" </dev/null >/dev/null 2>&1 || status=$?
+  [[ "$status" == 75 ]] || fail "$1: wrapper exited $status, want 75 (forged record accepted)"
+}
+printf '%s %s\n' "$spoof_pid" "$(starttime_of "$spoof_pid")" >"$state"
+check_rejected "renamed locker outside the trusted directory"
+printf '%s %s\n' "$trusted_pid" "$(( $(starttime_of "$trusted_pid") + 1 ))" >"$state"
+check_rejected "wrong start time (PID reuse)"
+printf 'garbage\n' >"$state"
+check_rejected "malformed record"
+# Positive control: the correct record for the trusted locker IS accepted.
+printf '%s %s\n' "$trusted_pid" "$(starttime_of "$trusted_pid")" >"$state"
+status=0; run_wrapper "$display" </dev/null >/dev/null 2>&1 || status=$?
+[[ "$status" == 0 ]] || fail "a correct record for a live trusted locker was rejected (exit $status)"
+kill -KILL "$holder" "$trusted_pid" "$spoof_pid" 2>/dev/null || true
+wait 2>/dev/null || true
+exec 8>&- 7>&-
+
+echo "X11 lock wrapper tests passed: Wayland passthrough, session detection, trusted locker directory, PATH hijack refusal, lifetime of the per-display lock, idempotency, :D/:D.S normalisation, refusal to report success without a verified locker, and rejection of forged/stale lock records."

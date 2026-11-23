@@ -38,41 +38,61 @@ normalize_display() {
   printf '%s' "$d"
 }
 
-# True only when a live locker owned by this user is running from the trusted
-# directory on this display. The kernel-resolved /proc/PID/exe cannot be
-# spoofed by renaming a file or changing the process name.
-active_locker() {
-  local want proc exe value
-  want=$(normalize_display "$DISPLAY")
-  for proc in /proc/[0-9]*; do
-    [[ -O $proc ]] || continue
-    exe=$(readlink "$proc/exe" 2>/dev/null) || continue
-    exe=${exe% (deleted)}
-    case "$exe" in
-      "$locker_dir/xsecurelock" | "$locker_dir/i3lock") ;;
-      *) continue ;;
-    esac
-    # A pipe status is ignored on purpose (SIGPIPE/permission races); an empty
-    # value is treated as "not a match".
-    value=$(tr '\0' '\n' <"$proc/environ" 2>/dev/null | sed -n '/^DISPLAY=/{s///;p;q}') || true
-    [[ -n $value ]] || continue
-    if [[ $(normalize_display "$value") == "$want" ]]; then return 0; fi
-  done
-  return 1
-}
-
 umask 077
 lock_dir="$runtime/ryoku-x11-lock"
 install -d -m700 "$lock_dir"
 display=$(normalize_display "$DISPLAY")
 display_key=${display//[^A-Za-z0-9_.-]/_}
 lock_file="$lock_dir/$display_key.lock"
+state_file="$lock_dir/$display_key.state"
+
+# --- identity of the running locker -----------------------------------------
+# XSecureLock marks itself non-dumpable (prctl PR_SET_DUMPABLE 0), which makes
+# /proc/PID/{exe,environ,fd} unreadable even to the same user. Scanning /proc
+# for a locker by executable or environment therefore cannot work. Instead the
+# wrapper that starts the locker records "<pid> <starttime>" for this display.
+# The pair is checked against /proc/PID/stat, so a reused PID is rejected.
+proc_starttime() { # pid -> field 22 of /proc/PID/stat (state in $proc_state)
+  local stat rest
+  stat=$(<"/proc/$1/stat") || return 1
+  rest=${stat##*) } # strip "pid (comm) " even when comm contains spaces or ")"
+  # shellcheck disable=SC2086
+  set -- $rest
+  proc_state=$1
+  printf '%s' "${20}"
+}
+
+verified_locker() {
+  local pid start current key value uid comm exe
+  [[ -r $state_file ]] || return 1
+  read -r pid start <"$state_file" || return 1
+  [[ $pid =~ ^[0-9]+$ && $start =~ ^[0-9]+$ ]] || return 1
+  proc_state=
+  current=$(proc_starttime "$pid") || return 1
+  [[ $current == "$start" ]] || return 1
+  [[ $proc_state != Z && $proc_state != X ]] || return 1
+  uid=
+  while read -r key value _; do
+    if [[ $key == Uid: ]]; then uid=$value; break; fi
+  done <"/proc/$pid/status" || return 1
+  [[ $uid == "$(id -u)" ]] || return 1
+  comm=$(<"/proc/$pid/comm") || return 1
+  case "$comm" in xsecurelock | i3lock) ;; *) return 1 ;; esac
+  # Readable only for dumpable processes (i3lock); when it is readable it must
+  # be a trusted locker binary, never a renamed or PATH-installed copy.
+  if exe=$(readlink "/proc/$pid/exe" 2>/dev/null); then
+    exe=${exe% (deleted)}
+    case "$exe" in "$locker_dir/xsecurelock" | "$locker_dir/i3lock") ;; *) return 1 ;; esac
+  fi
+  return 0
+}
+
 exec 9>"$lock_file"
 
 # The lock is held through file descriptor 9, which the locker inherits, so it
 # lives exactly as long as the locker (even if this wrapper is killed).
 # A repeated request is idempotent only when a verified locker is really
-# running. If the lock is held but no trusted locker is active (a wrapper that
+# running. If the lock is held but no verified locker is active (a wrapper that
 # is still starting its locker, or a stale holder), wait briefly and then fail
 # rather than report a locked session that is not locked.
 acquired=0
@@ -81,25 +101,45 @@ for _ in $(seq 1 20); do
     acquired=1
     break
   fi
-  if active_locker; then exit 0; fi
+  if verified_locker; then exit 0; fi
   sleep 0.1
 done
 if [[ $acquired != 1 ]]; then
   echo "ryoku-x11-lock: lock for display $DISPLAY is held but no verified locker is running; refusing to report the session as locked" >&2
   exit 75
 fi
-# A locker started some other way (not through this wrapper) still counts.
-if active_locker; then exit 0; fi
+rm -f -- "$state_file"
+
+locker=
+if [[ -x "$locker_dir/xsecurelock" ]]; then
+  locker=("$locker_dir/xsecurelock")
+elif [[ -x "$locker_dir/i3lock" ]]; then
+  locker=("$locker_dir/i3lock" --nofork --color=000000)
+else
+  echo "ryoku-x11-lock: install xsecurelock or i3lock in $locker_dir; refusing to fake a lock screen" >&2
+  exit 127
+fi
+
+# Run the locker as a child (explicitly keeping stdin) so its pid and start
+# time can be recorded, then wait for it and propagate its status.
+"${locker[@]}" <&0 &
+locker_pid=$!
+record_locker() {
+  local start state_tmp
+  proc_state=
+  start=$(proc_starttime "$locker_pid" 2>/dev/null) || return 0 # already gone
+  state_tmp="$state_file.$$"
+  printf '%s %s\n' "$locker_pid" "$start" >"$state_tmp"
+  mv -f -- "$state_tmp" "$state_file"
+}
+record_locker
+forget_locker() {
+  # Only drop the record once the locker is really gone; a signalled wrapper
+  # must leave a still-running locker verifiable.
+  if ! kill -0 "$locker_pid" 2>/dev/null; then rm -f -- "$state_file"; fi
+}
+trap forget_locker EXIT
 
 status=0
-if [[ -x "$locker_dir/xsecurelock" ]]; then
-  "$locker_dir/xsecurelock" || status=$?
-  exit "$status"
-fi
-if [[ -x "$locker_dir/i3lock" ]]; then
-  "$locker_dir/i3lock" --nofork --color=000000 || status=$?
-  exit "$status"
-fi
-
-echo "ryoku-x11-lock: install xsecurelock or i3lock in $locker_dir; refusing to fake a lock screen" >&2
-exit 127
+wait "$locker_pid" || status=$?
+exit "$status"

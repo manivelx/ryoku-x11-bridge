@@ -717,8 +717,6 @@ func spawnX11Locker() error {
 
     p = root / "ryoku/shell/ipc/control.go"
     text = p.read_text()
-    if '"strconv"' not in text.split("import (",1)[1].split(")",1)[0]:
-        text = text.replace('import (\n', 'import (\n\t"strconv"\n\t"syscall"\n', 1)
     old = '''// isLocked accepts only generation- and session-bound compositor proof. A
 // marker from a killed or different-session locker is stale and removed.
 func isLocked() bool {
@@ -727,45 +725,7 @@ func isLocked() bool {
 // compositor proof for Wayland. A fullscreen QML surface is never a lock.
 func isLocked() bool {
 	if rxbX11Session() {
-		display := os.Getenv("DISPLAY")
-		if display == "" {
-			return false
-		}
-		entries, err := os.ReadDir("/proc")
-		if err != nil {
-			return false
-		}
-		for _, entry := range entries {
-			if !entry.IsDir() {
-				continue
-			}
-			if _, err := strconv.Atoi(entry.Name()); err != nil {
-				continue
-			}
-			processDir := filepath.Join("/proc", entry.Name())
-			info, err := os.Stat(processDir)
-			if err != nil {
-				continue
-			}
-			owner, ok := info.Sys().(*syscall.Stat_t)
-			if !ok || int(owner.Uid) != os.Getuid() {
-				continue
-			}
-			// The kernel-resolved executable path cannot be spoofed by
-			// renaming a file or by prctl(PR_SET_NAME); comm can.
-			exe, err := os.Readlink(filepath.Join(processDir, "exe"))
-			if err != nil {
-				continue
-			}
-			environ, err := os.ReadFile(filepath.Join(processDir, "environ"))
-			if err != nil {
-				continue
-			}
-			if x11LockerProcessMatches(exe, environ, display) {
-				return true
-			}
-		}
-		return false
+		return x11LockerActive(os.Getenv("XDG_RUNTIME_DIR"), os.Getenv("DISPLAY"))
 	}
 	marker := lockMarker()'''
     if text.count(old) != 1:
@@ -778,6 +738,8 @@ func isLocked() bool {
 
 import (
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -807,59 +769,182 @@ func normalizeX11Display(display string) string {
 	return display
 }
 
-// x11LockerProcessMatches accepts only a trusted PAM locker binary (by its
-// resolved executable path, not its changeable process name) whose initial
-// environment names the current X display.
-func x11LockerProcessMatches(exe string, environ []byte, display string) bool {
-	if display == "" {
+// x11LockStateKey mirrors ryoku-x11-lock: the screen number is dropped and
+// characters outside [A-Za-z0-9_.-] become underscores.
+func x11LockStateKey(display string) string {
+	display = normalizeX11Display(display)
+	var b strings.Builder
+	for _, r := range display {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '.' || r == '-' {
+			b.WriteRune(r)
+		} else {
+			b.WriteByte('_')
+		}
+	}
+	return b.String()
+}
+
+// x11LockerActive reports whether the wrapper-recorded locker for this display
+// is alive. XSecureLock is non-dumpable, so /proc/PID/{exe,environ} cannot be
+// used to find it; ryoku-x11-lock records "<pid> <starttime>" instead.
+func x11LockerActive(runtimeDir, display string) bool {
+	if runtimeDir == "" || display == "" {
 		return false
 	}
-	exe = strings.TrimSuffix(exe, " (deleted)")
-	if exe != rxbTrustedLockerDir+"/i3lock" && exe != rxbTrustedLockerDir+"/xsecurelock" {
+	path := filepath.Join(runtimeDir, "ryoku-x11-lock", x11LockStateKey(display)+".state")
+	data, err := os.ReadFile(path)
+	if err != nil {
 		return false
 	}
-	got := processEnvironmentValue(environ, "DISPLAY")
-	return got != "" && normalizeX11Display(got) == normalizeX11Display(display)
+	return verifyX11LockerState("/proc", string(data), os.Getuid(), rxbTrustedLockerDir)
+}
+
+// verifyX11LockerState checks a "<pid> <starttime>" record against procRoot.
+// The start time rejects a reused PID; the owner, process name and (when the
+// kernel lets us read it) executable path must match a trusted locker.
+func verifyX11LockerState(procRoot, state string, uid int, trustedDir string) bool {
+	fields := strings.Fields(state)
+	if len(fields) != 2 {
+		return false
+	}
+	pid, err1 := strconv.ParseUint(fields[0], 10, 32)
+	start, err2 := strconv.ParseUint(fields[1], 10, 64)
+	if err1 != nil || err2 != nil || pid == 0 {
+		return false
+	}
+	dir := filepath.Join(procRoot, strconv.FormatUint(pid, 10))
+	stat, err := os.ReadFile(filepath.Join(dir, "stat"))
+	if err != nil {
+		return false
+	}
+	text := string(stat)
+	closing := strings.LastIndex(text, ") ")
+	if closing < 0 {
+		return false
+	}
+	rest := strings.Fields(text[closing+2:])
+	if len(rest) < 20 || rest[0] == "Z" || rest[0] == "X" {
+		return false
+	}
+	if got, err := strconv.ParseUint(rest[19], 10, 64); err != nil || got != start {
+		return false
+	}
+	status, err := os.ReadFile(filepath.Join(dir, "status"))
+	if err != nil {
+		return false
+	}
+	owned := false
+	for _, line := range strings.Split(string(status), "\\n") {
+		if strings.HasPrefix(line, "Uid:") {
+			f := strings.Fields(line)
+			owned = len(f) > 1 && f[1] == strconv.Itoa(uid)
+			break
+		}
+	}
+	if !owned {
+		return false
+	}
+	comm, err := os.ReadFile(filepath.Join(dir, "comm"))
+	if err != nil {
+		return false
+	}
+	switch strings.TrimSpace(string(comm)) {
+	case "xsecurelock", "i3lock":
+	default:
+		return false
+	}
+	// Readable only for dumpable processes (i3lock). When readable it must be
+	// a trusted binary; an unreadable link (xsecurelock) is not a reason to fail.
+	if exe, err := os.Readlink(filepath.Join(dir, "exe")); err == nil {
+		exe = strings.TrimSuffix(exe, " (deleted)")
+		if exe != trustedDir+"/xsecurelock" && exe != trustedDir+"/i3lock" {
+			return false
+		}
+	}
+	return true
 }
 """)
 
     test = root / "ryoku/shell/ipc/rxb_x11_lock_test.go"
     test.write_text("""package main
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"strconv"
+	"testing"
+)
 
-func TestRXBX11LockerProcessMatchesTrustedExecutableAndDisplay(t *testing.T) {
-	env := []byte("HOME=/home/test\\x00DISPLAY=:99\\x00")
-	if !x11LockerProcessMatches("/usr/bin/i3lock", env, ":99") {
-		t.Fatal("i3lock on the current display was not recognized")
+const fakeStatRest = " 1 4242 4242 0 -1 4194560 100 0 0 0 1 1 0 0 20 0 1 0 987654 1000 100 18446744073709551615"
+
+func fakeProc(t *testing.T, comm, state, uid, exe string) string {
+	t.Helper()
+	root := t.TempDir()
+	dir := filepath.Join(root, "4242")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
 	}
-	if !x11LockerProcessMatches("/usr/bin/xsecurelock", env, ":99") {
-		t.Fatal("xsecurelock on the current display was not recognized")
-	}
-	if !x11LockerProcessMatches("/usr/bin/i3lock (deleted)", env, ":99") {
-		t.Fatal("a locker whose binary was upgraded while running was rejected")
-	}
-	if !x11LockerProcessMatches("/usr/bin/i3lock", env, ":99.0") {
-		t.Fatal(":99 and :99.0 must be the same display")
-	}
-	if x11LockerProcessMatches("/usr/bin/i3lock", env, ":0") {
-		t.Fatal("locker on a different display was accepted")
-	}
-	if x11LockerProcessMatches("/usr/bin/bash", env, ":99") {
-		t.Fatal("non-locker process was accepted")
-	}
-	// A renamed or user-writable binary must not count as a locker even if
-	// its process name is "i3lock".
-	for _, exe := range []string{"/home/u/bin/i3lock", "/tmp/i3lock", "/usr/local/bin/xsecurelock", "/usr/bin/sleep"} {
-		if x11LockerProcessMatches(exe, env, ":99") {
-			t.Fatalf("untrusted executable %q was accepted as a locker", exe)
+	write := func(name, body string) {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
 		}
 	}
-	if x11LockerProcessMatches("/usr/bin/i3lock", []byte("HOME=/x\\x00"), ":99") {
-		t.Fatal("locker without DISPLAY in its environment was accepted")
+	write("stat", "4242 ("+comm+") "+state+fakeStatRest)
+	write("status", "Name:\\t"+comm+"\\nUid:\\t"+uid+"\\t"+uid+"\\t"+uid+"\\t"+uid+"\\n")
+	write("comm", comm+"\\n")
+	if exe != "" {
+		if err := os.Symlink(exe, filepath.Join(dir, "exe")); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if x11LockerProcessMatches("/usr/bin/i3lock", env, "") {
-		t.Fatal("empty display must never match")
+	return root
+}
+
+func TestRXBVerifyX11LockerState(t *testing.T) {
+	uid := strconv.Itoa(os.Getuid())
+	trusted := "/usr/bin"
+	good := "4242 987654\\n"
+	cases := []struct {
+		name  string
+		root  string
+		state string
+		want  bool
+	}{
+		{"xsecurelock non-dumpable (exe unreadable)", fakeProc(t, "xsecurelock", "S", uid, ""), good, true},
+		{"i3lock with trusted exe", fakeProc(t, "i3lock", "S", uid, "/usr/bin/i3lock"), good, true},
+		{"trusted exe replaced by upgrade", fakeProc(t, "i3lock", "S", uid, "/usr/bin/i3lock (deleted)"), good, true},
+		{"reused PID (start time differs)", fakeProc(t, "xsecurelock", "S", uid, ""), "4242 987655\\n", false},
+		{"zombie", fakeProc(t, "xsecurelock", "Z", uid, ""), good, false},
+		{"other user", fakeProc(t, "xsecurelock", "S", strconv.Itoa(os.Getuid()+1), ""), good, false},
+		{"renamed non-locker process", fakeProc(t, "bash", "S", uid, ""), good, false},
+		{"readable but untrusted exe named i3lock", fakeProc(t, "i3lock", "S", uid, "/tmp/i3lock"), good, false},
+		{"PATH-installed locker", fakeProc(t, "xsecurelock", "S", uid, "/usr/local/bin/xsecurelock"), good, false},
+		{"malformed record", fakeProc(t, "xsecurelock", "S", uid, ""), "garbage", false},
+		{"pid zero", fakeProc(t, "xsecurelock", "S", uid, ""), "0 987654", false},
+		{"process gone", t.TempDir(), good, false},
+	}
+	for _, c := range cases {
+		if got := verifyX11LockerState(c.root, c.state, os.Getuid(), trusted); got != c.want {
+			t.Errorf("%s: verifyX11LockerState = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+func TestRXBX11LockStateKeyMatchesWrapper(t *testing.T) {
+	for display, want := range map[string]string{":0": "_0", ":0.0": "_0", ":99.1": "_99", "localhost:10.0": "localhost_10", "unix:1": "unix_1"} {
+		if got := x11LockStateKey(display); got != want {
+			t.Errorf("x11LockStateKey(%q) = %q, want %q", display, got, want)
+		}
+	}
+}
+
+func TestRXBX11LockerActiveRequiresRecord(t *testing.T) {
+	dir := t.TempDir()
+	if x11LockerActive(dir, ":99") {
+		t.Fatal("no record must mean not locked")
+	}
+	if x11LockerActive("", ":99") || x11LockerActive(dir, "") {
+		t.Fatal("empty runtime dir or display must mean not locked")
 	}
 }
 

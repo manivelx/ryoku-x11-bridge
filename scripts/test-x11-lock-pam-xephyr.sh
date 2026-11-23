@@ -116,7 +116,8 @@ is_covered() { read -r r g b <<<"$(pixel)"; [[ -n ${r:-} && $r -lt 60 ]]; }
 locker_pids() { # real locker binaries owned by the test user
   local p exe
   for p in /proc/[0-9]*; do
-    [[ "$(stat -c %u "$p" 2>/dev/null)" == "$uid" ]] || continue
+    # XSecureLock is non-dumpable, so /proc/PID is root-owned; use the real uid.
+    [[ "$(awk '/^Uid:/{print $2; exit}' "$p/status" 2>/dev/null)" == "$uid" ]] || continue
     exe=$(readlink "$p/exe" 2>/dev/null) || continue
     case "${exe% (deleted)}" in /usr/bin/xsecurelock | /usr/bin/i3lock) echo "${p#/proc/}" ;; esac
   done
@@ -125,6 +126,14 @@ count_lockers() { locker_pids | wc -l; }
 lockers_at_least() { [[ "$(count_lockers)" -ge "$1" ]]; }
 no_lockers() { [[ "$(count_lockers)" == 0 ]]; }
 wait_until() { local limit=$(( $1 * 10 )); shift; for _ in $(seq 1 "$limit"); do "$@" && return 0; sleep 0.1; done; return 1; }
+# The wrapper's record of the running locker must verify (pid + start time).
+state_recorded() {
+  local f="$tmp/runtime/ryoku-x11-lock/$(printf '%s' "${disp//[^A-Za-z0-9_.-]/_}").state" pid start cur rest
+  read -r pid start <"$f" 2>/dev/null || return 1
+  rest="$(sed 's/^.*) //' "/proc/$pid/stat" 2>/dev/null)" || return 1
+  set -- $rest; cur="${20:-}"
+  [[ -n $cur && $cur == "$start" ]]
+}
 lock_file_held() { ! as_user flock -n "$tmp/runtime/ryoku-x11-lock/$(printf '%s' "${disp//[^A-Za-z0-9_.-]/_}").lock" true; }
 
 start_wrapper() { # logfile [VAR=value...]
@@ -156,6 +165,7 @@ exercise() {
   wait_until 10 is_covered || die "$label: screen is not covered after locking (centre pixel stayed red)"
   wrapper_alive || die "$label: wrapper exited while locking"
   lock_file_held || die "$label: the per-display lock is not held while the locker runs"
+  wait_until 5 state_recorded || die "$label: the wrapper's locker record does not verify against /proc"
   shot "$label-2-locked"
   [[ "$(count_lockers)" == 1 ]] || die "$label: expected exactly one locker, found $(count_lockers)"
 
