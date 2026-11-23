@@ -8,12 +8,12 @@
 
 The original Ryoku desktop, brought to X11.
 
-[![Provider CI](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/go-provider.yml/badge.svg?branch=rxb%2Fdisposable-install-validation&style=for-the-badge)](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/go-provider.yml)
-[![Upstream integration](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/upstream-integration.yml/badge.svg?branch=rxb%2Fdisposable-install-validation&style=for-the-badge)](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/upstream-integration.yml)
-![X11](https://img.shields.io/badge/session-X11-0d0d0d?style=for-the-badge)
-![i3](https://img.shields.io/badge/window%20manager-i3-0d0d0d?style=for-the-badge)
-![Quickshell](https://img.shields.io/badge/Quickshell-0.3.2-0d0d0d?style=for-the-badge)
-![Arch](https://img.shields.io/badge/platform-Arch%20%7C%20CachyOS-0d0d0d?style=for-the-badge)
+[![i3 provider](https://img.shields.io/github/actions/workflow/status/manivelx/ryoku-x11-bridge/go-provider.yml?branch=rxb%2Fdisposable-install-validation&label=i3%20provider&logo=github&logoColor=white&style=for-the-badge)](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/go-provider.yml)
+[![Pinned upstream integration](https://img.shields.io/github/actions/workflow/status/manivelx/ryoku-x11-bridge/upstream-integration.yml?branch=rxb%2Fdisposable-install-validation&label=pinned%20upstream%20integration&logo=github&logoColor=white&style=for-the-badge)](https://github.com/manivelx/ryoku-x11-bridge/actions/workflows/upstream-integration.yml)
+![Session: X11](https://img.shields.io/badge/session-X11-0d0d0d?style=for-the-badge)
+![Window manager: i3](https://img.shields.io/badge/window%20manager-i3-0d0d0d?style=for-the-badge)
+![Quickshell: 0.3.2](https://img.shields.io/badge/Quickshell-0.3.2-0d0d0d?style=for-the-badge)
+![Platform: Arch | CachyOS](https://img.shields.io/badge/platform-Arch%20%7C%20CachyOS-0d0d0d?style=for-the-badge)
 
 <kbd>[Install](docs/install.md)</kbd> · <kbd>[Architecture](docs/architecture.md)</kbd> · <kbd>[Build](docs/build.md)</kbd> · <kbd>[Compatibility](docs/compatibility-matrix.md)</kbd> · <kbd>[QML audit](docs/qml-x11-audit.md)</kbd> · <kbd>[Roadmap](docs/roadmap.md)</kbd>
 
