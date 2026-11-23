@@ -46,7 +46,7 @@ dump_diagnostics() {
   echo "----- diagnostics -----" >&2
   { echo "uid=${uid:-unset} count_lockers=$(count_lockers 2>&1)";
     for p in $(pgrep -u "$user" -x xsecurelock 2>/dev/null); do
-      echo "xsecurelock pid=$p status-uid=$(awk '/^Uid:/{print $2; exit}' /proc/$p/status 2>&1) exe=$(readlink /proc/$p/exe 2>&1)"; done; } >&2 || true
+      echo "xsecurelock pid=$p status-uid=$(awk '/^Uid:/{print $2; exit}' /proc/$p/status 2>&1) comm=$(cat /proc/$p/comm 2>&1)"; done; } >&2 || true
   { echo "display: ${disp:-unset}"; ps -eo pid,user,args --sort=pid | grep -E 'xsecurelock|i3lock|Xephyr|Xvfb|ryoku-x11-lock|auth_x11|saver_' | grep -v grep; } >&2 || true
   for f in "$tmp"/*.log; do [[ -f $f ]] && { echo "== $f"; tail -n 40 "$f"; } >&2; done
   if [[ -n ${disp:-} ]]; then
@@ -116,13 +116,14 @@ shot() { as_user DISPLAY="$disp" import -window root "png:$tmp/shots/$1.png" 2>/
 is_red() { read -r r g b <<<"$(pixel)"; [[ -n ${r:-} && $r -gt 200 && $g -lt 60 && $b -lt 60 ]]; }
 is_covered() { read -r r g b <<<"$(pixel)"; [[ -n ${r:-} && $r -lt 60 ]]; }
 
-locker_pids() { # real locker binaries owned by the test user
-  local p exe
+locker_pids() { # real locker processes owned by the test user
+  # XSecureLock is non-dumpable: /proc/PID/exe is unreadable even for root in a
+  # container without CAP_SYS_PTRACE, so identify by real uid + process name.
+  local p comm
   for p in /proc/[0-9]*; do
-    # XSecureLock is non-dumpable, so /proc/PID is root-owned; use the real uid.
     [[ "$(awk '/^Uid:/{print $2; exit}' "$p/status" 2>/dev/null)" == "$uid" ]] || continue
-    exe=$(readlink "$p/exe" 2>/dev/null) || continue
-    case "${exe% (deleted)}" in /usr/bin/xsecurelock | /usr/bin/i3lock) echo "${p#/proc/}" ;; esac
+    comm=$(cat "$p/comm" 2>/dev/null) || continue
+    case "$comm" in xsecurelock | i3lock) echo "${p#/proc/}" ;; esac
   done
 }
 count_lockers() { locker_pids | wc -l; }
