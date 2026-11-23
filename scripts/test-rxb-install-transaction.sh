@@ -431,7 +431,7 @@ verify_root=""
 if ! id builder >/dev/null 2>&1; then
   useradd --create-home --shell /bin/bash builder
 fi
-runuser -u builder -- bash "$repo_root/scripts/test-rxb-full-shell-xvfb.sh"
+runuser -u builder -- env RXB_ARTIFACT_DIR="$repo_root/dist" bash "$repo_root/scripts/test-rxb-full-shell-xvfb.sh"
 
 echo "[install-test] Removing the complete package set through the RXB rollback script."
 PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
