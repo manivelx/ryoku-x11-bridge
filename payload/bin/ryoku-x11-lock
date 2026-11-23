@@ -130,8 +130,8 @@ sanitize_xsecurelock_environment() {
   # from a user's shell. Always force the X11 PAM authentication path.
   if [[ ${RXB_PAM_TEST_DISPOSABLE:-} == 1 && -f /.dockerenv \
       && -f /run/rxb-pam-test-disposable && ! -L /run/rxb-pam-test-disposable ]]; then
-    marker_uid="$(stat -c '%u' -- /run/rxb-pam-test-disposable 2>/dev/null || true)"
-    marker_mode="$(stat -c '%a' -- /run/rxb-pam-test-disposable 2>/dev/null || true)"
+    marker_uid="$(/usr/bin/stat -c '%u' -- /run/rxb-pam-test-disposable 2>/dev/null || true)"
+    marker_mode="$(/usr/bin/stat -c '%a' -- /run/rxb-pam-test-disposable 2>/dev/null || true)"
     if [[ "$marker_uid" == 0 && "$marker_mode" =~ ^[0-7]{3,4}$ ]] \
         && (( (8#$marker_mode & 077) == 0 )); then
       allow_test_service=1
@@ -150,8 +150,8 @@ sanitize_xsecurelock_environment() {
   if (( allow_test_service )) && [[ "$pam_service_override" =~ ^[A-Za-z0-9_.-]{1,64}$ ]]; then
     pam_file="/etc/pam.d/$pam_service_override"
     if [[ -f "$pam_file" && ! -L "$pam_file" ]]; then
-      pam_uid="$(stat -c '%u' -- "$pam_file" 2>/dev/null || true)"
-      pam_mode="$(stat -c '%a' -- "$pam_file" 2>/dev/null || true)"
+      pam_uid="$(/usr/bin/stat -c '%u' -- "$pam_file" 2>/dev/null || true)"
+      pam_mode="$(/usr/bin/stat -c '%a' -- "$pam_file" 2>/dev/null || true)"
       if [[ "$pam_uid" == 0 && "$pam_mode" =~ ^[0-7]{3,4}$ ]] \
           && (( (8#$pam_mode & 022) == 0 )); then
         export XSECURELOCK_PAM_SERVICE="$pam_service_override"
