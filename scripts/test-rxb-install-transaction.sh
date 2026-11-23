@@ -230,8 +230,8 @@ chmod 0600 "$manifest_attack_dir/attacker-dir/installed-packages"
   exit 1
 }
 ln -s "$manifest_attack_dir/attacker-dir" /var/lib/rxb
-if PATH="$fake_pacman_dir:$PATH" RXB_PACMAN_MARKER="$pacman_marker" \\
-  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \\
+if PATH="$fake_pacman_dir:$PATH" RXB_PACMAN_MARKER="$pacman_marker" \
+  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
   bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" > "$manifest_attack_dir/dir-symlink.log" 2>&1; then
   echo "Installer accepted a symlinked ownership directory." >&2
   exit 1
@@ -249,8 +249,8 @@ rm -f /var/lib/rxb
 mkdir -m 0755 /var/lib/rxb
 printf 'ryoku-desktop-i3\n' > /var/lib/rxb/installed-packages
 chmod 0600 /var/lib/rxb/installed-packages
-if PATH="$fake_pacman_dir:$PATH" RXB_PACMAN_MARKER="$pacman_marker" \\
-  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \\
+if PATH="$fake_pacman_dir:$PATH" RXB_PACMAN_MARKER="$pacman_marker" \
+  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
   bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" > "$manifest_attack_dir/dir-mode.log" 2>&1; then
   echo "Installer accepted a group/other-accessible ownership directory." >&2
   exit 1
@@ -264,8 +264,8 @@ rm -rf /var/lib/rxb
 mkdir -m 0700 /var/lib/rxb
 printf 'ryoku-desktop-i3\n' > /var/lib/rxb/installed-packages
 chmod 0644 /var/lib/rxb/installed-packages
-if PATH="$fake_pacman_dir:$PATH" RXB_PACMAN_MARKER="$pacman_marker" \\
-  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \\
+if PATH="$fake_pacman_dir:$PATH" RXB_PACMAN_MARKER="$pacman_marker" \
+  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
   bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" > "$manifest_attack_dir/file-mode.log" 2>&1; then
   echo "Installer accepted a group/other-readable ownership manifest." >&2
   exit 1
