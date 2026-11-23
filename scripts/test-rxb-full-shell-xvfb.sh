@@ -351,7 +351,7 @@ import struct
 import sys
 with open(sys.argv[1], "rb") as image:
     header = image.read(24)
-if header[:8] != b"\\x89PNG\\r\\n\\x1a\\n":
+if header[:8] != b"\x89PNG\r\n\x1a\n":
     raise SystemExit("Ryoshot fallback is not a PNG")
 width, height = struct.unpack(">II", header[16:24])
 if (width, height) != (1600, 900):
