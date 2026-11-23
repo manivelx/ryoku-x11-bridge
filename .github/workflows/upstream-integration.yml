@@ -184,6 +184,7 @@ jobs:
           bash -n scripts/test-rxb-package-safety.sh
           bash -n scripts/test-quickshell-i3-smoke.sh
           bash -n scripts/test-rxb-install-transaction.sh
+          bash -n scripts/collect-x11-hardware-evidence.sh
       - name: Apply RXB overlay
         run: python3 scripts/apply-upstream-overlay.py upstream
       - name: Validate patched helper scripts
