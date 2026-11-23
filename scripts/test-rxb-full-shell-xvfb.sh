@@ -269,25 +269,40 @@ dbus-run-session -- bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HO
     echo "RXB unexpectedly accepted suspend on X11 without a secure lock handoff." >&2
     exit 1
   fi
-  ryoku-shell lock >/dev/null
-  locker_pid="$(pgrep -n -x i3lock || true)"
-  [[ -n "$locker_pid" ]] || {
-    cat "$tmp/daemon.log"
-    echo "X11 lock dispatch did not start the PAM-backed i3lock process." >&2
-    exit 1
+  # i3lock --nofork still creates a helper child on some builds. Compare
+  # independent locker roots, not pgrep's newest PID (which may be that child).
+  i3lock_roots() {
+    local all pid ppid
+    all="$(pgrep -x i3lock | tr '\\n' ' ' || true)"
+    for pid in $all; do
+      ppid="$(awk '/^PPid:/{print $2; exit}' "/proc/$pid/status" 2>/dev/null)" || continue
+      [[ " $all " == *" $ppid "* ]] || printf '%s\\n' "$pid"
+    done
   }
   ryoku-shell lock >/dev/null
-  [[ "$(pgrep -n -x i3lock || true)" == "$locker_pid" ]] || {
-    echo "Repeated lock request started a second i3lock process." >&2
+  locker_roots="$(i3lock_roots)"
+  [[ -n "$locker_roots" && "$(wc -l <<<"$locker_roots")" == 1 ]] || {
+    cat "$tmp/daemon.log"
+    echo "X11 lock dispatch did not start exactly one independent PAM-backed i3lock." >&2
+    ps -eo pid,ppid,comm,args | grep '[i]3lock' >&2 || true
+    exit 1
+  }
+  locker_pid="$locker_roots"
+  ryoku-shell lock >/dev/null
+  locker_roots_after="$(i3lock_roots)"
+  [[ "$locker_roots_after" == "$locker_pid" ]] || {
+    echo "Repeated lock request changed independent i3lock roots ($locker_pid -> $locker_roots_after)." >&2
+    ps -eo pid,ppid,comm,args | grep '[i]3lock' >&2 || true
     exit 1
   }
   kill "$locker_pid"
   for _ in $(seq 1 50); do
-    kill -0 "$locker_pid" 2>/dev/null || break
+    [[ -z "$(i3lock_roots)" ]] && break
     sleep 0.1
   done
-  ! kill -0 "$locker_pid" 2>/dev/null || {
-    echo "PAM locker process did not exit after termination." >&2
+  [[ -z "$(i3lock_roots)" ]] || {
+    echo "PAM locker process family did not exit after termination." >&2
+    ps -eo pid,ppid,comm,args | grep '[i]3lock' >&2 || true
     exit 1
   }
   echo "X11 PAM locker start/idempotency/exit checks passed; X11 suspend failed closed."
