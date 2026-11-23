@@ -65,6 +65,8 @@ Acceptance: package transaction/removal passes in disposable Arch; session tests
 Automated Go/QML/build tests, protocol tests, Xephyr/Xvfb, visual tests, real hardware, install/uninstall and docs.
 Acceptance: all evidence recorded separately; hardware and user confirmation cannot be inferred.
 
+A read-only target X11 inventory collector is available at `scripts/collect-x11-hardware-evidence.sh`; the physical acceptance sequence is documented in `docs/hardware-acceptance.md`. The collector records hardware/software inventory only and does not claim visual, input, PAM or lock acceptance.
+
 ## Validation discipline
 CI validates the current branch head: a newer push intentionally cancels superseded in-progress runs to avoid wasting the disposable Arch build slot. Only a completed run for the current head is release evidence. On every failure: capture logs, diagnose root cause, fix, rerun failing test and regressions, document result. Do not call build success runtime success. Hardware tests require user-run collection scripts. No host install without explicit approval.
 
