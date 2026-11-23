@@ -1108,13 +1108,6 @@ def patch_x11_panel_properties(root: pathlib.Path) -> None:
         except FileNotFoundError:
             # Some upstream optional bundles contain dangling asset symlinks.
             continue
-        if "WlrLayershell." not in text:
-            continue
-        if p.name == "VariantRoot.qml":
-            text = text.replace("WlrLayershell.focusable:", "focusable:")
-            text = text.replace("WlrLayershell.keyboardFocus: dismissLayer.visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None\n", "")
-        if p.name == "LyricsPicker.qml":
-            text = text.replace("WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand\n", "")
         # Remove the optional Wayland attached-object focus fallback wherever
         # it occurs. The preceding portable PanelWindow focusable assignment
         # is authoritative on X11. Balanced braces handle nested if/else blocks.
@@ -1139,6 +1132,13 @@ def patch_x11_panel_properties(root: pathlib.Path) -> None:
                 block_end += 1
             text = text[:block_start] + text[block_end:]
 
+        if "WlrLayershell." not in text:
+            continue
+        if p.name == "VariantRoot.qml":
+            text = text.replace("WlrLayershell.focusable:", "focusable:")
+            text = text.replace("WlrLayershell.keyboardFocus: dismissLayer.visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None\n", "")
+        if p.name == "LyricsPicker.qml":
+            text = text.replace("WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand\n", "")
         lines = text.splitlines()
         out = []
         i = 0
