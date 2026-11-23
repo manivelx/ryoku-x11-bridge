@@ -72,22 +72,22 @@ RXB_TEST_PATH="$tmp/wayland-bin:/usr/bin:/bin" run_wrapper "" WAYLAND_DISPLAY=wa
 # 2. Locker selection: XSecureLock first, i3lock fallback with exact arguments.
 cat >"$lockdir/xsecurelock" <<'FAKE_XSECURELOCK'
 #!/bin/sh
-printf '%s|%s|%s|%s|%s|%s|%s\\n' \\
-  "${XSECURELOCK_AUTH:-}" "${XSECURELOCK_AUTHPROTO:-}" \\
-  "${XSECURELOCK_SAVER:-}" "${XSECURELOCK_SWITCH_USER_COMMAND:-}" \\
-  "${XSECURELOCK_PAM_SERVICE:-}" "${XSECURELOCK_NO_COMPOSITE:-}" \\
+printf '%s|%s|%s|%s|%s|%s|%s\n' \
+  "${XSECURELOCK_AUTH:-}" "${XSECURELOCK_AUTHPROTO:-}" \
+  "${XSECURELOCK_SAVER:-}" "${XSECURELOCK_SWITCH_USER_COMMAND:-}" \
+  "${XSECURELOCK_PAM_SERVICE:-}" "${XSECURELOCK_NO_COMPOSITE:-}" \
   "${XSECURELOCK_KEY_FOO_COMMAND:-}" > "$RXB_LOCK_TEST_MARKER"
 FAKE_XSECURELOCK
 printf '#!/bin/sh\n[ "$1" = "--nofork" ] && [ "$2" = "--color=000000" ] || exit 1\nprintf i3lock > "$RXB_LOCK_TEST_MARKER"\n' >"$lockdir/i3lock"
 chmod +x "$lockdir/xsecurelock" "$lockdir/i3lock"
 rm -f "$RXB_LOCK_TEST_MARKER"
-run_wrapper :90 \\
-  XSECURELOCK_AUTH=auth_htpasswd \\
-  XSECURELOCK_AUTHPROTO=authproto_htpasswd \\
-  XSECURELOCK_SAVER=saver_mpv \\
-  XSECURELOCK_SWITCH_USER_COMMAND=/tmp/attacker-command \\
-  XSECURELOCK_PAM_SERVICE=attacker-service \\
-  XSECURELOCK_NO_COMPOSITE=1 \\
+run_wrapper :90 \
+  XSECURELOCK_AUTH=auth_htpasswd \
+  XSECURELOCK_AUTHPROTO=authproto_htpasswd \
+  XSECURELOCK_SAVER=saver_mpv \
+  XSECURELOCK_SWITCH_USER_COMMAND=/tmp/attacker-command \
+  XSECURELOCK_PAM_SERVICE=attacker-service \
+  XSECURELOCK_NO_COMPOSITE=1 \
   XSECURELOCK_KEY_FOO_COMMAND=/tmp/attacker-command
 [[ "$(cat "$RXB_LOCK_TEST_MARKER")" == 'auth_x11|authproto_pam||||' ]] || {
   fail "XSecureLock environment was not sanitized to PAM defaults: $(cat "$RXB_LOCK_TEST_MARKER")"
