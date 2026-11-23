@@ -1116,20 +1116,25 @@ def patch_x11_panel_properties(root: pathlib.Path) -> None:
         if p.name == "LyricsPicker.qml":
             text = text.replace("WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand\n", "")
         if p.name == "GithubFace.qml":
-            text = text.replace('''                    let focusVal = enable ? 1 : 0;
-                    if (typeof WlrKeyboardFocus !== "undefined") {
-                        focusVal = enable ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None;
-                    } else if (typeof WlrLayershell !== "undefined" && WlrLayershell.KeyboardFocus) {
-                        focusVal = enable ? WlrLayershell.KeyboardFocus.OnDemand : WlrLayershell.KeyboardFocus.None;
-                    }
-                    t.WlrLayershell.keyboardFocus = focusVal;''', '''                    t.focusable = !!enable;''')
+            # PanelWindow already receives the portable focusable assignment
+            # above. Drop the optional Wayland attached-object fallback rather
+            # than leaving a runtime access to a null WlrLayershell object.
+            text, removed = re.subn(
+                r"(?ms)^[ \\t]*if \\(t\\.WlrLayershell !== undefined\\) \\{\\n"
+                r".*?^[ \\t]*t\\.WlrLayershell\\.keyboardFocus = focusVal;\\n"
+                r"[ \\t]*\\}",
+                "",
+                text,
+            )
+            if removed > 1:
+                raise RuntimeError(f"{p}: multiple dynamic Wayland focus blocks found")
 
         lines = text.splitlines()
         out = []
         i = 0
         while i < len(lines):
             line = lines[i]
-            match = re.match(r"^(\s*)WlrLayershell\.(layer|keyboardFocus):\s*(.*)$", line)
+            match = re.match(r"^(\s*)WlrLayershell\.(layer|keyboardFocus|exclusionMode):\s*(.*)$", line)
             if match:
                 indent, prop, expr = match.groups()
                 parts = [expr.strip()]
@@ -1149,9 +1154,12 @@ def patch_x11_panel_properties(root: pathlib.Path) -> None:
                 if prop == "layer":
                     converted = _convert_x11_layer(expression)
                     out.append(f"{indent}aboveWindows: {converted}")
-                else:
+                elif prop == "keyboardFocus":
                     converted = _convert_x11_focus(expression)
                     out.append(f"{indent}focusable: {converted}")
+                else:
+                    # PanelWindow exposes the same exclusionMode policy on X11.
+                    out.append(f"{indent}exclusionMode: {expression}")
                 i = j
                 continue
             if re.match(r"^\s*WlrLayershell\.namespace\s*:", line):
@@ -1162,10 +1170,10 @@ def patch_x11_panel_properties(root: pathlib.Path) -> None:
             out.append(line)
             i += 1
         patched = "\n".join(out) + ("\n" if text.endswith("\n") else "")
-        if "WlrLayershell.layer:" in patched or "WlrLayershell.keyboardFocus:" in patched or "WlrLayershell.namespace:" in patched or "WlrLayershell.focusable:" in patched:
+        if re.search(r"\bWlrLayershell\.(?:layer|keyboardFocus|namespace|focusable|exclusionMode)\s*:", patched):
             raise RuntimeError(f"{p}: X11 PanelWindow property conversion incomplete")
-        if "t.WlrLayershell.keyboardFocus" in patched:
-            raise RuntimeError(f"{p}: dynamic Wayland keyboard-focus assignment remains")
+        if re.search(r"\bt\.WlrLayershell\b", patched):
+            raise RuntimeError(f"{p}: dynamic Wayland attached-object access remains")
         if patched != text:
             p.write_text(patched)
 
