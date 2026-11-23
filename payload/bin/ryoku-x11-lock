@@ -124,6 +124,8 @@ sanitize_xsecurelock_environment() {
   local pam_service_override="${XSECURELOCK_PAM_SERVICE:-}"
   local allow_test_service=0 marker_uid="" marker_mode=""
   local pam_file="" pam_uid="" pam_mode="" variable
+  local auth_module=/usr/lib/xsecurelock/auth_x11
+  local authproto_module=/usr/lib/xsecurelock/authproto_pam
 
   # XSecureLock exposes environment switches for auth modules, saver helpers,
   # key-triggered commands and display coverage. Do not inherit those choices
@@ -140,8 +142,12 @@ sanitize_xsecurelock_environment() {
 
   for variable in ${!XSECURELOCK_@}; do unset "$variable"; done
   unset RXB_PAM_TEST_DISPOSABLE
-  export XSECURELOCK_AUTH=auth_x11
-  export XSECURELOCK_AUTHPROTO=authproto_pam
+  [[ -x "$auth_module" && -x "$authproto_module" ]] || {
+    echo "ryoku-x11-lock: XSecureLock PAM helpers are missing or not executable in /usr/lib/xsecurelock; refusing to start an unverified locker" >&2
+    exit 127
+  }
+  export XSECURELOCK_AUTH="$auth_module"
+  export XSECURELOCK_AUTHPROTO="$authproto_module"
 
   # The isolated Xephyr acceptance test needs to select its temporary PAM
   # stacks. Permit that override only with the root-owned marker created by
