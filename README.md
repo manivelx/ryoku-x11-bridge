@@ -19,7 +19,7 @@ The original Ryoku desktop, brought to X11.
 
 </div>
 
-> **Installable release candidate for isolated evaluation — not ready for installation on a daily-use machine until target-hardware acceptance.** The release bundle is produced only after the disposable Arch package install/upgrade/rejected-transaction/rollback/removal checks and the Xvfb+i3 shell/lock smoke pass. X11 suspend and hibernate are intentionally disabled until a secure lock-before-suspend handoff is proven; live window previews remain gated. The disposable Xephyr test now verifies real XSecureLock and i3lock PAM authentication with a temporary account. Unlocking with the owner's actual PAM policy, physical VT/input behavior, multi-monitor coverage, and rendering on the target GT 740 / NVIDIA 470 / Picom desktop still require owner validation.
+> **Installable release candidate for isolated evaluation — not ready for installation on a daily-use machine until target-hardware acceptance.** The release bundle is produced only after the disposable Arch package install/upgrade/rejected-transaction/rollback/removal checks and the Xvfb+i3 shell, capture and lock smoke pass. The current Xvfb run also opens 15 lazy shell surfaces and launches the original Ryoshot app, verifying its X11 `maim` fallback produces a valid 1600x900 PNG. X11 suspend and hibernate are intentionally disabled until a secure lock-before-suspend handoff is proven; live window previews remain gated. Real XSecureLock and i3lock PAM authentication passed in isolated Xephyr with a temporary account. The owner's actual PAM policy, physical VT/input behavior, multi-monitor coverage, and rendering on the target GT 740 / NVIDIA 470 / Picom desktop still require owner validation.
 
 <div align="center">
   <img src="https://raw.githubusercontent.com/Ryoku-dev/ryoku/main/docs/media/showroom/blue-hour.webp" alt="Original Ryoku desktop visual reference" width="100%" />
@@ -122,12 +122,12 @@ A source adapter, a successful build, an Xvfb smoke test and real desktop accept
 | Quickshell i3 integration | Quickshell.I3 and X11 PanelWindow smoke passed under Xvfb |
 | Original shell daemon | Basic daemon IPC and QML-process startup smoke passed in isolated Xvfb+i3 |
 | Arch packages | Package build and safety inspection passed in disposable Arch CI |
-| Package transaction | Install/remove transaction passed in disposable Arch CI on the recorded successful baseline |
-| Full interactive Ryoku shell | Not accepted |
+| Package transaction | Current-head install, upgrade, rejected-transaction, rollback and removal passed in disposable Arch CI |
+| Full interactive Ryoku shell | 15 lazy surfaces loaded in Xvfb; visual layout, user interaction and desktop-service acceptance remain open |
 | Active-profile QML / Wayland audit | Partial; exhaustive inventory remains open |
 | Keybinding translation | Original 105-action catalogue is resolved into i3 bindings where semantics match; remaining actions are visible with explicit unsupported reasons |
 | Secure lock / PAM / lock-before-suspend | Real XSecureLock and i3lock PAM acceptance passed in isolated Xephyr; real-host grabs, VT, multi-monitor and crash recovery remain pending; suspend handoff disabled |
-| Multi-monitor, capture and previews | Not accepted |
+| Screenshot / Ryoshot X11 fallback | Original Ryoshot QML app loaded; X11 `maim` fallback produced a valid 1600x900 PNG in Xvfb |\n| Multi-monitor, recording and live previews | Not accepted; persistent capture remains capability-gated off |
 | GT 740 / NVIDIA 470 / Picom rendering | Not tested to acceptance on target hardware |
 | Daily-host installation and rollback | Not accepted |
 

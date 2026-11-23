@@ -23,10 +23,10 @@ Legend: Direct candidate = Quickshell/X11 API likely covers it; Adapter = implem
 | Bluetooth | BlueZ | Direct candidate | Scan, pair, connect, disconnect |
 | Network/power | NetworkManager/UPower services | Direct candidate | State and action verification |
 | Clipboard | X11 clipboard backend | Adapter | PRIMARY/CLIPBOARD and persistence |
-| Capture/recording | X11 capture backend | Replacement | Coordinates, multi-monitor, performance |
+| Capture/recording | X11 `maim` fallback for Ryoshot and `ryoku-cmd-grim`; persistent Wayland capture not advertised | Partial replacement | Ryoshot app and 1600x900 capture passed Xvfb; multi-monitor coordinates, recording and performance remain open |
 | Window previews | Live capture surfaces gated off; window identity/state still comes from i3 tree | Gated | Implement and validate a per-window X11 capture adapter before enabling previews |
 | Overview | Original QML + i3 state + capture adapter | Replacement | Navigation and previews |
-| WlrLayershell | X11 window hints/struts | Replacement | Per-surface behavior validated |
+| WlrLayershell | X11 `PanelWindow` hints/struts; overlay converts layer, focus and exclusion mode and fails closed on unknown properties | Replacement | Source conversion tests and Xvfb shell smoke passed; per-surface stacking, struts, focus and multi-monitor behavior remain open |
 | Foreign-toplevel | i3 GET_TREE | Replacement | Task list, titles, app identity |
 | Global shortcuts | i3 bindings or XGrabKey | Adapter/gated | Conflicts and focus semantics |
 | Session lock | XSecureLock or i3lock + PAM; process identity scoped to the current X display | Replacement/partial | Xvfb start/idempotency/exit smoke; real PAM authentication, grabs, VT switching and recovery pending |

@@ -26,7 +26,7 @@ External application theme writes are gated while `RYOKU_X11_BRIDGE=1`; app-wide
 
 ## Automated runtime evidence
 
-On 2026-11-22, CI built the pinned package set, installed it in a disposable Arch container, materialized the original shell, started the real `ryoku-shell daemon` under Xvfb+i3 with Quickshell 0.3.2, verified daemon IPC ping/status and a healthy QML shell process/log, then cleanly quit and removed the packages. This is a **basic startup/QML-load smoke**, not visual or interaction acceptance for every panel, popup, tray, notification, wallpaper, capture, lock or monitor feature. The session lifecycle test validates the wrapper and configuration isolation with a mocked systemd command; the disposable install transaction additionally verifies installed unit paths and systemd unit syntax.
+On 2026-11-23, the current integration run built all pinned packages, installed them in a disposable Arch container, materialized the original shell, and started the real `ryoku-shell daemon` under Xvfb+i3 with Quickshell 0.3.2. It verified provider discovery, all 105 shipped keybind records, Hub navigation IPC, and 15 lazy shell surfaces (launcher, settings, overview, quicksettings, clipboard, wallpaper menu, cheatsheet, tools, Ask/chat/tools, screenshot, and visualizer surfaces). It also launched the original Ryoshot QML app as a separate Quickshell process; on X11 its `ScreencopyView` loader stayed inactive, the `maim` fallback captured a valid 1600x900 PNG, and the app signalled capture readiness. The X11 capture adapter produced a second valid 1600x900 PNG. Lock start/idempotency/exit and fail-closed suspend checks passed. The disposable package transaction passed install, synthetic upgrade, rejected transaction, rollback and removal. This is automated Xvfb/Xephyr acceptance, **not** visual or interaction acceptance on the target GPU, physical input/VT, multi-monitor behavior or every desktop service.
 
 ## Feature classifications
 
@@ -42,7 +42,7 @@ Representative files:
 - `ryoku/shell/quickshell/shell/modules/dock/DockSurface.qml`
 - `ryoku/shell/quickshell/shell/modules/bar/barstyles/qsbar/VariantRoot.qml`
 
-RXB converts supported `WlrLayershell.layer` semantics to X11 `PanelWindow.aboveWindows`, converts keyboard-focus modes to the X11 `focusable` property, and removes the Wayland namespace property. `WlrLayer.Top/Overlay` map to above-windows; `Bottom/Background` map below. Dynamic expressions are translated conservatively and fail the overlay if an unknown enum remains.
+RXB converts supported `WlrLayershell.layer` semantics to X11 `PanelWindow.aboveWindows`, keyboard-focus modes to the X11 `focusable` property, and `WlrLayershell.exclusionMode` to the portable `PanelWindow.exclusionMode`; the Wayland namespace property is removed. `WlrLayer.Top/Overlay` map to above-windows; `Bottom/Background` map below. The optional `GithubFace.qml` dynamic Wayland keyboard-focus fallback is removed because the portable `focusable` property is authoritative on X11. A postcondition rejects any remaining `WlrLayershell.<property>:` assignment or dynamic attached-object access, including unknown future properties, rather than shipping an unconverted panel.
 
 This is only a source transformation. X11 stacking, struts, focus, popups, dismissal, transient windows and multi-monitor behavior still require runtime testing.
 
@@ -70,7 +70,7 @@ Representative files:
 - `ryoku/shell/quickshell/shell/modules/bar/popouts/DockPreviewPopout.qml`
 - `ryoku/shell/quickshell/ryoshot/Overlay.qml`
 
-The i3 provider does **not** advertise persistent Wayland screen capture. Dock live previews are therefore capability-gated off; capture widgets receive null Wayland handles. The screenshot command path has an X11 `maim` adapter, but this is not a replacement for persistent per-window capture, overview live previews, or recording. Those remain incomplete.
+The i3 provider does **not** advertise persistent Wayland screen capture. Dock live previews and zoom capture are therefore capability-gated off; capture widgets receive null Wayland handles. The original Ryoshot app is retained: on X11 its capture backend selects the `maim` fallback and does not instantiate `ScreencopyView`; the disposable Xvfb test verifies the app loads and produces a valid 1600x900 capture. This does not replace persistent per-window capture, overview live previews, multi-monitor coordinate acceptance or recording. Those remain incomplete.
 
 ### Session lock
 
@@ -121,7 +121,7 @@ RXB now includes `scripts/audit-rxb-qml.py`. After applying the overlay to the p
 - `ryoku/shell/quickshell/reload-cover` and `ryopin` — reload and pin helper surfaces.
 - `ryoku/apps/ryostore/quickshell` and `ryovm/quickshell` — companion apps shipped in the upstream tree.
 
-The report counts and lists source occurrences of `Quickshell.Wayland`, `WlrLayershell`, `ScreencopyView`, `ToplevelManager`, `WlSessionLock`, `Quickshell.Hyprland`, `Quickshell.Niri` and `Quickshell.I3`. CI uploads the machine-readable JSON as the `rxb-qml-x11-inventory` artifact for each integration run.
+The latest post-overlay inventory covers 1,768 QML files across 10 roots and reports 130 `Quickshell.Wayland` imports, 14 `ScreencopyView` occurrences, and zero remaining `WlrLayershell`, `ToplevelManager`, `WlSessionLock`, Hyprland or Niri API tokens in those packaged source roots. The remaining Wayland imports are not themselves proof of runtime use; the 14 capture-view occurrences are capability-gated or handled by the Ryoshot X11 fallback. CI uploads the machine-readable JSON as the `rxb-qml-x11-inventory` artifact for each integration run.
 
 This is a reproducible **whole-subtree source census**, not an active-profile dependency graph: a file can belong to an optional bar style or helper surface that is not loaded in the user's current profile. The next audit step remains resolving the default shell's transitive QML imports and classifying every reachable Wayland API use by actual runtime path. The report must not be used to claim that the default profile is fully audited or that an API occurrence is already adapted.
 
@@ -130,4 +130,4 @@ This is a reproducible **whole-subtree source census**, not an active-profile de
 
 A second audit, `scripts/audit-rxb-qml-graph.py`, now starts at the pinned shell entrypoint `ryoku/shell/quickshell/shell/shell.qml`. It follows explicit quoted directory imports, QML module imports backed by `qmldir`, and statically visible QML component object declarations. The scan root is the complete `ryoku/shell/quickshell` tree so shared stage modules outside the shell subdirectory can be included. It records reachable and unreachable QML files, dependency edges, API occurrences among reachable files, unresolved local imports and files using dynamic Loader/source constructs.
 
-CI publishes this report as `rxb-active-shell-qml-graph` separately from the whole-subtree inventory. It is a **static candidate graph**, not a claim of complete runtime reachability: dynamic Loader paths, JavaScript-created components, plugin-provided components and profile-dependent branches can still load files not found by static object references. The report's limitations are part of the artifact; runtime tracing and profile-specific interactive tests remain mandatory.
+CI publishes this report as `rxb-active-shell-qml-graph` separately from the whole-subtree inventory. The latest report contains 590 statically reachable QML files, 1,928 not statically reachable from the main shell entrypoint, 188 unresolved dynamic references and 59 profile-dependent references; the reachable graph contains 41 Wayland imports, seven `ScreencopyView` occurrences and zero `WlrLayershell` occurrences after the overlay. It is a **static candidate graph**, not a claim of complete runtime reachability: dynamic Loader paths, JavaScript-created components, plugin-provided components and profile-dependent branches can still load files not found by static object references. The report's limitations are part of the artifact; runtime tracing and profile-specific interactive tests remain mandatory.
