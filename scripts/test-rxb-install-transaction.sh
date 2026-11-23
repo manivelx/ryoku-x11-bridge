@@ -246,6 +246,24 @@ fi
 }
 rm -f /var/lib/rxb
 
+mkdir -m 0700 /var/lib/rxb
+ln -s "$manifest_attack_dir/attacker-dir/installed-packages" /var/lib/rxb/installed-packages
+if PATH="$fake_pacman_dir:$PATH" RXB_PACMAN_MARKER="$pacman_marker" \
+  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
+  bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" > "$manifest_attack_dir/file-symlink.log" 2>&1; then
+  echo "Installer accepted a symlinked ownership manifest file." >&2
+  exit 1
+fi
+[[ -L /var/lib/rxb/installed-packages && -f "$manifest_attack_dir/attacker-dir/installed-packages" ]] || {
+  echo "Installer changed a symlinked ownership manifest or its target." >&2
+  exit 1
+}
+[[ ! -e "$pacman_marker" ]] || {
+  echo "Installer invoked pacman before rejecting a symlinked ownership manifest." >&2
+  exit 1
+}
+rm -rf /var/lib/rxb
+
 mkdir -m 0755 /var/lib/rxb
 printf 'ryoku-desktop-i3\n' > /var/lib/rxb/installed-packages
 chmod 0600 /var/lib/rxb/installed-packages
