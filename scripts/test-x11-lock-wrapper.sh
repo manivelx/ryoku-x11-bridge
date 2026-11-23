@@ -89,7 +89,7 @@ run_wrapper :90 \
   XSECURELOCK_PAM_SERVICE=attacker-service \
   XSECURELOCK_NO_COMPOSITE=1 \
   XSECURELOCK_KEY_FOO_COMMAND=/tmp/attacker-command
-[[ "$(cat "$RXB_LOCK_TEST_MARKER")" == 'auth_x11|authproto_pam||||' ]] || {
+[[ "$(cat "$RXB_LOCK_TEST_MARKER")" == 'auth_x11|authproto_pam|||||' ]] || {
   fail "XSecureLock environment was not sanitized to PAM defaults: $(cat "$RXB_LOCK_TEST_MARKER")"
 }
 rm "$lockdir/xsecurelock" "$RXB_LOCK_TEST_MARKER"
