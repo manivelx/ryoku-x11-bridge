@@ -164,7 +164,6 @@ dbus-run-session -- bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HO
     wait "$wireplumber_pid" 2>/dev/null || true
     wait "$pipewire_pid" 2>/dev/null || true
   }
-  trap cleanup_audio EXIT
   for _ in $(seq 1 100); do
     [[ -S "$XDG_RUNTIME_DIR/pipewire-0" ]] && break
     if ! kill -0 "$pipewire_pid" 2>/dev/null; then
@@ -210,6 +209,7 @@ dbus-run-session -- bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HO
       kill -TERM "$daemon_pid" 2>/dev/null || true
     fi
     wait "$daemon_pid" 2>/dev/null || true
+    cleanup_audio
     exit "$status"
   }
   trap cleanup_daemon EXIT
