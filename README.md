@@ -127,7 +127,8 @@ A source adapter, a successful build, an Xvfb smoke test and real desktop accept
 | Active-profile QML / Wayland audit | Partial; exhaustive inventory remains open |
 | Keybinding translation | Original 105-action catalogue is resolved into i3 bindings where semantics match; remaining actions are visible with explicit unsupported reasons |
 | Secure lock / PAM / lock-before-suspend | Real XSecureLock and i3lock PAM acceptance passed in isolated Xephyr; real-host grabs, VT, multi-monitor and crash recovery remain pending; suspend handoff disabled |
-| Screenshot / Ryoshot X11 fallback | Original Ryoshot QML app loaded; X11 `maim` fallback produced a valid 1600x900 PNG in Xvfb |\n| Multi-monitor, recording and live previews | Not accepted; persistent capture remains capability-gated off |
+| Screenshot / Ryoshot X11 fallback | Original Ryoshot QML app loaded; X11 `maim` fallback produced a valid 1600x900 PNG in Xvfb |
+| Multi-monitor, recording and live previews | Not accepted; persistent capture remains capability-gated off |
 | GT 740 / NVIDIA 470 / Picom rendering | Not tested to acceptance on target hardware |
 | Daily-host installation and rollback | Not accepted |
 
