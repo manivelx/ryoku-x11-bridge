@@ -78,7 +78,7 @@ if command -v pacman >/dev/null 2>&1; then
     if pacman -Q "$package" >/dev/null 2>&1; then existing_ryoku+=("$package"); fi
   done
   if (("${#existing_ryoku[@]}" > 0)); then
-    printf '[INFO] Existing Ryoku packages: %s\\n' "${existing_ryoku[*]}"
+    printf '[INFO] Existing Ryoku packages: %s\n' "${existing_ryoku[*]}"
     if [[ -r /var/lib/rxb/installed-packages ]]; then
       warn "Existing Ryoku packages and an RXB ownership record were found; review both before an upgrade."
     else
