@@ -1115,30 +1115,29 @@ def patch_x11_panel_properties(root: pathlib.Path) -> None:
             text = text.replace("WlrLayershell.keyboardFocus: dismissLayer.visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None\n", "")
         if p.name == "LyricsPicker.qml":
             text = text.replace("WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand\n", "")
-        if p.name == "GithubFace.qml":
-            # PanelWindow already receives the portable focusable assignment
-            # above. Remove the Wayland attached-object fallback by balancing
-            # this block's braces; nested if/else blocks make a flat regex brittle.
-            marker = "if (t.WlrLayershell !== undefined) {"
-            while marker in text:
-                marker_at = text.index(marker)
-                block_start = text.rfind("\n", 0, marker_at) + 1
-                open_at = text.index("{", marker_at)
-                depth = 0
-                block_end = None
-                for offset in range(open_at, len(text)):
-                    if text[offset] == "{":
-                        depth += 1
-                    elif text[offset] == "}":
-                        depth -= 1
-                        if depth == 0:
-                            block_end = offset + 1
-                            break
-                if block_end is None:
-                    raise RuntimeError(f"{p}: unterminated dynamic Wayland focus block")
-                if block_end < len(text) and text[block_end:block_end + 1] == "\n":
-                    block_end += 1
-                text = text[:block_start] + text[block_end:]
+        # Remove the optional Wayland attached-object focus fallback wherever
+        # it occurs. The preceding portable PanelWindow focusable assignment
+        # is authoritative on X11. Balanced braces handle nested if/else blocks.
+        marker = "if (t.WlrLayershell !== undefined) {"
+        while marker in text:
+            marker_at = text.index(marker)
+            block_start = text.rfind("\n", 0, marker_at) + 1
+            open_at = text.index("{", marker_at)
+            depth = 0
+            block_end = None
+            for offset in range(open_at, len(text)):
+                if text[offset] == "{":
+                    depth += 1
+                elif text[offset] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        block_end = offset + 1
+                        break
+            if block_end is None:
+                raise RuntimeError(f"{p}: unterminated dynamic Wayland focus block")
+            if block_end < len(text) and text[block_end:block_end + 1] == "\n":
+                block_end += 1
+            text = text[:block_start] + text[block_end:]
 
         lines = text.splitlines()
         out = []
