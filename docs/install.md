@@ -4,6 +4,14 @@ RXB is distributed as an Arch package bundle built and tested against the pinned
 
 ## Before installing
 
+Run the bundled read-only host preflight from your existing BSPWM/X11 session as your normal user:
+
+```bash
+bash scripts/rxb-host-preflight.sh
+```
+
+It checks the OS/architecture, current X11 display, pacman state, recovery-session presence, installed Ryoku package conflicts, and inventories protected desktop paths and GPU/Quickshell status. It does not install packages or change configuration. **Stop if it reports any failure.** Resolve warnings and confirm the protected paths match your existing setup before proceeding. A passing preflight is not proof of NVIDIA/QtQuick runtime compatibility.
+
 - Use Arch Linux or CachyOS x86_64 with a working Xorg session and pacman.
 - Update the system first with `sudo pacman -Syu`. The installer deliberately does not run a partial `pacman -Sy`.
 - Create a BTRFS/Snapper snapshot or another recovery point if your system uses one.
