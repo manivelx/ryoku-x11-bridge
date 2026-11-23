@@ -2,7 +2,7 @@
 
 | ID | Risk | Severity | Mitigation / exit condition |
 |---|---|---:|---|
-| R1 | X11 lacks Wayland session-lock security semantics | Critical | XSecureLock/i3lock PAM wrapper and display-scoped process detection are implemented; Xvfb startup/idempotency smoke passes. Keep suspend/hibernate/automatic suspend fail-closed. Real PAM authentication, keyboard/pointer grabs, VT switching, multi-monitor coverage and crash/recovery tests remain mandatory before enabling sleep. |
+| R1 | X11 lacks Wayland session-lock security semantics | Critical | XSecureLock/i3lock wrapper forces absolute X11/PAM helpers, sanitizes inherited XSECURELOCK settings, and uses display-scoped process detection. Disposable Xephyr acceptance passed with real XSecureLock and i3lock binaries plus a temporary pam_unix account. Keep suspend/hibernate/automatic suspend fail-closed. Owner-host PAM policy, physical keyboard/pointer grabs, VT switching, multi-monitor coverage and crash/recovery tests remain mandatory before enabling sleep. |
 | R2 | Broad Wayland-only QML dependencies | High | Exhaustive import/use inventory; adapt narrowly and preserve original UI |
 | R3 | Quickshell X11 surfaces differ from layer-shell | High | Test struts, stacking, focus, popups and hotplug |
 | R4 | Go consumers expect compositor state | High | i3 tree/event adapter matching exact upstream frame contract |
