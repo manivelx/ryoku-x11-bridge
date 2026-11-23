@@ -85,7 +85,7 @@ def main() -> int:
         for line in badge_lines
     ):
         errors.append("Workflow badges must use the Shields endpoint so their style matches the static badges.")
-    if r"\\n|" in text:
+    if r"\n|" in text:
         errors.append("README contains a literal \\n sequence that breaks a Markdown table row.")
 
     links = re.findall(r"\[[^\]]+\]\(([^)]+)\)", text)
