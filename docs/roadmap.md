@@ -12,7 +12,7 @@
 [x] Quickshell 0.3.2 API and basic full-shell daemon/QML-load smoke passed in disposable Xvfb+i3 CI
 [ ] Architecture review and acceptance
 
-Status: current-head provider, overlay, upstream Go, package, installer/rollback, session lifecycle and Xvfb+i3 shell/capture/lock smoke gates passed on 2026-11-23 (source head `82f1a5e5`). Real XSecureLock/i3lock PAM authentication also passed in isolated Xephyr. Full visual interaction, physical lock/VT/multi-monitor acceptance and target-hardware rendering remain separate gates.
+Status: current-head provider, overlay, upstream Go, package, installer/rollback, session lifecycle and Xvfb+i3 shell/capture/lock smoke gates passed on 2026-11-23 (code-validation head `883fd28108f1dd62374d3c9cedc63453e17e6a93`). Real XSecureLock/i3lock PAM authentication also passed in isolated Xephyr. Full visual interaction, physical lock/VT/multi-monitor acceptance and target-hardware rendering remain separate gates.
 
 ## Phase 1 — i3 provider foundation
 [~] Provider CLI and conservative capability manifest
