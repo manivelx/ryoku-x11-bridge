@@ -277,7 +277,7 @@ dbus-run-session -- bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HO
       echo "Ryoku shell stopped while opening $command." >&2
       exit 1
     }
-    if grep -Eiq 'QQmlApplicationEngine failed to load|failed to load root|module .* is not installed|Type .* unavailable|No such file or directory.*\\.qml|Failed to load configuration|Expected token|ReferenceError|TypeError: .* is not a function' "$shell_log"; then
+    if grep -Eiq 'QQmlApplicationEngine failed to load|failed to load root|module .* is not installed|Type .* unavailable|No such file or directory.*\.qml|Failed to load configuration|Expected token|ReferenceError|TypeError: .* is not a function' "$shell_log"; then
       cat "$shell_log" >&2
       echo "QML runtime error while opening $command." >&2
       exit 1
@@ -315,7 +315,7 @@ import sys
 
 with open(sys.argv[1], "rb") as image:
     header = image.read(24)
-if header[:8] != b"\\x89PNG\\r\\n\\x1a\\n":
+if header[:8] != b"\x89PNG\r\n\x1a\n":
     raise SystemExit("X11 capture adapter did not produce a PNG")
 width, height = struct.unpack(">II", header[16:24])
 if (width, height) != (1600, 900):
