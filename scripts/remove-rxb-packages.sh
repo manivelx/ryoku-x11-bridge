@@ -32,12 +32,34 @@ pacman_confirmed() {
   fi
 }
 
-manifest="/var/lib/rxb/installed-packages"
-[[ -f "$manifest" ]] || {
+manifest_dir="/var/lib/rxb"
+manifest="$manifest_dir/installed-packages"
+refuse_manifest() {
+  echo "remove-rxb-packages: refusing an unsafe RXB ownership manifest: $1" >&2
+  exit 1
+}
+if [[ -L "$manifest_dir" ]]; then
+  refuse_manifest "$manifest_dir is a symlink"
+fi
+if [[ ! -e "$manifest_dir" ]]; then
   echo "No RXB installer ownership record exists; refusing to guess which packages to remove." >&2
   echo "If the packages were installed manually, review them with pacman -Q and remove them explicitly." >&2
   exit 2
-}
+fi
+[[ -d "$manifest_dir" && -O "$manifest_dir" ]] || refuse_manifest "$manifest_dir is not a root-owned directory"
+dir_mode="$(stat -c '%a' -- "$manifest_dir")"
+(( (8#$dir_mode & 077) == 0 )) || refuse_manifest "$manifest_dir is accessible to group or other users"
+if [[ -L "$manifest" ]]; then
+  refuse_manifest "$manifest is a symlink"
+fi
+if [[ ! -e "$manifest" ]]; then
+  echo "No RXB installer ownership record exists; refusing to guess which packages to remove." >&2
+  echo "If the packages were installed manually, review them with pacman -Q and remove them explicitly." >&2
+  exit 2
+fi
+[[ -f "$manifest" && -O "$manifest" ]] || refuse_manifest "$manifest is not a root-owned regular file"
+manifest_mode="$(stat -c '%a' -- "$manifest")"
+(( (8#$manifest_mode & 077) == 0 )) || refuse_manifest "$manifest is accessible to group or other users"
 
 declare -a installed=()
 while IFS= read -r name; do
