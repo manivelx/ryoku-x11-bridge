@@ -120,6 +120,50 @@ else
   exit 127
 fi
 
+sanitize_xsecurelock_environment() {
+  local pam_service_override="${XSECURELOCK_PAM_SERVICE:-}"
+  local allow_test_service=0 marker_uid="" marker_mode=""
+  local pam_file="" pam_uid="" pam_mode="" variable
+
+  # XSecureLock exposes environment switches for auth modules, saver helpers,
+  # key-triggered commands and display coverage. Do not inherit those choices
+  # from a user's shell. Always force the X11 PAM authentication path.
+  if [[ ${RXB_PAM_TEST_DISPOSABLE:-} == 1 && -f /.dockerenv \
+      && -f /run/rxb-pam-test-disposable && ! -L /run/rxb-pam-test-disposable ]]; then
+    marker_uid="$(stat -c '%u' -- /run/rxb-pam-test-disposable 2>/dev/null || true)"
+    marker_mode="$(stat -c '%a' -- /run/rxb-pam-test-disposable 2>/dev/null || true)"
+    if [[ "$marker_uid" == 0 && "$marker_mode" =~ ^[0-7]{3,4}$ ]] \
+        && (( (8#$marker_mode & 077) == 0 )); then
+      allow_test_service=1
+    fi
+  fi
+
+  for variable in ${!XSECURELOCK_@}; do unset "$variable"; done
+  unset RXB_PAM_TEST_DISPOSABLE
+  export XSECURELOCK_AUTH=auth_x11
+  export XSECURELOCK_AUTHPROTO=authproto_pam
+
+  # The isolated Xephyr acceptance test needs to select its temporary PAM
+  # stacks. Permit that override only with the root-owned marker created by
+  # the disposable-container test harness; normal sessions always use the
+  # XSecureLock build's compiled-in PAM service.
+  if (( allow_test_service )) && [[ "$pam_service_override" =~ ^[A-Za-z0-9_.-]{1,64}$ ]]; then
+    pam_file="/etc/pam.d/$pam_service_override"
+    if [[ -f "$pam_file" && ! -L "$pam_file" ]]; then
+      pam_uid="$(stat -c '%u' -- "$pam_file" 2>/dev/null || true)"
+      pam_mode="$(stat -c '%a' -- "$pam_file" 2>/dev/null || true)"
+      if [[ "$pam_uid" == 0 && "$pam_mode" =~ ^[0-7]{3,4}$ ]] \
+          && (( (8#$pam_mode & 022) == 0 )); then
+        export XSECURELOCK_PAM_SERVICE="$pam_service_override"
+      fi
+    fi
+  fi
+}
+
+if [[ "${locker[0]}" == "$locker_dir/xsecurelock" ]]; then
+  sanitize_xsecurelock_environment
+fi
+
 # Run the locker as a child (explicitly keeping stdin) so its pid and start
 # time can be recorded, then wait for it and propagate its status.
 "${locker[@]}" <&0 &
