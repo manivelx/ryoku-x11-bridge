@@ -24,7 +24,7 @@ if (( EUID != 0 )); then
     "$script_path" "$package_dir"
 fi
 
-for command in pacman bsdtar awk sed head sort comm grep install mktemp; do
+for command in pacman bsdtar awk sed head sort comm grep install mktemp stat; do
   command -v "$command" >/dev/null 2>&1 || {
     echo "install-rxb-packages: required command is missing: $command" >&2
     exit 1
