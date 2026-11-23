@@ -4,6 +4,18 @@
 
 RXB is distributed as an Arch package bundle built and tested against the pinned Ryoku source. The installer does not enable services globally or change the current desktop session.
 
+## Audit blockers — do not skip
+
+The full repository audit (2026-11-24) classified the project as **READY FOR ISOLATED TESTING ONLY**. This guide is not approval to install on a daily-use PC.
+
+- **F1 — upstream host files:** the current `ryoku` package includes a tmpfiles configuration that creates world-writable hand-off files under `/var/lib/ryoku`, and `ryoku-boot-guard.service`. Their effect on the existing Ryoku Orbital SDDM theme has not been verified. Do not install this package set on the owner's PC until the owner explicitly decides whether these files are to be excluded or accepted and documented. No such decision is implied by a passing CI run.
+- **F2 — Qt version:** `ryogami` requires `qt6-base>=6.12`. A stale host can pull a Qt upgrade and related package changes into the install transaction. Perform a deliberate full system update, reboot, and verify the existing BSPWM, Orbital SDDM theme and Quickshell lockscreen before considering RXB. Abort if the transaction proposes a Qt/Quickshell upgrade or removal.
+- **F3/F4 — dependency transaction:** review every package pacman proposes to install, upgrade, or remove. Do not use `RXB_PACMAN_NOCONFIRM=1` on a host. Abort if the transaction includes packages or removals you have not explicitly approved.
+- **F5 — upstream CLI:** do not run `ryoku update`, `ryoku doctor`, `ryoku svc reconcile`, `ryoku boot-guard`, or any `ryoku-host` subcommand on the host. Their host-mutating behavior has not been fully audited.
+- **Target hardware:** no acceptance has been performed on the GT 740 / NVIDIA 470 / Picom setup. Lock recovery, real input grabs, VT switching and multi-monitor behavior remain unverified.
+
+These blockers must be resolved, documented and covered by passing tests before the readiness decision can be raised to controlled PC installation testing.
+
 ## Before installing
 
 Run the bundled read-only host preflight from your existing BSPWM/X11 session as your normal user:
@@ -42,6 +54,8 @@ The script requests sudo when needed. It verifies the package set and protected 
 After installation, the display manager should offer **Ryoku (X11 / i3)** as a separate session. RXB does not edit SDDM configuration or the Orbital theme; it only installs the XSession desktop entry. Select the new session at the login screen. Your BSPWM session remains installed.
 
 ## First-login checks
+
+Only perform these checks in a disposable VM or dedicated test installation while F1 and the other host-install blockers remain unresolved.
 
 1. Confirm the session is X11 and i3 is the window manager.
 2. Confirm the RXB user target and Quickshell services are active.
