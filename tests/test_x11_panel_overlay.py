@@ -101,12 +101,11 @@ class X11PanelOverlayTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             qml = root / "WellbeingLimitOverlay.qml"
-            qml.write_text(
-                "PanelWindow {\\n"
-                "    WlrLayershell.layer: WlrLayer.Overlay\\n"
-                "    WlrLayershell.exclusionMode: ExclusionMode.Ignore\\n"
-                "}\\n"
-            )
+            qml.write_text('''PanelWindow {
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.exclusionMode: ExclusionMode.Ignore
+}
+''')
             OVERLAY.patch_x11_panel_properties(root)
             result = qml.read_text()
             self.assertIn("aboveWindows: true", result)
@@ -117,24 +116,23 @@ class X11PanelOverlayTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             qml = root / "GithubFace.qml"
-            qml.write_text(
-                "Item {\\n"
-                "    function setFocus(enable) {\\n"
-                "        if (t.focusable !== undefined) {\\n"
-                "            t.focusable = enable;\\n"
-                "        }\\n"
-                "        if (t.WlrLayershell !== undefined) {\\n"
-                "            let focusVal = enable ? 1 : 0;\\n"
-                "            if (typeof WlrKeyboardFocus !== \\"undefined\\") {\\n"
-                "                focusVal = enable ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None;\\n"
-                "            } else if (typeof WlrLayershell !== \\"undefined\\" && WlrLayershell.KeyboardFocus) {\\n"
-                "                focusVal = enable ? WlrLayershell.KeyboardFocus.OnDemand : WlrLayershell.KeyboardFocus.None;\\n"
-                "            }\\n"
-                "            t.WlrLayershell.keyboardFocus = focusVal;\\n"
-                "        }\\n"
-                "    }\\n"
-                "}\\n"
-            )
+            qml.write_text('''Item {
+    function setFocus(enable) {
+        if (t.focusable !== undefined) {
+            t.focusable = enable;
+        }
+        if (t.WlrLayershell !== undefined) {
+            let focusVal = enable ? 1 : 0;
+            if (typeof WlrKeyboardFocus !== "undefined") {
+                focusVal = enable ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None;
+            } else if (typeof WlrLayershell !== "undefined" && WlrLayershell.KeyboardFocus) {
+                focusVal = enable ? WlrLayershell.KeyboardFocus.OnDemand : WlrLayershell.KeyboardFocus.None;
+            }
+            t.WlrLayershell.keyboardFocus = focusVal;
+        }
+    }
+}
+''')
             OVERLAY.patch_x11_panel_properties(root)
             result = qml.read_text()
             self.assertIn("t.focusable = enable;", result)
