@@ -90,6 +90,14 @@ jobs:
           path: dist/arch-ci.log
           if-no-files-found: ignore
           retention-days: 7
+      - name: Upload Xvfb shell screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rxb-xvfb-shell-evidence
+          path: dist/rxb-x11-shell-xvfb.png
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Bundle Arch packages for artifact upload
         run: |
           shopt -s nullglob
