@@ -206,6 +206,72 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# The installer must reject unsafe ownership metadata before asking pacman to
+# inspect or mutate the installed package database.
+manifest_attack_dir="$upgrade_dir/installer-manifest-attacks"
+fake_pacman_dir="$manifest_attack_dir/bin"
+mkdir -p "$fake_pacman_dir" "$manifest_attack_dir/attacker-dir"
+pacman_marker="$manifest_attack_dir/pacman-was-called"
+cat > "$fake_pacman_dir/pacman" <<'FAKE_PACMAN'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$RXB_PACMAN_MARKER"
+exit 0
+FAKE_PACMAN
+chmod 0755 "$fake_pacman_dir/pacman"
+printf 'ryoku-desktop-i3\n' > "$manifest_attack_dir/attacker-dir/installed-packages"
+chmod 0600 "$manifest_attack_dir/attacker-dir/installed-packages"
+
+[[ ! -e /var/lib/rxb && ! -L /var/lib/rxb ]] || {
+  echo "Unexpected RXB manifest path exists before installer hardening tests." >&2
+  exit 1
+}
+ln -s "$manifest_attack_dir/attacker-dir" /var/lib/rxb
+if PATH="$fake_pacman_dir:$PATH" RXB_PACMAN_MARKER="$pacman_marker" \\
+  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \\
+  bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" > "$manifest_attack_dir/dir-symlink.log" 2>&1; then
+  echo "Installer accepted a symlinked ownership directory." >&2
+  exit 1
+fi
+[[ -L /var/lib/rxb && -f "$manifest_attack_dir/attacker-dir/installed-packages" ]] || {
+  echo "Installer changed a symlinked ownership directory or its target." >&2
+  exit 1
+}
+[[ ! -e "$pacman_marker" ]] || {
+  echo "Installer invoked pacman before rejecting a symlinked ownership directory." >&2
+  exit 1
+}
+rm -f /var/lib/rxb
+
+mkdir -m 0755 /var/lib/rxb
+printf 'ryoku-desktop-i3\n' > /var/lib/rxb/installed-packages
+chmod 0600 /var/lib/rxb/installed-packages
+if PATH="$fake_pacman_dir:$PATH" RXB_PACMAN_MARKER="$pacman_marker" \\
+  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \\
+  bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" > "$manifest_attack_dir/dir-mode.log" 2>&1; then
+  echo "Installer accepted a group/other-accessible ownership directory." >&2
+  exit 1
+fi
+[[ ! -e "$pacman_marker" ]] || {
+  echo "Installer invoked pacman before rejecting unsafe directory permissions." >&2
+  exit 1
+}
+rm -rf /var/lib/rxb
+
+mkdir -m 0700 /var/lib/rxb
+printf 'ryoku-desktop-i3\n' > /var/lib/rxb/installed-packages
+chmod 0644 /var/lib/rxb/installed-packages
+if PATH="$fake_pacman_dir:$PATH" RXB_PACMAN_MARKER="$pacman_marker" \\
+  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \\
+  bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" > "$manifest_attack_dir/file-mode.log" 2>&1; then
+  echo "Installer accepted a group/other-readable ownership manifest." >&2
+  exit 1
+fi
+[[ ! -e "$pacman_marker" ]] || {
+  echo "Installer invoked pacman before rejecting unsafe manifest permissions." >&2
+  exit 1
+}
+rm -rf /var/lib/rxb
+
 echo "[install-test] Installing the complete built package set through the RXB installer."
 PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
   bash "$repo_root/scripts/install-rxb-packages.sh" "$dist"
