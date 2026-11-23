@@ -298,8 +298,9 @@ dbus-run-session -- bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HO
   surface_smoke wallpaper-menu wallpaper surface
   surface_smoke cheatsheet cheatsheet surface
   surface_smoke tools tools surface
-  surface_smoke "ask chat" ask surface
-  surface_smoke "ask tools" ask surface
+  surface_smoke ask ask surface
+  surface_smoke "ask chat" "ask#chat" surface
+  surface_smoke "ask tools" "ask#tools" surface
   surface_smoke screenshot screenshot surface
   surface_smoke visualizer visualizer surface
   surface_smoke visualizer-overlay visualizer-overlay surface
