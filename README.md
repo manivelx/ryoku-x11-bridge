@@ -122,7 +122,7 @@ A source adapter, a successful build, an Xvfb smoke test and real desktop accept
 | Quickshell i3 integration | Quickshell.I3 and X11 PanelWindow smoke passed under Xvfb |
 | Original shell daemon | Basic daemon IPC and QML-process startup smoke passed in isolated Xvfb+i3 |
 | Arch packages | Package build and safety inspection passed in disposable Arch CI |
-| Package transaction | Current-head install, upgrade, rejected-transaction, rollback and removal passed in disposable Arch CI |
+| Package transaction | Passed in the earlier disposable Arch validation (`928aa9c8`); the latest PR-head rerun is pending after a full-shell PipeWire readiness race fix |
 | Full interactive Ryoku shell | 15 lazy surfaces loaded in Xvfb; visual layout, user interaction and desktop-service acceptance remain open |
 | Active-profile QML / Wayland audit | Partial; exhaustive inventory remains open |
 | Keybinding translation | Original 105-action catalogue is resolved into i3 bindings where semantics match; remaining actions are visible with explicit unsupported reasons |
