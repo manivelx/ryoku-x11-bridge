@@ -1105,6 +1105,7 @@ def patch_x11_panel_properties(root: pathlib.Path) -> None:
             continue
         try:
             text = p.read_text()
+            original_text = text
         except FileNotFoundError:
             # Some upstream optional bundles contain dangling asset symlinks.
             continue
@@ -1184,7 +1185,7 @@ def patch_x11_panel_properties(root: pathlib.Path) -> None:
             raise RuntimeError(f"{p}: X11 PanelWindow property conversion incomplete")
         if re.search(r"\bt\.WlrLayershell\b", patched):
             raise RuntimeError(f"{p}: dynamic Wayland attached-object access remains")
-        if patched != text:
+        if patched != original_text:
             p.write_text(patched)
 
 
