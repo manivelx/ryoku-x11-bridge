@@ -371,12 +371,12 @@ mkdir -p "$fake_pacman_dir"
 pacman_marker="$manifest_attack_dir/pacman-was-called"
 cat > "$fake_pacman_dir/pacman" <<'FAKE_PACMAN'
 #!/usr/bin/env bash
-printf '%s\\n' "$*" >> "$RXB_PACMAN_MARKER"
+printf '%s\n' "$*" >> "$RXB_PACMAN_MARKER"
 exit 0
 FAKE_PACMAN
 chmod 0755 "$fake_pacman_dir/pacman"
 attacker_manifest="$manifest_attack_dir/attacker-packages"
-printf 'ryoku-desktop-i3\\n' > "$attacker_manifest"
+printf 'ryoku-desktop-i3\n' > "$attacker_manifest"
 
 [[ ! -e /var/lib/rxb && ! -L /var/lib/rxb ]] || {
   echo "Unexpected RXB manifest path remains before symlink tests." >&2
@@ -403,7 +403,7 @@ rmdir /var/lib/rxb
 
 attacker_dir="$manifest_attack_dir/attacker-rxb"
 mkdir -m 0700 "$attacker_dir"
-printf 'ryoku-desktop-i3\\n' > "$attacker_dir/installed-packages"
+printf 'ryoku-desktop-i3\n' > "$attacker_dir/installed-packages"
 ln -s "$attacker_dir" /var/lib/rxb
 if PATH="$fake_pacman_dir:$PATH" RXB_PACMAN_MARKER="$pacman_marker" \
   PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
