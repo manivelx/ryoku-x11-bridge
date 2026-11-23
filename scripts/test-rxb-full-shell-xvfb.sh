@@ -273,10 +273,10 @@ dbus-run-session -- bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HO
   # independent locker roots, not pgrep's newest PID (which may be that child).
   i3lock_roots() {
     local all pid ppid
-    all="$(pgrep -x i3lock | tr '\\n' ' ' || true)"
+    all="$(pgrep -x i3lock | tr '\n' ' ' || true)"
     for pid in $all; do
       ppid="$(awk '/^PPid:/{print $2; exit}' "/proc/$pid/status" 2>/dev/null)" || continue
-      [[ " $all " == *" $ppid "* ]] || printf '%s\\n' "$pid"
+      [[ " $all " == *" $ppid "* ]] || printf '%s\n' "$pid"
     done
   }
   ryoku-shell lock >/dev/null
@@ -295,12 +295,15 @@ dbus-run-session -- bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HO
     ps -eo pid,ppid,comm,args | grep '[i]3lock' >&2 || true
     exit 1
   }
-  kill "$locker_pid"
+  # Terminate every process from this isolated test's i3lock family. The
+  # --nofork helper can outlive its parent if only the root PID is signalled.
+  locker_pids="$(pgrep -x i3lock || true)"
+  for pid in $locker_pids; do kill "$pid" 2>/dev/null || true; done
   for _ in $(seq 1 50); do
-    [[ -z "$(i3lock_roots)" ]] && break
+    [[ -z "$(pgrep -x i3lock || true)" ]] && break
     sleep 0.1
   done
-  [[ -z "$(i3lock_roots)" ]] || {
+  [[ -z "$(pgrep -x i3lock || true)" ]] || {
     echo "PAM locker process family did not exit after termination." >&2
     ps -eo pid,ppid,comm,args | grep '[i]3lock' >&2 || true
     exit 1
