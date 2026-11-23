@@ -197,8 +197,12 @@ cleanup() {
     pacman -Rdd --noconfirm "${present[@]}" >/dev/null || true
   fi
   cleanup_protected
-  rm -f /var/lib/rxb/installed-packages
-  rmdir /var/lib/rxb 2>/dev/null || true
+  if [[ -L /var/lib/rxb ]]; then
+    rm -f -- /var/lib/rxb
+  elif [[ -d /var/lib/rxb ]]; then
+    rm -f -- /var/lib/rxb/installed-packages
+    rmdir /var/lib/rxb 2>/dev/null || true
+  fi
   [[ -z ${upgrade_dir:-} ]] || rm -rf "$upgrade_dir"
   [[ -z ${test_home:-} ]] || rm -rf "$test_home"
   cleanup_test_config
