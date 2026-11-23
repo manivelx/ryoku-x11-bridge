@@ -65,6 +65,8 @@ Acceptance: package transaction/removal passes in disposable Arch; session tests
 Automated Go/QML/build tests, protocol tests, Xephyr/Xvfb, visual tests, real hardware, install/uninstall and docs.
 Acceptance: all evidence recorded separately; hardware and user confirmation cannot be inferred.
 
+Latest PR-head rerun note (2026-11-23): the run for `418dad4` completed provider, upstream and PAM jobs successfully, and the Arch transaction reached the full-shell Xvfb acceptance stage. The shell then exited while opening `visualizer-place`; its Cava/PipeWire client attempted to connect before the PipeWire native server was ready. The test now waits for a successful `pw-cli info 0` readiness probe (commit `71ebfcfa`) before starting the shell. This correction is awaiting a fresh CI run. The earlier package transaction pass recorded below is prior-revision evidence and is not a substitute for the current PR-head rerun.
+
 A read-only target X11 inventory collector is available at `scripts/collect-x11-hardware-evidence.sh`; the physical acceptance sequence is documented in `docs/hardware-acceptance.md`. The collector records hardware/software inventory only and does not claim visual, input, PAM or lock acceptance.
 
 ## Validation discipline
