@@ -55,7 +55,7 @@ Loader {
 }
 '''
         self.assertEqual(
-            [(4, 'Qt.resolvedUrl("real.qml")')],
+            [(5, 'Qt.resolvedUrl("real.qml")')],
             AUDIT.loader_source_expressions(source),
         )
 
