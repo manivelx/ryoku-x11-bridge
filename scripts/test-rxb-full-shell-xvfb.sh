@@ -306,6 +306,63 @@ dbus-run-session -- bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HO
   surface_smoke visualizer-overlay visualizer-overlay surface
   surface_smoke visualizer-place visualizer-place surface
 
+  # Load the original Ryoshot app in its own Quickshell process. On X11 it must
+  # choose the maim fallback, freeze a real Xvfb frame and signal readiness;
+  # this catches Wayland-only capture regressions outside the main shell tree.
+  ryoshot_root="$quickshell_root/ryoshot"
+  ryoshot_ready="$tmp/ryoshot-capture-ready"
+  ryoshot_log="$tmp/ryoshot.log"
+  [[ -f "$ryoshot_root/shell.qml" ]] || {
+    echo "Materialized Ryoshot entrypoint is missing: $ryoshot_root/shell.qml" >&2
+    exit 1
+  }
+  rm -f /tmp/ryoshot-fallback-*.png
+  QML_IMPORT_PATH="$quickshell_root" QML2_IMPORT_PATH="$quickshell_root" \
+    RYOSHOT_CAPTURE_READY_FILE="$ryoshot_ready" \
+    qs -p "$ryoshot_root" >"$ryoshot_log" 2>&1 &
+  ryoshot_pid=$!
+  for _ in $(seq 1 120); do
+    [[ -e "$ryoshot_ready" ]] && break
+    if ! kill -0 "$ryoshot_pid" 2>/dev/null; then
+      cat "$ryoshot_log"
+      echo "Ryoshot exited before its X11 capture fallback became ready." >&2
+      exit 1
+    fi
+    sleep 0.1
+  done
+  [[ -e "$ryoshot_ready" ]] || {
+    cat "$ryoshot_log"
+    echo "Ryoshot did not signal a frozen X11 capture frame." >&2
+    exit 1
+  }
+  grep -q "using grim capture" "$ryoshot_log" || {
+    cat "$ryoshot_log"
+    echo "Ryoshot did not select the expected X11 capture fallback." >&2
+    exit 1
+  }
+  ryoshot_frame="$(find /tmp -maxdepth 1 -type f -name 'ryoshot-fallback-*.png' -print -quit)"
+  [[ -n "$ryoshot_frame" && -s "$ryoshot_frame" ]] || {
+    cat "$ryoshot_log"
+    echo "Ryoshot did not create its fallback screenshot image." >&2
+    exit 1
+  }
+  python3 - "$ryoshot_frame" <<'PY'
+import struct
+import sys
+with open(sys.argv[1], "rb") as image:
+    header = image.read(24)
+if header[:8] != b"\\x89PNG\\r\\n\\x1a\\n":
+    raise SystemExit("Ryoshot fallback is not a PNG")
+width, height = struct.unpack(">II", header[16:24])
+if (width, height) != (1600, 900):
+    raise SystemExit(f"Ryoshot fallback dimensions were {width}x{height}, expected 1600x900")
+print(f"Ryoshot X11 fallback captured a {width}x{height} PNG.")
+PY
+  kill "$ryoshot_pid" 2>/dev/null || true
+  wait "$ryoshot_pid" 2>/dev/null || true
+  rm -f "$ryoshot_ready" "$ryoshot_frame"
+  echo "Original Ryoshot QML app loaded and captured through the X11 fallback."
+
   # Exercise the X11 capture adapter with a real XRandR output. The installed
   # compatibility command must route to maim rather than the Wayland-only grim.
   capture_output="$(xrandr --query | awk '$2 == "connected" { print $1; exit }')"
