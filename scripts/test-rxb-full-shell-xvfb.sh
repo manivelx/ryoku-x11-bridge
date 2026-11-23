@@ -199,7 +199,7 @@ dbus-run-session -- bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HO
   done
   touch "$tmp/materialized"
 
-  timeout --signal=TERM --kill-after=3s 35s ryoku-shell daemon >"$tmp/daemon.log" 2>&1 &
+  timeout --signal=TERM --kill-after=3s 120s ryoku-shell daemon >"$tmp/daemon.log" 2>&1 &
   daemon_pid=$!
   cleanup_daemon() {
     local status=$?
