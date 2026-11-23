@@ -139,6 +139,17 @@ class X11PanelOverlayTests(unittest.TestCase):
             self.assertNotIn("t.WlrLayershell", result)
             self.assertNotIn("WlrKeyboardFocus", result)
 
+    def test_unknown_wayland_attached_property_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            qml = root / "UnknownPanel.qml"
+            qml.write_text('''PanelWindow {
+    WlrLayershell.unhandledProperty: true
+}
+''')
+            with self.assertRaisesRegex(RuntimeError, "property conversion incomplete"):
+                OVERLAY.patch_x11_panel_properties(root)
+
     def test_panel_properties_are_rewritten_for_x11(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
