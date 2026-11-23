@@ -1120,9 +1120,9 @@ def patch_x11_panel_properties(root: pathlib.Path) -> None:
             # above. Drop the optional Wayland attached-object fallback rather
             # than leaving a runtime access to a null WlrLayershell object.
             text, removed = re.subn(
-                r"(?ms)^[ \\t]*if \\(t\\.WlrLayershell !== undefined\\) \\{\\n"
-                r".*?^[ \\t]*t\\.WlrLayershell\\.keyboardFocus = focusVal;\\n"
-                r"[ \\t]*\\}",
+                r"(?ms)^[ \t]*if \(t\.WlrLayershell !== undefined\) \{\n"
+                r".*?^[ \t]*t\.WlrLayershell\.keyboardFocus = focusVal;\n"
+                r"[ \t]*\}",
                 "",
                 text,
             )
