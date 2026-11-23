@@ -67,7 +67,7 @@ Loader {
     source: dynamicPanelUrl
 }
 """
-        self.assertEqual([(4, "dynamicPanelUrl")], AUDIT.loader_source_expressions(source))
+        self.assertEqual([(5, "dynamicPanelUrl")], AUDIT.loader_source_expressions(source))
 
 
 if __name__ == "__main__":
