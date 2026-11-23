@@ -74,6 +74,8 @@ jobs:
               su builder -c "bash /workspace/scripts/test-build-output-safety.sh /workspace/upstream"
               echo "[ci] Building the complete RXB package set."
               su builder -c "bash /workspace/scripts/build-rxb-packages.sh /workspace/upstream /workspace/dist"
+              echo "[ci] Inventory of the built package set (read-only)."
+              bash /workspace/scripts/inventory-rxb-packages.sh /workspace/dist
               echo "[ci] Checking package safety."
               su builder -c "bash /workspace/scripts/test-rxb-package-safety.sh /workspace/dist"
               echo "[ci] Running Quickshell/i3 API smoke."
