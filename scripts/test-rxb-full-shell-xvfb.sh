@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-for command in Xvfb i3 qs pipewire wireplumber ryoku ryoku-shell ryoku-wm-i3 ryoku-hub jq dbus-run-session timeout ps pgrep xrandr maim ryoku-cmd-grim python3; do
+for command in Xvfb i3 qs pipewire wireplumber pw-cli ryoku ryoku-shell ryoku-wm-i3 ryoku-hub jq dbus-run-session timeout ps pgrep xrandr maim ryoku-cmd-grim python3; do
   command -v "$command" >/dev/null 2>&1 || {
     echo "RXB full-shell Xvfb test requires $command" >&2
     exit 127
@@ -178,6 +178,28 @@ dbus-run-session -- bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HO
     echo "PipeWire did not create its runtime socket." >&2
     exit 1
   }
+  # The socket can appear before PipeWire has completed native-protocol
+  # initialization. Probe the server itself before Quickshell creates its
+  # CavaFeed clients; otherwise the first visualizer surface can race startup
+  # and terminate the supervised shell with a transient connection error.
+  pipewire_ready=0
+  for _ in $(seq 1 100); do
+    if pw-cli info 0 >/dev/null 2>&1; then
+      pipewire_ready=1
+      break
+    fi
+    if ! kill -0 "$pipewire_pid" 2>/dev/null; then
+      cat "$tmp/pipewire.log" "$tmp/wireplumber.log" >&2
+      echo "PipeWire exited before its native server became ready." >&2
+      exit 1
+    fi
+    sleep 0.05
+  done
+  if [[ "$pipewire_ready" != 1 ]]; then
+    cat "$tmp/pipewire.log" "$tmp/wireplumber.log" >&2
+    echo "PipeWire socket exists but the native server did not become ready." >&2
+    exit 1
+  fi
 
   timeout --signal=TERM --kill-after=3s 30s ryoku materialize
   [[ -f "$shell_root/shell.qml" ]] || {
