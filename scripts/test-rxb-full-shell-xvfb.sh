@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-for command in Xvfb i3 qs ryoku ryoku-shell ryoku-wm-i3 ryoku-hub jq dbus-run-session timeout ps pgrep; do
+for command in Xvfb i3 qs ryoku ryoku-shell ryoku-wm-i3 ryoku-hub jq dbus-run-session timeout ps pgrep xrandr maim ryoku-cmd-grim python3; do
   command -v "$command" >/dev/null 2>&1 || {
     echo "RXB full-shell Xvfb test requires $command" >&2
     exit 127
@@ -112,7 +112,7 @@ export I3SOCK="$socket"
 # This exercises the same provider detection and caps path used by the Hub,
 # not just the standalone RXB binary or a successful QML process launch.
 provider_caps="$(ryoku-wm-i3 caps)"
-jq -e '.name == "i3" and (.supports | index("workspaces") != null)' <<<"$provider_caps" >/dev/null || {
+jq -e '.name == "i3" and (.supports | index("workspaces") != null) and (.supports | index("windowGeometry") != null) and (.supports | index("persistentScreenCapture") == null)' <<<"$provider_caps" >/dev/null || {
   echo "RXB i3 provider returned an invalid capability manifest:" >&2
   printf '%s\n' "$provider_caps" >&2
   exit 1
@@ -262,6 +262,66 @@ dbus-run-session -- bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HO
   fi
   qs -p "$hub_root" ipc call hub close >/dev/null 2>&1 || true
   echo "Ryoku Hub loaded and answered navigation IPC from the isolated RXB Quickshell root."
+
+  # Exercise real shell IPC routes so the lazy QML surfaces are loaded at
+  # runtime, not merely discovered by the static dependency graph.
+  surface_smoke() {
+    local command="$1" surface_id="$2" mode="$3" status
+    echo "[shell-smoke] Opening $command surface."
+    timeout 10s ryoku-shell "$command" >/dev/null
+    sleep 1
+    status="$(ryoku-shell status 2>/dev/null || true)"
+    grep -q "^shell: running$" <<<"$status" || {
+      cat "$tmp/daemon.log"
+      cat "$shell_log"
+      echo "Ryoku shell stopped while opening $command." >&2
+      exit 1
+    }
+    if grep -Eiq 'QQmlApplicationEngine failed to load|failed to load root|module .* is not installed|Type .* unavailable|No such file or directory.*\\.qml|Failed to load configuration|Expected token|ReferenceError|TypeError: .* is not a function' "$shell_log"; then
+      cat "$shell_log" >&2
+      echo "QML runtime error while opening $command." >&2
+      exit 1
+    fi
+    if [[ "$mode" == toggle ]]; then
+      timeout 10s ryoku-shell "$command" >/dev/null
+    else
+      timeout 10s qs -p "$shell_root" ipc call shell closeSurface "" "$surface_id" >/dev/null
+    fi
+    sleep 0.3
+  }
+
+  surface_smoke launcher launcher toggle
+  surface_smoke overview overview surface
+  surface_smoke quicksettings sidebar-left surface
+  surface_smoke clipboard clipboard toggle
+  surface_smoke wallpaper-menu wallpaper surface
+
+  # Exercise the X11 capture adapter with a real XRandR output. The installed
+  # compatibility command must route to maim rather than the Wayland-only grim.
+  capture_output="$(xrandr --query | awk '$2 == "connected" { print $1; exit }')"
+  [[ -n "$capture_output" ]] || {
+    echo "Xvfb did not expose an active XRandR output." >&2
+    exit 1
+  }
+  capture_file="$tmp/rxb-x11-capture.png"
+  ryoku-cmd-grim -o "$capture_output" "$capture_file"
+  [[ -s "$capture_file" ]] || {
+    echo "X11 capture adapter produced no screenshot." >&2
+    exit 1
+  }
+  python3 - "$capture_file" <<'PY'
+import struct
+import sys
+
+with open(sys.argv[1], "rb") as image:
+    header = image.read(24)
+if header[:8] != b"\\x89PNG\\r\\n\\x1a\\n":
+    raise SystemExit("X11 capture adapter did not produce a PNG")
+width, height = struct.unpack(">II", header[16:24])
+if (width, height) != (1600, 900):
+    raise SystemExit(f"X11 capture dimensions were {width}x{height}, expected 1600x900")
+print(f"X11 capture adapter produced a {width}x{height} PNG.")
+PY
 
   # Exercise the real daemon lock dispatch on X11 and ensure status reflects
   # the live PAM locker, not a Wayland qylock proof marker.
