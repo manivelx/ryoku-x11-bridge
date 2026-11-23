@@ -3,7 +3,7 @@
 Scope: `payload/bin/ryoku-x11-lock`, `payload/bin/ryoku-x11-suspend`, the overlay
 in `scripts/apply-upstream-overlay.py` (lock dispatch, `spawnX11Locker`,
 `isLocked`, lock recovery, power guard), the wrapper tests, and CI.
-The audit originally started from `b06d4f9`; its fixes are integrated on `rxb/disposable-install-validation`.
+The audit originally started from `b06d4f9`; its fixes are integrated on `development`.
 
 This is independent software-level evidence. It is **not** target-hardware
 acceptance and does not by itself make RXB installation-ready.

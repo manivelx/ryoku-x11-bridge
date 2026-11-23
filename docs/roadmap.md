@@ -12,7 +12,7 @@
 [x] Quickshell 0.3.2 API and basic full-shell daemon/QML-load smoke passed in disposable Xvfb+i3 CI
 [ ] Architecture review and acceptance
 
-Status: current PR head `8350cd29313c7277d60630f99f07f0c02692ce11` passed the provider, pinned-upstream integration, disposable Arch package build and full install/upgrade/rejected-transaction/rollback/removal pipeline, full-shell Xvfb+i3 smoke, and isolated real-locker PAM acceptance on 2026-11-23. The successful upstream integration run is `45194622030`; provider run `45194622233`; PAM run `45194622135`. The install bundle and evidence artifacts were uploaded. Physical lock/VT/multi-monitor behavior, full visual interaction and target-hardware rendering remain separate owner gates.
+Status: commit `031c1354871105fc9167f25c56393ddb3e73f3b6` (development) passed the provider, pinned-upstream integration, disposable Arch package build and full install/upgrade/rejected-transaction/rollback/removal pipeline, full-shell Xvfb+i3 smoke, and isolated real-locker PAM acceptance on 2026-11-23. The successful upstream integration run is `45194622030`; provider run `45194622233`; PAM run `45194622135`. The install bundle and evidence artifacts were uploaded. Physical lock/VT/multi-monitor behavior, full visual interaction and target-hardware rendering remain separate owner gates.
 
 ## Phase 1 — i3 provider foundation
 [~] Provider CLI and conservative capability manifest
@@ -58,7 +58,7 @@ Acceptance: repeatable frame/resource measurements on target hardware.
 ## Phase 8 — Packaging and installer
 [x] Non-installing package build pipeline and X11 session payload passed in Arch CI
 [x] Package safety checks protect SDDM, Orbital, Quickshell lockscreen, boot and GPU integration
-[x] Current PR-head disposable Arch package install/upgrade/rejected-transaction/rollback/removal passed through the same RXB installer and ownership-manifest removal scripts shipped in the bundle (2026-11-23, commit `8350cd29`); host rollback remains separate
+[x] Disposable Arch package install/upgrade/rejected-transaction/rollback/removal passed through the same RXB installer and ownership-manifest removal scripts shipped in the bundle (2026-11-23; first passed on `8350cd29`, re-verified on commit `031c135`); host rollback remains separate
 Acceptance: package transaction/removal passes in disposable Arch; session tests prove shared XDG and Quickshell config are not overwritten. Host dependency resolution and actual login-session behavior remain target-machine checks.
 
 ## Phase 9 — Release validation

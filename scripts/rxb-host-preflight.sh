@@ -89,6 +89,63 @@ if command -v pacman >/dev/null 2>&1; then
   fi
 fi
 
+# Packages the RXB set conflicts with or replaces. pacman would offer to remove
+# them during the install; the preflight reports them first so nothing is
+# removed by surprise.
+if command -v pacman >/dev/null 2>&1; then
+  for package in bibata-cursor-theme bibata-cursor-theme-bin gpk-bin; do
+    if pacman -Q "$package" >/dev/null 2>&1; then
+      fail "Installed package '$package' conflicts with the RXB package set (ryoku-cursors/gpk replace it). Resolve this deliberately before installing."
+    fi
+  done
+  for package in tlp auto-cpufreq tuned-ppd; do
+    if pacman -Q "$package" >/dev/null 2>&1; then
+      warn "'$package' is installed; ryoku-desktop depends on power-profiles-daemon, which conflicts with it. The installer would stop or ask to remove it."
+    fi
+  done
+
+  # ryogami requires a recent Qt6. A stale system could make pacman upgrade Qt
+  # (and other libraries) as a side effect of the RXB dependency transaction,
+  # which can break the existing Quickshell/BSPWM stack. Update the whole system
+  # deliberately first.
+  qt_version="$(pacman -Q qt6-base 2>/dev/null | awk '{print $2}')"
+  if [[ -n "$qt_version" ]]; then
+    printf '[INFO] Installed qt6-base: %s (the RXB set requires >= 6.12)\n' "$qt_version"
+    if [[ "$(vercmp "$qt_version" 6.12 2>/dev/null || echo -1)" -lt 0 ]]; then
+      warn "qt6-base is older than 6.12; installing RXB would pull a Qt upgrade into this system. Run a full, deliberate system update and re-test BSPWM first."
+    fi
+  else
+    warn "qt6-base is not installed; RXB would install Qt as a dependency."
+  fi
+  if command -v checkupdates >/dev/null 2>&1; then
+    pending="$(checkupdates 2>/dev/null | wc -l)"
+    if (( pending > 0 )); then
+      warn "$pending package update(s) are pending. Apply a full system update deliberately before installing RXB to avoid a partial upgrade."
+    else
+      pass "No pending package updates were reported by checkupdates."
+    fi
+  else
+    warn "checkupdates (pacman-contrib) is unavailable; pending updates were not checked."
+  fi
+fi
+
+# Lock stack: RXB prefers XSecureLock and falls back to i3lock. Neither is
+# installed or changed here.
+if [[ -x /usr/bin/xsecurelock ]]; then
+  pass "XSecureLock is installed in /usr/bin (preferred X11 locker)."
+elif [[ -x /usr/bin/i3lock ]]; then
+  warn "XSecureLock is absent; RXB will use the i3lock fallback in /usr/bin. Validate lock/unlock on a disposable session before relying on it."
+else
+  fail "Neither /usr/bin/xsecurelock nor /usr/bin/i3lock exists; RXB refuses to fake a lock screen."
+fi
+
+if [[ -e /usr/share/xsessions/ryoku-x11.desktop ]]; then
+  warn "A Ryoku (X11 / i3) session entry already exists."
+fi
+for session in bspwm.desktop; do
+  [[ -e "/usr/share/xsessions/$session" ]] || warn "/usr/share/xsessions/$session is missing; confirm a recovery session exists before testing."
+done
+
 printf '\nHardware and recovery configuration (read-only inventory)\n'
 if command -v lspci >/dev/null 2>&1; then
   gpu="$(lspci -nn 2>/dev/null | grep -Ei 'VGA compatible controller|3D controller|Display controller' || true)"
