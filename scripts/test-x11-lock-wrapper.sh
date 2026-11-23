@@ -111,7 +111,7 @@ env -i PATH=/usr/bin:/bin DISPLAY=:95 XDG_RUNTIME_DIR="$tmp/does-not-exist" bash
 # 6. Lock lifetime, idempotency and display normalisation with a real binary
 # standing in for the locker: cat blocks reading a fifo until the test closes it.
 rm -rf "$lockdir" && mkdir -p "$lockdir"
-copy_binary cat "$lockdir/xsecurelock"
+copy_binary bash "$lockdir/xsecurelock"
 mkfifo "$tmp/fifo"
 run_wrapper :101 <"$tmp/fifo" >/dev/null &
 first_pid=$!
@@ -155,7 +155,7 @@ wait "$second_pid" || true
 # 6b. A wrapper stopped with SIGTERM must leave a still-running locker
 # verifiable (its record must survive), so later requests stay idempotent.
 rm -rf "$lockdir" && mkdir -p "$lockdir"
-copy_binary cat "$lockdir/xsecurelock"
+copy_binary bash "$lockdir/xsecurelock"
 mkfifo "$tmp/fifo-term"
 run_wrapper :106 <"$tmp/fifo-term" >/dev/null &
 term_pid=$!
@@ -184,7 +184,7 @@ for case_name in plain spoof; do
     holder=$!
   else
     mkdir -p "$tmp/spoof"
-    copy_binary cat "$tmp/spoof/xsecurelock"
+    copy_binary bash "$tmp/spoof/xsecurelock"
     mkfifo "$tmp/fifo-spoof"
     ( exec 9>"$lock_file"; flock -n 9; DISPLAY="$display" exec "$tmp/spoof/xsecurelock" <"$tmp/fifo-spoof" >/dev/null ) &
     holder=$!
@@ -208,8 +208,8 @@ done
 # WRONG start time (what a reused PID looks like), (c) garbage.
 starttime_of() { local s r; s=$(<"/proc/$1/stat"); r=${s##*) }; set -- $r; echo "${20}"; }
 rm -rf "$lockdir" && mkdir -p "$lockdir" "$tmp/spoof2"
-copy_binary cat "$lockdir/xsecurelock"
-copy_binary cat "$tmp/spoof2/xsecurelock"
+copy_binary bash "$lockdir/xsecurelock"
+copy_binary bash "$tmp/spoof2/xsecurelock"
 mkfifo "$tmp/fifo-trusted" "$tmp/fifo-spoof2"
 "$lockdir/xsecurelock" <"$tmp/fifo-trusted" >/dev/null & trusted_pid=$!
 "$tmp/spoof2/xsecurelock" <"$tmp/fifo-spoof2" >/dev/null & spoof_pid=$!
