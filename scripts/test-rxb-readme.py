@@ -67,6 +67,27 @@ def main() -> int:
     if text.count("<img ") < 4:
         errors.append("README should include the Ryoku-inspired visual gallery.")
 
+    # Keep all top-of-page badges visually consistent. GitHub's native
+    # workflow badge endpoint ignores Shields styling, so workflow status
+    # badges must use the Shields workflow-status endpoint like the static
+    # environment badges do.
+    badge_lines = [
+        line for line in text.splitlines()
+        if line.startswith("![") or line.startswith("[![")
+    ]
+    if len(badge_lines) != 6:
+        errors.append(f"README should contain exactly six status/platform badges; found {len(badge_lines)}.")
+    if any("style=for-the-badge" not in line for line in badge_lines):
+        errors.append("Every README status/platform badge must use the same for-the-badge style.")
+    if any(
+        "actions/workflows/" in line
+        and "img.shields.io/github/actions/workflow/status/" not in line
+        for line in badge_lines
+    ):
+        errors.append("Workflow badges must use the Shields endpoint so their style matches the static badges.")
+    if r"\\n|" in text:
+        errors.append("README contains a literal \\n sequence that breaks a Markdown table row.")
+
     links = re.findall(r"\[[^\]]+\]\(([^)]+)\)", text)
     for raw_target in links:
         target = raw_target.strip()
