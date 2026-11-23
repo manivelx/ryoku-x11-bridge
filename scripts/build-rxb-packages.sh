@@ -26,13 +26,26 @@ VERSION="$(tr -d '[:space:]' < "$UPSTREAM_SOURCE/VERSION")"
 mkdir -p "$OUT"
 OUT="$(cd "$OUT" && pwd)"
 shopt -s nullglob
-find "$OUT" -maxdepth 1 -type f -name '*.pkg.tar.*' -delete
+existing_artifacts=("$OUT"/*.pkg.tar.*)
+if (("${#existing_artifacts[@]}" > 0)); then
+  echo "Output directory already contains package archives; refusing to delete or overwrite them:" >&2
+  printf '  %s\\n' "${existing_artifacts[@]}" >&2
+  echo "Choose an empty output directory or move the existing archives first." >&2
+  exit 1
+fi
 
 # Work in a disposable detached worktree. Never patch the user's upstream clone.
 WORKTREE="$(mktemp -d "$OUT/.rxb-upstream.XXXXXX")"
 rmdir "$WORKTREE"
+I3_PKGDEST=""
+cleanup_build() {
+  if [[ -n "$I3_PKGDEST" && -d "$I3_PKGDEST" ]]; then
+    rm -rf -- "$I3_PKGDEST"
+  fi
+  git -C "$UPSTREAM_SOURCE" worktree remove --force "$WORKTREE" >/dev/null 2>&1 || rm -rf -- "$WORKTREE"
+}
 git -C "$UPSTREAM_SOURCE" worktree add --detach "$WORKTREE" "$PIN"
-trap 'git -C "$UPSTREAM_SOURCE" worktree remove --force "$WORKTREE" >/dev/null 2>&1 || rm -rf "$WORKTREE"' EXIT
+trap cleanup_build EXIT
 UPSTREAM="$WORKTREE"
 
 echo "[1/3] Applying the pinned RXB X11 overlay in the disposable worktree..."
@@ -80,14 +93,16 @@ done
 
 echo "[3/3] Building the RXB i3 provider/session package..."
 i3_package_dir="$RXB_ROOT/release/packages/ryoku-desktop-i3"
-find "$i3_package_dir" -maxdepth 1 -type f -name '*.pkg.tar.*' -delete
+I3_PKGDEST="$(mktemp -d "$OUT/.rxb-i3-pkgdest.XXXXXX")"
 (
   cd "$i3_package_dir"
-  RYOKU_UPSTREAM_DIR="$UPSTREAM" RYOKU_PKGVER="$VERSION" RYOKU_BRIDGE_VERSION="$RXB_VERSION" makepkg --nodeps --clean --noconfirm --force
+  PKGDEST="$I3_PKGDEST" RYOKU_UPSTREAM_DIR="$UPSTREAM" RYOKU_PKGVER="$VERSION" RYOKU_BRIDGE_VERSION="$RXB_VERSION" makepkg --nodeps --clean --noconfirm --force
 )
-mapfile -t i3_artifacts < <(find "$i3_package_dir" -maxdepth 1 -type f -name '*.pkg.tar.*' -print | sort)
+mapfile -t i3_artifacts < <(find "$I3_PKGDEST" -maxdepth 1 -type f -name '*.pkg.tar.*' -print | sort)
 (("${#i3_artifacts[@]}" > 0)) || { echo "No ryoku-desktop-i3 package artifacts produced." >&2; exit 1; }
 copy_runtime_packages "${i3_artifacts[@]}"
+rm -rf -- "$I3_PKGDEST"
+I3_PKGDEST=""
 
 echo
 echo "Build complete. Packages are in: $OUT"
