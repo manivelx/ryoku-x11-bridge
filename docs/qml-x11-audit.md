@@ -74,7 +74,7 @@ The i3 provider does **not** advertise persistent Wayland screen capture. Dock l
 
 ### Session lock
 
-The upstream qylock path uses `WlSessionLock` / `WlSessionLockSurface` and compositor-enforced lock coverage. RXB excludes the qylock bundle from the X11 package. The i3 lock binding uses a real external locker: XSecureLock when installed, otherwise i3lock. The wrapper's command selection has a unit-style shell test; PAM, grabs, multi-monitor coverage, crash recovery and lock-before-suspend have not been security-validated. Lock-before-suspend remains disabled.
+The upstream qylock path uses `WlSessionLock` / `WlSessionLockSurface` and compositor-enforced lock coverage. RXB excludes the qylock bundle from the X11 package. The i3 lock binding uses a real external locker: XSecureLock when installed, otherwise i3lock. The wrapper forces absolute X11/PAM helper paths and sanitizes inherited XSECURELOCK overrides. A disposable Xephyr acceptance test has passed with real XSecureLock and i3lock binaries and a temporary account using a real pam_unix password. This verifies the PAM authentication path in the isolated test environment, not the owner's host PAM policy, physical VT/input-grab behavior, multi-monitor coverage or crash recovery. Lock-before-suspend remains disabled.
 
 ### Hyprland-only bridges
 
