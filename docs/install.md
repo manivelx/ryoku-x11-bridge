@@ -36,7 +36,7 @@ After installation, the display manager should offer **Ryoku (X11 / i3)** as a s
 1. Confirm the session is X11 and i3 is the window manager.
 2. Confirm the RXB user target and Quickshell services are active.
 3. Open the shell panels, launcher, settings and Hub; check that they respond.
-4. Test the lock action and unlock with your normal account password. RXB uses XSecureLock when present, otherwise i3lock; both are PAM-backed. The Xvfb test verifies process startup and idempotency, not the real machine's PAM policy, VT switching, input grabs or multi-monitor lock coverage.
+4. Test the lock action and unlock with your normal account password. RXB uses XSecureLock when present, otherwise i3lock; both are PAM-backed. The disposable Xephyr acceptance test verifies real XSecureLock and i3lock PAM authentication with a temporary account. It does not validate the owner's actual PAM policy, VT switching, real-machine input grabs or multi-monitor lock coverage.
 5. Suspend, hibernate and automatic suspend are intentionally disabled on X11. The shell reports this rather than issuing an unsafe power command.
 6. Window live previews and other Wayland-only capture surfaces remain gated where X11 parity has not been proven.
 
