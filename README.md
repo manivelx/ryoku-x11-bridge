@@ -19,7 +19,7 @@ The original Ryoku desktop, brought to X11.
 
 </div>
 
-> **Installable release candidate for isolated evaluation — not ready for installation on a daily-use machine until target-hardware acceptance.** The release bundle is produced only after the disposable Arch package install/upgrade/rejected-transaction/rollback/removal checks and the Xvfb+i3 shell/lock smoke pass. X11 suspend and hibernate are intentionally disabled until a secure lock-before-suspend handoff is proven; live window previews remain gated. Real PAM unlock, multi-monitor behavior, and rendering on the target GT 740 / NVIDIA 470 / Picom desktop still require owner validation.
+> **Installable release candidate for isolated evaluation — not ready for installation on a daily-use machine until target-hardware acceptance.** The release bundle is produced only after the disposable Arch package install/upgrade/rejected-transaction/rollback/removal checks and the Xvfb+i3 shell/lock smoke pass. X11 suspend and hibernate are intentionally disabled until a secure lock-before-suspend handoff is proven; live window previews remain gated. The disposable Xephyr test now verifies real XSecureLock and i3lock PAM authentication with a temporary account. Unlocking with the owner's actual PAM policy, physical VT/input behavior, multi-monitor coverage, and rendering on the target GT 740 / NVIDIA 470 / Picom desktop still require owner validation.
 
 <div align="center">
   <img src="https://raw.githubusercontent.com/Ryoku-dev/ryoku/main/docs/media/showroom/blue-hour.webp" alt="Original Ryoku desktop visual reference" width="100%" />
@@ -126,7 +126,7 @@ A source adapter, a successful build, an Xvfb smoke test and real desktop accept
 | Full interactive Ryoku shell | Not accepted |
 | Active-profile QML / Wayland audit | Partial; exhaustive inventory remains open |
 | Keybinding translation | Original 105-action catalogue is resolved into i3 bindings where semantics match; remaining actions are visible with explicit unsupported reasons |
-| Secure lock / PAM / lock-before-suspend | Not security-validated; suspend handoff remains disabled |
+| Secure lock / PAM / lock-before-suspend | Real XSecureLock and i3lock PAM acceptance passed in isolated Xephyr; real-host grabs, VT, multi-monitor and crash recovery remain pending; suspend handoff disabled |
 | Multi-monitor, capture and previews | Not accepted |
 | GT 740 / NVIDIA 470 / Picom rendering | Not tested to acceptance on target hardware |
 | Daily-host installation and rollback | Not accepted |
@@ -141,7 +141,7 @@ Do not run `pacman -U`, the upstream Ryoku installer, package-removal commands, 
 
 RXB's package design deliberately avoids the upstream distribution-level SDDM/qylock bundle, boot/UKI integration, udev/modprobe/polkit/logind rules and global service enablement. It uses a separate `RYOKU_CONFIG_HOME` under `~/.config/ryoku-x11/ryoku-config`, preserving the normal `XDG_CONFIG_HOME` and existing `~/.config/quickshell` tree.
 
-The intended session must coexist with the existing **BSPWM session, SDDM Orbital theme, Quickshell X11 lockscreen, Picom configuration, NVIDIA driver, kernel and boot setup**. Host rollback, lock security, interactive acceptance and target hardware testing remain release gates.
+The intended session must coexist with the existing **BSPWM session, SDDM Orbital theme, Quickshell X11 lockscreen, Picom configuration, NVIDIA driver, kernel and boot setup**. Host rollback, physical lock behavior, interactive acceptance and target hardware testing remain release gates. Xephyr verifies real PAM authentication with a temporary account, not the owner's actual PAM policy or hardware input/VT behavior.
 
 ## Build and test
 
