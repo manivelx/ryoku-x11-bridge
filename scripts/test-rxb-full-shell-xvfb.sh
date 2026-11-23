@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-for command in Xvfb i3 qs ryoku ryoku-shell ryoku-wm-i3 ryoku-hub jq dbus-run-session timeout ps pgrep xrandr maim ryoku-cmd-grim python3; do
+for command in Xvfb i3 qs pipewire wireplumber ryoku ryoku-shell ryoku-wm-i3 ryoku-hub jq dbus-run-session timeout ps pgrep xrandr maim ryoku-cmd-grim python3; do
   command -v "$command" >/dev/null 2>&1 || {
     echo "RXB full-shell Xvfb test requires $command" >&2
     exit 127
@@ -150,6 +150,35 @@ dbus-run-session -- bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HO
   shell_root="$1"
   tmp="$2"
   quickshell_root="$3"
+
+  # The visualizer's CavaFeed uses PipeWire. A bare Xvfb container has no
+  # audio server, so opening the visualizer placement surface can terminate
+  # Quickshell before its UI can be exercised. Start a real per-test PipeWire
+  # server and session manager; no physical audio device is required.
+  pipewire >"$tmp/pipewire.log" 2>&1 &
+  pipewire_pid=$!
+  wireplumber >"$tmp/wireplumber.log" 2>&1 &
+  wireplumber_pid=$!
+  cleanup_audio() {
+    kill "$wireplumber_pid" "$pipewire_pid" 2>/dev/null || true
+    wait "$wireplumber_pid" 2>/dev/null || true
+    wait "$pipewire_pid" 2>/dev/null || true
+  }
+  trap cleanup_audio EXIT
+  for _ in $(seq 1 100); do
+    [[ -S "$XDG_RUNTIME_DIR/pipewire-0" ]] && break
+    if ! kill -0 "$pipewire_pid" 2>/dev/null; then
+      cat "$tmp/pipewire.log" "$tmp/wireplumber.log" >&2
+      echo "PipeWire exited before creating its runtime socket." >&2
+      exit 1
+    fi
+    sleep 0.05
+  done
+  [[ -S "$XDG_RUNTIME_DIR/pipewire-0" ]] || {
+    cat "$tmp/pipewire.log" "$tmp/wireplumber.log" >&2
+    echo "PipeWire did not create its runtime socket." >&2
+    exit 1
+  }
 
   timeout --signal=TERM --kill-after=3s 30s ryoku materialize
   [[ -f "$shell_root/shell.qml" ]] || {
