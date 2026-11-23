@@ -1133,7 +1133,7 @@ def patch_x11_panel_properties(root: pathlib.Path) -> None:
                 block_end += 1
             text = text[:block_start] + text[block_end:]
 
-        if "WlrLayershell." not in text:
+        if "WlrLayershell." not in text and text == original_text:
             continue
         if p.name == "VariantRoot.qml":
             text = text.replace("WlrLayershell.focusable:", "focusable:")
