@@ -97,6 +97,50 @@ class X11PanelOverlayTests(unittest.TestCase):
             self.assertIn("toplevel: null", result)
             self.assertIn("const tl = entry ? (entry.toplevel ?? entry) : null;", result)
 
+    def test_exclusion_mode_is_preserved_as_portable_panel_property(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            qml = root / "WellbeingLimitOverlay.qml"
+            qml.write_text(
+                "PanelWindow {\\n"
+                "    WlrLayershell.layer: WlrLayer.Overlay\\n"
+                "    WlrLayershell.exclusionMode: ExclusionMode.Ignore\\n"
+                "}\\n"
+            )
+            OVERLAY.patch_x11_panel_properties(root)
+            result = qml.read_text()
+            self.assertIn("aboveWindows: true", result)
+            self.assertIn("exclusionMode: ExclusionMode.Ignore", result)
+            self.assertNotIn("WlrLayershell.", result)
+
+    def test_dynamic_github_face_focus_fallback_is_removed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            qml = root / "GithubFace.qml"
+            qml.write_text(
+                "Item {\\n"
+                "    function setFocus(enable) {\\n"
+                "        if (t.focusable !== undefined) {\\n"
+                "            t.focusable = enable;\\n"
+                "        }\\n"
+                "        if (t.WlrLayershell !== undefined) {\\n"
+                "            let focusVal = enable ? 1 : 0;\\n"
+                "            if (typeof WlrKeyboardFocus !== \\"undefined\\") {\\n"
+                "                focusVal = enable ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None;\\n"
+                "            } else if (typeof WlrLayershell !== \\"undefined\\" && WlrLayershell.KeyboardFocus) {\\n"
+                "                focusVal = enable ? WlrLayershell.KeyboardFocus.OnDemand : WlrLayershell.KeyboardFocus.None;\\n"
+                "            }\\n"
+                "            t.WlrLayershell.keyboardFocus = focusVal;\\n"
+                "        }\\n"
+                "    }\\n"
+                "}\\n"
+            )
+            OVERLAY.patch_x11_panel_properties(root)
+            result = qml.read_text()
+            self.assertIn("t.focusable = enable;", result)
+            self.assertNotIn("t.WlrLayershell", result)
+            self.assertNotIn("WlrKeyboardFocus", result)
+
     def test_panel_properties_are_rewritten_for_x11(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
