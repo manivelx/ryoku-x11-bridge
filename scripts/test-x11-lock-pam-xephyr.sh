@@ -115,6 +115,17 @@ pixel() { # prints "R G B" of the centre pixel
 shot() { as_user DISPLAY="$disp" import -window root "png:$tmp/shots/$1.png" 2>/dev/null || true; }
 is_red() { read -r r g b <<<"$(pixel)"; [[ -n ${r:-} && $r -gt 200 && $g -lt 60 && $b -lt 60 ]]; }
 is_covered() { read -r r g b <<<"$(pixel)"; [[ -n ${r:-} && $r -lt 60 ]]; }
+# After a rejected password a locker draws feedback (i3lock: a red "wrong" ring
+# and text) around the centre, so judge coverage at points well away from it.
+pixel_at() { as_user DISPLAY="$disp" import -window root -depth 8 -crop "1x1+$1+$2" +repage txt:- 2>/dev/null |
+    sed -n 's/.*(\([0-9]*\),\([0-9]*\),\([0-9]*\).*/\1 \2 \3/p' | tail -n 1; }
+is_covered_away_from_centre() {
+  local pt r g b
+  for pt in "100 100" "600 600"; do
+    read -r r g b <<<"$(pixel_at $pt)"
+    [[ -n ${r:-} && $r -lt 60 ]] || return 1
+  done
+}
 
 locker_pids() { # real locker processes owned by the test user
   # XSecureLock is non-dumpable: /proc/PID/exe is unreadable even for root in a
@@ -197,7 +208,7 @@ exercise() {
   sleep 4
   wrapper_alive || die "$label: an INCORRECT password ended the wrapper (unlocked)"
   [[ "$(count_lockers)" == 1 ]] || die "$label: locker count changed after an incorrect password"
-  is_covered || die "$label: screen uncovered after an incorrect password"
+  is_covered_away_from_centre || die "$label: screen uncovered after an incorrect password"
   lock_file_held || die "$label: lock released after an incorrect password"
   shot "$label-3-after-wrong"
 
