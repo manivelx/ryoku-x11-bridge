@@ -27,9 +27,9 @@ mkdir -p "$OUT"
 OUT="$(cd "$OUT" && pwd)"
 shopt -s nullglob
 existing_artifacts=("$OUT"/*.pkg.tar.*)
-if (("${#existing_artifacts[@]}" > 0)); then
+if ((${#existing_artifacts[@]} > 0)); then
   echo "Output directory already contains package archives; refusing to delete or overwrite them:" >&2
-  printf '  %s\\n' "${existing_artifacts[@]}" >&2
+  printf '  %s\n' "${existing_artifacts[@]}" >&2
   echo "Choose an empty output directory or move the existing archives first." >&2
   exit 1
 fi
