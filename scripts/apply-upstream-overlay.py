@@ -1578,6 +1578,25 @@ func TestRXBHostGuardKeepsReadOnlyAndSessionScopedActions(t *testing.T) {
 	}
 }
 
+func TestRXBHostMutationsAreBlockedBeforeHostRunner(t *testing.T) {
+	blockedCases := [][]string{
+		{"svc", "--system", "start", "NetworkManager"},
+		{"svc", "--user", "enable", "ryoku-shell"},
+		{"session", "start"},
+		{"power", "suspend"},
+	}
+	for _, args := range blockedCases {
+		runner := &fakeRunner{}
+		app, _, _ := testApp(runner, nil)
+		if code := app.Execute(args); code != ExitFalse {
+			t.Fatalf("%v exit = %d, want blocked", args, code)
+		}
+		if len(runner.commands) != 0 {
+			t.Fatalf("%v unexpectedly reached host command runner: %#v", args, runner.commands)
+		}
+	}
+}
+
 func TestRXBPowerBlocksSuspendAndHibernateBeforeRunningHostCommands(t *testing.T) {
 	for _, action := range []string{"suspend", "hibernate"} {
 		runner := &fakeRunner{}
