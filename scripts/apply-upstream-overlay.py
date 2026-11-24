@@ -1363,6 +1363,40 @@ post_remove() { _refresh; }
     text = p.read_text().replace("'wtype'", "").replace("'wl-clipboard'", "")
     p.write_text(text)
 
+    # The upstream boot guard is a host-wide update recovery mechanism. It
+    # can inspect/repoint /boot/limine.conf and EFI variables before the
+    # display manager starts. RXB does not own boot/update policy, and the
+    # original tmpfiles rules also mutate /etc/ryoku, /var/lib/ryoku and
+    # SDDM greeter hand-off files. Do not ship either file in the X11 build.
+    p = root / "release/packages/ryoku/payload.sh"
+    replace_once(
+        p,
+        '''\tif [ "$init" = systemd ]; then
+\t\tinstall -Dm644 "$RYOKU_SRC/ryoku/cli/systemd/ryoku-boot-guard.service" \\\\
+\t\t\t"$destdir/usr/lib/systemd/system/ryoku-boot-guard.service"
+\t\tinstall -Dm644 "$RYOKU_SRC/ryoku/cli/systemd/ryoku.tmpfiles.conf" \\\\
+\t\t\t"$destdir/usr/lib/tmpfiles.d/ryoku.conf"
+\telse''',
+        '''\tif [ "$init" = systemd ]; then
+\t\tif [ "${RYOKU_X11_BRIDGE:-0}" != 1 ]; then
+\t\t\tinstall -Dm644 "$RYOKU_SRC/ryoku/cli/systemd/ryoku-boot-guard.service" \\\\
+\t\t\t\t"$destdir/usr/lib/systemd/system/ryoku-boot-guard.service"
+\t\t\tinstall -Dm644 "$RYOKU_SRC/ryoku/cli/systemd/ryoku.tmpfiles.conf" \\\\
+\t\t\t\t"$destdir/usr/lib/tmpfiles.d/ryoku.conf"
+\t\tfi
+\telse''',
+    )
+    p = root / "release/packages/ryoku/PKGBUILD"
+    text = p.read_text()
+    old = '  RYOKU_SRC="$_repo" ' + chr(92) + "\\n"
+    if text.count(old) != 2:
+        raise RuntimeError(f"{p}: expected two payload environment blocks, found {text.count(old)}")
+    text = text.replace(
+        old,
+        '  RYOKU_X11_BRIDGE=1 ' + chr(92) + "\\n" + old,
+    )
+    p.write_text(text)
+
 
 
 def patch_quickshell_config_isolation(root: pathlib.Path) -> None:
