@@ -274,8 +274,8 @@ cat > "$conflict_pacman_dir/pacman" <<'FAKE_CONFLICT_PACMAN'
 printf '%s\n' "$*" >> "$RXB_PACMAN_MARKER"
 case " $* " in
   *" -Qu "*) exit 0 ;;
-  *" -Q bibata-cursor-theme "*)
-    printf 'bibata-cursor-theme 1.0-1\n'
+  *" -Qq "*)
+    printf 'bibata-cursor-theme\\n'
     exit 0
     ;;
 esac
@@ -288,7 +288,7 @@ if PATH="$conflict_pacman_dir:$PATH" RXB_PACMAN_MARKER="$pacman_marker" \
   echo "Installer accepted a pre-existing conflicting package." >&2
   exit 1
 fi
-grep -Fq "conflicting package 'bibata-cursor-theme' is already installed" "$manifest_attack_dir/conflict-package.log" || {
+grep -Fq "exact conflicting package 'bibata-cursor-theme' is already installed" "$manifest_attack_dir/conflict-package.log" || {
   echo "Installer did not identify the pre-existing conflicting package." >&2
   exit 1
 }
@@ -296,6 +296,46 @@ if grep -Eq '^(--config .* )?(-S|-U)( |$)' "$pacman_marker"; then
   echo "Installer started a package transaction despite the pre-existing conflict." >&2
   exit 1
 fi
+rm -f "$pacman_marker"
+
+# A package that only provides the Bibata virtual name is not the standalone
+# conflicting package. Verify that ryoku-cursors passes the exact-name scan.
+provider_pacman_dir="$manifest_attack_dir/provider-only-bin"
+provider_marker="$manifest_attack_dir/provider-only-transaction"
+mkdir -p "$provider_pacman_dir"
+cat > "$provider_pacman_dir/pacman" <<'PROVIDER_ONLY_PACMAN'
+#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "$RXB_PROVIDER_MARKER"
+case " $* " in
+  *" -Qu "*) exit 0 ;;
+  *" -Qq "*)
+    printf 'ryoku-cursors\\n'
+    exit 0
+    ;;
+  *" -T "*) exit 0 ;;
+  *" -U "*)
+    echo "provider-only package set passed conflict scan" >&2
+    exit 77
+    ;;
+esac
+exit 1
+PROVIDER_ONLY_PACMAN
+chmod 0755 "$provider_pacman_dir/pacman"
+if PATH="$provider_pacman_dir:$PATH" RXB_PROVIDER_MARKER="$provider_marker" \\
+  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \\
+  bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" > "$manifest_attack_dir/provider-only.log" 2>&1; then
+  echo "Provider-only conflict test unexpectedly completed the package transaction." >&2
+  exit 1
+fi
+grep -Fq "provider-only package set passed conflict scan" "$manifest_attack_dir/provider-only.log" || {
+  cat "$manifest_attack_dir/provider-only.log" >&2
+  echo "Installer incorrectly treated ryoku-cursors as the standalone Bibata conflict." >&2
+  exit 1
+}
+! grep -Fq "conflicting package" "$manifest_attack_dir/provider-only.log" || {
+  echo "Installer falsely rejected a virtual-package provider as a standalone conflict." >&2
+  exit 1
+}
 rm -f "$pacman_marker"
 
 # Interrupted dependency recovery: the manifest must contain every new
