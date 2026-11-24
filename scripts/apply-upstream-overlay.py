@@ -1453,7 +1453,37 @@ func main() {""",
 	}
 	switch args[0] {
 	case "svc":
-		return args[1] == "reconcile"
+		if args[1] == "reconcile" {
+			return true
+		}
+		scope := "--user"
+		verbIndex := 1
+		if args[1] == "--user" || args[1] == "--system" {
+			scope = args[1]
+			verbIndex = 2
+		}
+		if verbIndex >= len(args) {
+			return false
+		}
+		verb := args[verbIndex]
+		switch verb {
+		case "enable", "disable":
+			// Persistent activation changes can leak upstream Ryoku units into
+			// BSPWM or other sessions. RXB owns only its dedicated session target.
+			return true
+		case "start", "stop", "restart", "try-restart", "reload", "kill", "reset-failed", "daemon-reload":
+			if scope == "--system" {
+				return true
+			}
+			for _, name := range args[verbIndex+1:] {
+				switch name {
+				case "ryoku-boot-guard", "ryoku-boot-guard.service", "ryoku-shell", "ryoku-shell.service", "ryogami", "ryogami.service":
+					return true
+				}
+			}
+		}
+	case "power":
+		return args[1] == "suspend" || args[1] == "hibernate"
 	case "session":
 		return args[1] == "ensure" || args[1] == "fix-wrappers"
 	case "repo":
@@ -1493,6 +1523,38 @@ func TestRXBGuardBlocksHostUpdateAndBootCommands(t *testing.T) {
 	for _, command := range []string{"update", "rollback", "boot-guard", "boot-menu", "deploy", "recovery", "track"} {
 		if _, blocked := rxbGuardCommand(command, nil); !blocked {
 			t.Errorf("%q should be blocked in the RXB X11 build", command)
+		}
+	}
+}
+
+func TestRXBHostGuardBlocksSystemServiceMutationsAndPersistentActivation(t *testing.T) {
+	blockedCases := [][]string{
+		{"svc", "--system", "enable", "ryoku-boot-guard"},
+		{"svc", "--system", "start", "ryoku-boot-guard"},
+		{"svc", "--system", "restart", "NetworkManager"},
+		{"svc", "--user", "enable", "ryoku-shell"},
+		{"svc", "--user", "disable", "ryogami"},
+		{"svc", "--user", "start", "ryoku-shell"},
+		{"power", "suspend"},
+		{"power", "hibernate"},
+	}
+	for _, args := range blockedCases {
+		if !rxbHostCommandBlocked(args) {
+			t.Errorf("%v should be blocked in the RXB X11 build", args)
+		}
+	}
+}
+
+func TestRXBHostGuardKeepsReadOnlyAndSessionScopedActions(t *testing.T) {
+	allowedCases := [][]string{
+		{"svc", "--user", "is-active", "ryoku-shell"},
+		{"svc", "--user", "start", "pipewire"},
+		{"svc", "--system", "is-active", "NetworkManager"},
+		{"power", "reboot"},
+	}
+	for _, args := range allowedCases {
+		if rxbHostCommandBlocked(args) {
+			t.Errorf("%v should remain available", args)
 		}
 	}
 }
