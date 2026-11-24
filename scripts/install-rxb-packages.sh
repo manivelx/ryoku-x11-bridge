@@ -13,6 +13,29 @@ package_dir="${1:-$default_package_dir}"
 package_dir="$(cd -- "$package_dir" && pwd)"
 
 if (( EUID != 0 )); then
+  # checkupdates refreshes its private sync database and can see updates that
+  # pacman -Qu misses when the host's regular sync database is stale. Run it
+  # before sudo escalation, as checkupdates is intended for an unprivileged
+  # user. The root-side -Qu check below remains a second, local-db guard.
+  if command -v checkupdates >/dev/null 2>&1; then
+    pending_updates="$(checkupdates 2>&1 || true)"
+    pending_source="checkupdates"
+  else
+    pending_updates="$(pacman -Qu 2>&1 || true)"
+    pending_source="pacman -Qu"
+  fi
+  if [[ -n "$pending_updates" ]]; then
+    pending_rows="$(grep -E '^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+->[[:space:]]+[^[:space:]]+' <<<"$pending_updates" || true)"
+    if [[ -n "$pending_rows" ]]; then
+      echo "install-rxb-packages: pending system updates detected by $pending_source; refusing installation." >&2
+      echo "Resolve them in a separately approved maintenance window. Do not update the kernel or NVIDIA driver as part of RXB testing." >&2
+    else
+      echo "install-rxb-packages: unable to verify pending system updates with $pending_source; refusing installation." >&2
+    fi
+    printf '%s\\n' "$pending_updates" >&2
+    exit 1
+  fi
+
   command -v sudo >/dev/null 2>&1 || {
     echo "install-rxb-packages: run as root or install sudo." >&2
     exit 1
@@ -163,9 +186,13 @@ done
 
 # Refuse known replacements/conflicts before any dependency transaction. The
 # preflight reports these too, but the installer must enforce the boundary.
+# pacman -Q accepts virtual provides; -Qq lists only exact installed
+# package names. Do not treat ryoku-cursors (which provides the Bibata name)
+# as an independently installed bibata-cursor-theme package.
+installed_package_names="$(pacman_exec -Qq)"
 for conflict in bibata-cursor-theme bibata-cursor-theme-bin gpk-bin tlp tuned-ppd; do
-  if pacman_exec -Q "$conflict" >/dev/null 2>&1; then
-    echo "install-rxb-packages: refusing because conflicting package '$conflict' is already installed." >&2
+  if grep -Fxq -- "$conflict" <<<"$installed_package_names"; then
+    echo "install-rxb-packages: refusing because exact conflicting package '$conflict' is already installed." >&2
     echo "Resolve the conflict deliberately, then rerun the read-only host preflight." >&2
     exit 1
   fi
