@@ -96,11 +96,11 @@ done
 for pkg in "${packages[@]}"; do
   metadata="$(bsdtar -xOf "$pkg" .PKGINFO)"
   if [[ "$pkg" == "$variant_pkg" ]]; then
-    if ! grep -Fqx 'depend = xcompmgr' "$metadata"; then
+    if ! grep -Fqx 'depend = xcompmgr' <<<"$metadata"; then
       echo "RXB i3 variant must include the isolated XRender compositor dependency." >&2
       exit 1
     fi
-    if grep -Fqx 'depend = picom' "$metadata"; then
+    if grep -Fqx 'depend = picom' <<<"$metadata"; then
       echo "RXB must not hard-depend on Picom." >&2
       exit 1
     fi
