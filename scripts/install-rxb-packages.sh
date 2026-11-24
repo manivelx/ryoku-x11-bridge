@@ -31,6 +31,24 @@ for command in pacman bsdtar awk sed head sort comm grep install mktemp stat ver
   }
 done
 
+# RXB_PACMAN_NOCONFIRM is a test-only escape hatch. It is accepted only inside
+# the disposable Arch transaction harness, never on a normal CachyOS/Arch host.
+if [[ "${RXB_PACMAN_NOCONFIRM:-0}" == 1 ]]; then
+  marker=/run/rxb-install-test-disposable
+  marker_uid=""
+  marker_mode=""
+  [[ -f /.dockerenv && ! -L /.dockerenv && -f "$marker" && ! -L "$marker" ]] || {
+    echo "install-rxb-packages: RXB_PACMAN_NOCONFIRM is restricted to the disposable Arch transaction test." >&2
+    exit 1
+  }
+  marker_uid="$(stat -c '%u' -- "$marker" 2>/dev/null || true)"
+  marker_mode="$(stat -c '%a' -- "$marker" 2>/dev/null || true)"
+  [[ "$marker_uid" == 0 && "$marker_mode" == 600 ]] || {
+    echo "install-rxb-packages: disposable transaction marker is not root-owned mode 0600." >&2
+    exit 1
+  }
+fi
+
 safety_test="$script_dir/test-rxb-package-safety.sh"
 [[ -x "$safety_test" ]] || {
   echo "install-rxb-packages: bundle is incomplete; missing scripts/test-rxb-package-safety.sh." >&2
