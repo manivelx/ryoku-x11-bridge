@@ -8,7 +8,7 @@ RXB is distributed as an Arch package bundle built and tested against the pinned
 
 The full repository audit (2026-11-24) classified the project as **READY FOR ISOLATED TESTING ONLY**. This guide is not approval to install on a daily-use PC.
 
-- **F1 — upstream host files:** the current `ryoku` package includes a tmpfiles configuration that creates world-writable hand-off files under `/var/lib/ryoku`, and `ryoku-boot-guard.service`. Their effect on the existing Ryoku Orbital SDDM theme has not been verified. Do not install this package set on the owner's PC until the owner explicitly decides whether these files are to be excluded or accepted and documented. No such decision is implied by a passing CI run.
+- **F1 — upstream host files (fixed in this branch):** the RXB overlay sets `RYOKU_X11_BRIDGE=1` for the upstream `ryoku` package and omits both `ryoku-boot-guard.service` and `ryoku.conf` tmpfiles installation. The boot guard can inspect or repoint `/boot/limine.conf` and EFI variables; the tmpfiles rules create shared `/etc/ryoku` and `/var/lib/ryoku` state plus SDDM greeter hand-off files. RXB does not own those host-wide policies. Package safety now checks every built package and rejects either path.
 - **F2 — Qt version:** `ryogami` requires `qt6-base>=6.12`. A stale host can pull a Qt upgrade and related package changes into the install transaction. Perform a deliberate full system update, reboot, and verify the existing BSPWM, Orbital SDDM theme and Quickshell lockscreen before considering RXB. Abort if the transaction proposes a Qt/Quickshell upgrade or removal.
 - **F3/F4 — dependency transaction:** the installer now refuses known pre-existing conflicts (`bibata-cursor-theme(-bin)`, `gpk-bin`, `tlp`, `tuned-ppd`). It also checks for pending system updates, checks the installed Qt floor, prints a read-only dependency plan, and refuses to upgrade already-installed packages as an RXB side effect. Review every package pacman proposes to install. Do not use `RXB_PACMAN_NOCONFIRM=1` on a host. Abort if the transaction includes packages or removals you have not explicitly approved.
 - **F5 — upstream CLI:** do not run `ryoku update`, `ryoku doctor`, `ryoku svc reconcile`, `ryoku boot-guard`, or any `ryoku-host` subcommand on the host. Their host-mutating behavior has not been fully audited.
@@ -51,13 +51,7 @@ bash scripts/install-rxb-packages.sh
 
 The script requests sudo when needed. It verifies the package set and protected paths, resolves missing runtime dependencies from the configured Arch repositories without refreshing package databases, prints a read-only dependency plan, refuses pending system updates or implicit upgrades of already-installed packages, installs the complete RXB X11 package set in one pacman transaction, and records only packages newly introduced by this installer. It refuses known package conflicts and refuses to overwrite any Ryoku package that is already installed but is not recorded as RXB-owned; review and resolve an existing Ryoku installation before proceeding.
 
-Because F1 remains unresolved, the installer refuses the current upstream `ryoku` package by default. **Only in a disposable VM or dedicated test installation**, explicitly opt in to the audited upstream host-level files:
-
-```bash
-RXB_ALLOW_UNREVIEWED_UPSTREAM_HOST_FILES=1 bash scripts/install-rxb-packages.sh
-```
-
-This override is for isolated validation only. Do not set it on the daily-use CachyOS desktop. It does not remove, neutralize, or make the tmpfiles/boot-guard files safe; the owner decision is still pending.
+The RXB package build now excludes the upstream boot-guard service and global tmpfiles file entirely. The installer has no bypass switch for them: package safety rejects a stale or modified bundle if either file reappears.
 
 After installation, the display manager should offer **Ryoku (X11 / i3)** as a separate session. RXB does not edit SDDM configuration or the Orbital theme; it only installs the XSession desktop entry. Select the new session at the login screen. Your BSPWM session remains installed.
 
