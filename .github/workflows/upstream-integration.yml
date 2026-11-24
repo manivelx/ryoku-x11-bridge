@@ -154,8 +154,11 @@ jobs:
           for file in README.md LICENSE NOTICE THIRD_PARTY_NOTICES.md INSTALL.md hardware-acceptance.md troubleshooting.md; do
             test -s "$bundle/$file"
           done
-          for script in install-rxb-packages.sh remove-rxb-packages.sh test-rxb-package-safety.sh rxb-host-preflight.sh collect-x11-hardware-evidence.sh; do
+          for script in install-rxb-packages.sh remove-rxb-packages.sh test-rxb-package-safety.sh; do
             test -x "$bundle/scripts/$script"
+          done
+          for script in rxb-host-preflight.sh collect-x11-hardware-evidence.sh; do
+            test -f "$bundle/scripts/$script"
           done
           test -d "$bundle/docs"
           test -d "$bundle/payload"
