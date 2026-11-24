@@ -1485,7 +1485,7 @@ func main() {""",
 	case "power":
 		return args[1] == "suspend" || args[1] == "hibernate"
 	case "session":
-		return args[1] == "ensure" || args[1] == "fix-wrappers"
+		return args[1] == "start" || args[1] == "ensure" || args[1] == "fix-wrappers"
 	case "repo":
 		return args[1] == "set-channel" || args[1] == "sync"
 	case "initramfs":
@@ -1554,6 +1554,7 @@ func TestRXBHostGuardBlocksSystemServiceMutationsAndPersistentActivation(t *test
 		{"svc", "--user", "start", "ryoku-shell"},
 		{"power", "suspend"},
 		{"power", "hibernate"},
+		{"session", "start"},
 	}
 	for _, args := range blockedCases {
 		if !rxbHostCommandBlocked(args) {
@@ -1568,6 +1569,7 @@ func TestRXBHostGuardKeepsReadOnlyAndSessionScopedActions(t *testing.T) {
 		{"svc", "--user", "start", "pipewire"},
 		{"svc", "--system", "is-active", "NetworkManager"},
 		{"power", "reboot"},
+		{"session", "check"},
 	}
 	for _, args := range allowedCases {
 		if rxbHostCommandBlocked(args) {
