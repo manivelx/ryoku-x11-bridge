@@ -229,8 +229,8 @@ if ! command -v runuser >/dev/null 2>&1; then
   echo "runuser is required for the non-root update-gate regression test." >&2
   exit 1
 fi
-if runuser -u nobody -- env PATH="$checkupdates_dir:$PATH" \ 
-  bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" \ 
+if runuser -u nobody -- env PATH="$checkupdates_dir:$PATH" \
+  bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" \
   > "$upgrade_dir/checkupdates-installer.log" 2>&1; then
   echo "Installer accepted a non-root host with checkupdates-reported updates." >&2
   exit 1
@@ -347,8 +347,8 @@ esac
 exit 1
 PROVIDER_ONLY_PACMAN
 chmod 0755 "$provider_pacman_dir/pacman"
-if PATH="$provider_pacman_dir:$PATH" RXB_PROVIDER_MARKER="$provider_marker" \ 
-  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \ 
+if PATH="$provider_pacman_dir:$PATH" RXB_PROVIDER_MARKER="$provider_marker" \
+  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
   bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" > "$manifest_attack_dir/provider-only.log" 2>&1; then
   echo "Provider-only conflict test unexpectedly completed the package transaction." >&2
   exit 1
