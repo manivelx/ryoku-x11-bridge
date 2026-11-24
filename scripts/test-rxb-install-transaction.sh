@@ -260,13 +260,28 @@ dependency_marker="$manifest_attack_dir/interrupt-at-dependency-transaction"
 dependency_continue="$manifest_attack_dir/continue-dependency-wrapper"
 cat > "$dependency_pacman_dir/pacman" <<'DEPENDENCY_INTERRUPT_PACMAN'
 #!/usr/bin/env bash
+# Inject a deterministic missing dependency/plan so this test is independent
+# of which runtime dependencies the package-build container already has.
 for arg in "$@"; do
-  if [[ "$arg" == "-S" ]]; then
-    : > "$RXB_DEPENDENCY_MARKER"
-    while [[ ! -e "$RXB_DEPENDENCY_CONTINUE" ]]; do sleep 0.1; done
-    exit 99
-  fi
+  case "$arg" in
+    -T)
+      printf 'rxb-test-dep>=1.0\\n'
+      exit 1
+      ;;
+    -Sp)
+      printf 'rxb-test-dep 1.0-1\\n'
+      exit 0
+      ;;
+    -S)
+      : > "$RXB_DEPENDENCY_MARKER"
+      while [[ ! -e "$RXB_DEPENDENCY_CONTINUE" ]]; do sleep 0.1; done
+      exit 99
+      ;;
+  esac
 done
+case " $* " in
+  *" -Q rxb-test-dep "*) exit 1 ;;
+esac
 exec /usr/bin/pacman "$@"
 DEPENDENCY_INTERRUPT_PACMAN
 chmod 0755 "$dependency_pacman_dir/pacman"
