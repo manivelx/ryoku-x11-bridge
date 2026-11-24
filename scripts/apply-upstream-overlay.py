@@ -199,6 +199,30 @@ def patch_compositor_service(root: pathlib.Path) -> None:
                  'readonly property bool windowWorkspaceMap: Wm.caps.windowWorkspaceMap === true')
 
 
+
+def patch_x11_terminal_launcher(root: pathlib.Path) -> None:
+    # Upstream's default terminal is Kitty. RXB supports the user's installed
+    # X11 terminal without forcing a particular terminal package onto CachyOS.
+    p = root / "ryoku/shell/scripts/ryoku-app"
+    replace_once(p, '\\tterminal) echo "kitty" ;;', '''\tterminal)
+\t\tif [[ "${RYOKU_X11_BRIDGE:-}" == "1" && -n "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" ]]; then
+\t\t\tif [[ -n "${TERMINAL:-}" ]] && command -v "${TERMINAL%% *}" >/dev/null 2>&1; then
+\t\t\t\techo "$TERMINAL"
+\t\t\t\treturn 0
+\t\t\tfi
+\t\t\tfor candidate in kitty foot konsole xfce4-terminal xterm; do
+\t\t\t\tif command -v "$candidate" >/dev/null 2>&1; then
+\t\t\t\t\techo "$candidate"
+\t\t\t\t\treturn 0
+\t\t\t\tfi
+\t\t\tdone
+\t\t\techo ""
+\t\telse
+\t\t\techo "kitty"
+\t\tfi ;;
+''')
+    p.chmod(0o755)
+
 def patch_x11_capture(root: pathlib.Path) -> None:
     p = root / "ryoku/shell/scripts/ryoku-cmd-grim"
     text = p.read_text()
@@ -2453,6 +2477,7 @@ def main() -> int:
     patch_compositor_service(root)
     patch_wayland_consumers(root)
     patch_x11_capture(root)
+    patch_x11_terminal_launcher(root)
     patch_x11_clipboard(root)
     patch_x11_region_tools(root)
     patch_lock_dispatch(root)

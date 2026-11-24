@@ -230,6 +230,8 @@ jobs:
                <(sed -n '/^import (/,$p' cmd/ryoku-wm-i3/catalogue.go)
       - name: Apply RXB overlay
         run: python3 scripts/apply-upstream-overlay.py upstream
+      - name: Test X11 terminal fallback and preserve Wayland behavior
+        run: bash scripts/test-rxb-terminal-launcher.sh upstream
       - name: Validate patched helper scripts
         run: |
           bash -n upstream/ryoku/shell/scripts/ryoku-cmd-grim

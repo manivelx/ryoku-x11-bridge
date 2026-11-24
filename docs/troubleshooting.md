@@ -34,7 +34,10 @@ pacman -Q ryoku-desktop-i3 ryoku-desktop ryoku-shell ryogami
 
 RXB installs a separate session entry. It does not edit SDDM configuration or the Orbital theme. If the entry is missing, do not edit SDDM files manually; collect the logs and use the existing BSPWM session.
 
-## Black screen, missing panels or Hub
+## Terminal shortcut does not open a terminal
+
+The default Ryoku terminal shortcut is `Super+Return`. `Super+T` is the tabbed-layout shortcut, not a terminal launcher. In RXB, the terminal launcher first honours the user's `TERMINAL` setting and then checks installed X11 terminals (Kitty, Foot, Konsole, XFCE Terminal, xterm). If none is available, it shows a notification rather than silently trying a missing Kitty binary.
+
 
 RXB intentionally does not start Picom. This isolates the X11 session from the NVIDIA 470/Picom crash seen on the GT 740. It does not stop or modify the BSPWM Picom process or configuration. The RXB shell must remain usable without a compositor; do not copy the BSPWM Picom configuration into RXB.
 
