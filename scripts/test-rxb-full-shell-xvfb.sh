@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-for command in Xvfb i3 i3-msg xdotool qs ryogami pipewire wireplumber pw-cli ryoku ryoku-shell ryoku-wm-i3 ryoku-hub jq dbus-run-session timeout ps pgrep xrandr maim ryoku-cmd-grim python3; do
+for command in Xvfb i3 i3-msg xdotool qs xcompmgr ryogami pipewire wireplumber pw-cli ryoku ryoku-shell ryoku-wm-i3 ryoku-hub jq dbus-run-session timeout ps pgrep xrandr maim ryoku-cmd-grim python3; do
   command -v "$command" >/dev/null 2>&1 || {
     echo "RXB full-shell Xvfb test requires $command" >&2
     exit 127
@@ -38,6 +38,7 @@ unset WAYLAND_DISPLAY SWAYSOCK I3SOCK
 xvfb_pid=""
 i3_pid=""
 ryogami_pid=""
+compositor_pid=""
 cleanup_quickshell_processes() {
   local pass pids pid
   for pass in $(seq 1 50); do
@@ -59,6 +60,8 @@ cleanup() {
   trap - EXIT
   cleanup_quickshell_processes
   pkill -x xterm 2>/dev/null || true
+  [[ -z "$compositor_pid" ]] || kill -TERM "$compositor_pid" 2>/dev/null || true
+  [[ -z "$compositor_pid" ]] || wait "$compositor_pid" 2>/dev/null || true
   [[ -z "$ryogami_pid" ]] || kill -TERM "$ryogami_pid" 2>/dev/null || true
   [[ -z "$i3_pid" ]] || kill "$i3_pid" 2>/dev/null || true
   [[ -z "$xvfb_pid" ]] || kill "$xvfb_pid" 2>/dev/null || true
@@ -84,6 +87,17 @@ done
 display_number="$(tr -d '[:space:]' < "$tmp/display-number")"
 [[ "$display_number" =~ ^[0-9]+$ ]] || { echo "Xvfb returned invalid display: $display_number" >&2; exit 1; }
 export DISPLAY=":$display_number"
+
+# Exercise the same XRender-only compositor the installed RXB wrapper starts.
+# It must not depend on Picom, GLX, or the NVIDIA OpenGL stack.
+xcompmgr -n >"$tmp/xcompmgr.log" 2>&1 &
+compositor_pid=$!
+sleep 0.2
+kill -0 "$compositor_pid" 2>/dev/null || {
+  cat "$tmp/xcompmgr.log" >&2
+  echo "RXB xcompmgr XRender compositor failed to start under Xvfb." >&2
+  exit 1
+}
 
 # Generate the original Ryoku keybinding catalogue before i3 starts, exactly
 # as the installed session wrapper does. Validate the actual generated include

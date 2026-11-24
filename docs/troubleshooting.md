@@ -17,7 +17,7 @@ systemctl --user --no-pager status \
   ryoku-x11-session.target ryoku-shell-x11.service ryogami-x11.service
 ```
 
-The expected session type is `x11`. RXB no longer starts Picom automatically or reuses the BSPWM Picom configuration. Do not launch Picom with BSPWM settings to diagnose RXB. The NVIDIA driver should remain the version you had before testing. Do not install or switch drivers to make RXB start.
+The expected session type is `x11`. RXB starts a session-owned `xcompmgr -n` XRender compositor. It does not start Picom or reuse the BSPWM Picom configuration. Check `cat "$XDG_RUNTIME_DIR/ryoku-x11-compositor.log"` if transparency is missing. Do not launch Picom with BSPWM settings to diagnose RXB. The NVIDIA driver should remain the version you had before testing. Do not install or switch drivers to make RXB start.
 
 The session wrapper requires the display-manager-provided `XDG_SESSION_ID`. It verifies that login1 reports the current UID, `Type=x11`, and graphical `Class=user` only for X11. The pinned shell sleep guard independently resolves that exact ID; it does not guess a session by UID. Greeter, lock-screen, TTY and manager sessions remain excluded.
 
@@ -39,7 +39,7 @@ RXB installs a separate session entry. It does not edit SDDM configuration or th
 The default Ryoku terminal shortcut is `Super+Return`. `Super+T` is the tabbed-layout shortcut, not a terminal launcher. In RXB, the terminal launcher first honours the user's `TERMINAL` setting and then checks installed X11 terminals (Kitty, Foot, Konsole, XFCE Terminal, xterm). If none is available, it shows a notification rather than silently trying a missing Kitty binary.
 
 
-RXB intentionally does not start Picom. This isolates the X11 session from the NVIDIA 470/Picom crash seen on the GT 740. It does not stop or modify the BSPWM Picom process or configuration. The RXB shell must remain usable without a compositor; do not copy the BSPWM Picom configuration into RXB.
+RXB uses `xcompmgr -n` for basic XRender compositing without Picom's GLX/NVIDIA path. The process is started and stopped only by the RXB session wrapper. If it cannot acquire the compositor selection, RXB continues without compositing. The BSPWM Picom process and configuration are never touched.
 
 
 Switch to a TTY with Ctrl+Alt+F3, log in, and inspect:

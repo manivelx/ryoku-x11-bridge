@@ -50,7 +50,7 @@ Keep neutral desktop settings separate from provider-owned wm.i3 settings. Gener
 Quickshell X11 windows are not Wayland layer-shell surfaces. Test struts, stacking, popup placement, focus, click-through and monitor association under i3. Adapt each surface class deliberately rather than assuming WlrLayershell equivalence.
 
 ## Compositor isolation
-RXB does not automatically start Picom. The first physical RXB session on the NVIDIA GT 740 / proprietary 470 stack recorded a Picom segmentation fault inside `libnvidia-glcore`. The existing BSPWM Picom configuration is not evidence of RXB compatibility. RXB therefore runs without a compositor by default; it does not start, stop, or edit the BSPWM Picom process/configuration. A dedicated RXB compositor profile may be evaluated only after isolated testing on the target driver.
+RXB starts `xcompmgr -n`, which uses XRender rather than Picom's GLX/NVIDIA OpenGL backend. It is launched by the RXB session wrapper, logged under the session runtime directory, and terminated when i3 exits. If another compositor already owns the X selection or xcompmgr fails to start, RXB continues without compositing. RXB never starts, stops, reads, or edits the BSPWM Picom configuration. The target GT 740/NVIDIA 470 hardware still requires a controlled physical validation of XRender compositing.
 
 ## Locking
 A normal fullscreen QML window is not a secure X11 lock. Use a security-reviewed X11 locker (candidate: XSecureLock with PAM) as the security boundary. Ryoku QML may only be a visual layer beneath it. No QML unlock path. Validate grabs, multi-monitor coverage, PAM failure, process death, saver failure and suspend/resume before exposing lock capability.

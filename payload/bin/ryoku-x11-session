@@ -56,7 +56,7 @@ for name in config generated.conf user.conf; do
   fi
 done
 
-for cmd in i3 ryoku-wm-i3 qs ryoku-shell loginctl; do
+for cmd in i3 ryoku-wm-i3 qs ryoku-shell loginctl xcompmgr; do
   command -v "$cmd" >/dev/null 2>&1 || {
     echo "ryoku-x11-session: required command not found: $cmd" >&2
     exit 1
@@ -69,14 +69,32 @@ ryoku-wm-i3 apply "$RYOKU_CONFIG_HOME/ryoku/desktop.json" >/dev/null
 
 runtime_dir=${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required for a systemd user session}
 env_file="$runtime_dir/ryoku-x11-session.env"
+compositor_pid=""
 cleanup() {
   local status=$?
   trap - EXIT
   systemctl --user stop ryoku-x11-session.target >/dev/null 2>&1 || true
+  if [[ -n "$compositor_pid" ]]; then
+    kill -TERM "$compositor_pid" 2>/dev/null || true
+    wait "$compositor_pid" 2>/dev/null || true
+  fi
   rm -f "$env_file" "$runtime_config" || true
   exit "$status"
 }
 trap cleanup EXIT
+
+# RXB uses the XRender-only xcompmgr path, never Picom's GLX/NVIDIA backend.
+# This compositor belongs only to this i3 session and is stopped on exit.
+# If another compositor already owns the X selection or xcompmgr cannot start,
+# continue without compositing rather than disturbing another desktop.
+xcompmgr -n >"$runtime_dir/ryoku-x11-compositor.log" 2>&1 &
+compositor_pid=$!
+sleep 0.2
+if ! kill -0 "$compositor_pid" 2>/dev/null; then
+  wait "$compositor_pid" 2>/dev/null || true
+  compositor_pid=""
+  echo "ryoku-x11-session: xcompmgr unavailable; continuing without compositing" >&2
+fi
 
 # Resolve only the two RXB-owned includes into a session-only runtime copy.
 runtime_config="$runtime_dir/ryoku-x11-i3.conf"

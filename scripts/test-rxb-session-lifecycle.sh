@@ -29,6 +29,8 @@ export TEST_STALE_I3_SOCKET="$runtime/stale-i3-ipc.sock"
 export I3SOCK="$TEST_STALE_I3_SOCKET"
 export TEST_SYSTEMCTL_LOG="$tmp/systemctl.log"
 export TEST_LOGINCTL_LOG="$tmp/loginctl.log"
+export TEST_XCOMPMGR_LOG="$tmp/xcompmgr.log"
+export TEST_XCOMPMGR_PID="$tmp/xcompmgr.pid"
 export TEST_RYOKU_APPLY_LOG="$tmp/ryoku-apply.log"
 export RYOKU_X11_SEED_DIR="$seed"
 export PATH="$fakebin:$repo_root/payload/bin:$PATH"
@@ -146,6 +148,15 @@ case "$*" in
 esac
 SH
 
+cat > "$fakebin/xcompmgr" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'started %s %s\\n' "$" "$*" >> "$TEST_XCOMPMGR_LOG"
+printf '%s\\n' "$" > "$TEST_XCOMPMGR_PID"
+exec sleep 60
+SH
+chmod +x "$fakebin/xcompmgr"
+
 for command in qs ryoku-shell; do
   cat > "$fakebin/$command" <<'SH'
 #!/usr/bin/env bash
@@ -186,6 +197,12 @@ grep -Fqx 'preserve this desktop config' "$config_home/quickshell/keep.qml"
 grep -Fqx 'isolated RXB shell config' "$config_home/ryoku-x11/ryoku-config/quickshell/shell/shell.qml"
 grep -Fq -- '--user start ryoku-x11-session.target' "$TEST_SYSTEMCTL_LOG"
 grep -Fq -- '--user stop ryoku-x11-session.target' "$TEST_SYSTEMCTL_LOG"
+grep -Fq 'started ' "$TEST_XCOMPMGR_LOG"
+xcompmgr_pid="$(cat "$TEST_XCOMPMGR_PID")"
+if kill -0 "$xcompmgr_pid" 2>/dev/null; then
+  echo "RXB wrapper left its session-owned xcompmgr running after exit" >&2
+  exit 1
+fi
 ! grep -Fq 'import-environment' "$TEST_SYSTEMCTL_LOG"
 grep -Fqx 'show-session 42 --property=User --value' "$TEST_LOGINCTL_LOG"
 grep -Fqx 'show-session 42 --property=Type --value' "$TEST_LOGINCTL_LOG"

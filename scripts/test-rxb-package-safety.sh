@@ -95,6 +95,17 @@ done
 # session install and particularly risky on legacy proprietary GPU drivers.
 for pkg in "${packages[@]}"; do
   metadata="$(bsdtar -xOf "$pkg" .PKGINFO)"
+  if [[ "$pkg" == "$variant_pkg" ]]; then
+    if ! grep -Fqx 'depend = xcompmgr' "$metadata"; then
+      echo "RXB i3 variant must include the isolated XRender compositor dependency." >&2
+      exit 1
+    fi
+    if grep -Fqx 'depend = picom' "$metadata"; then
+      echo "RXB must not hard-depend on Picom." >&2
+      exit 1
+    fi
+    
+  fi
   for forbidden in dkms hypridle hyprpicker wtype wl-clipboard wl-clip-persist grim slurp weston xorg-xwayland qt5-wayland qt6-wayland; do
     if grep -Fqx "depend = $forbidden" <<<"$metadata"; then
       echo "RXB X11 runtime package must not hard-depend on $forbidden: $pkg" >&2
