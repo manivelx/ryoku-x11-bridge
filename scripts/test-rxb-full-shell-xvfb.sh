@@ -57,6 +57,7 @@ cleanup() {
   local status=$?
   trap - EXIT
   cleanup_quickshell_processes
+  pkill -x xterm 2>/dev/null || true
   [[ -z "$i3_pid" ]] || kill "$i3_pid" 2>/dev/null || true
   [[ -z "$xvfb_pid" ]] || kill "$xvfb_pid" 2>/dev/null || true
   [[ -z "$i3_pid" ]] || wait "$i3_pid" 2>/dev/null || true
@@ -86,6 +87,16 @@ export DISPLAY=":$display_number"
 # as the installed session wrapper does. Validate the actual generated include
 # with i3's own config parser before starting the compositor.
 ryoku-wm-i3 apply "$RYOKU_CONFIG_HOME/ryoku/desktop.json" >/dev/null
+grep -Eq '^bindsym Mod4\+Return exec .*ryoku-app terminal' "$XDG_CONFIG_HOME/ryoku-x11/generated.conf" || {
+  echo "RXB generated config does not bind Super+Return to the terminal launcher." >&2
+  grep -n 'Mod4.*Return' "$XDG_CONFIG_HOME/ryoku-x11/generated.conf" >&2 || true
+  exit 1
+}
+grep -Eq '^bindsym Mod4\+t layout toggle tabbed split( |$)' "$XDG_CONFIG_HOME/ryoku-x11/generated.conf" || {
+  echo "RXB generated config does not preserve Super+T as the tabbed-layout action." >&2
+  grep -n 'Mod4.*t ' "$XDG_CONFIG_HOME/ryoku-x11/generated.conf" >&2 || true
+  exit 1
+}
 cat >"$tmp/i3.conf" <<'EOF'
 font pango:monospace 8
 focus_follows_mouse no
