@@ -237,8 +237,8 @@ jobs:
           bash -n upstream/ryoku/shell/scripts/ryoku-cmd-ocr
           bash -n upstream/ryoku/shell/scripts/ryoku-cmd-qr-scan
           bash -n upstream/ryoku/shell/scripts/ryoku-cmd-google-lens
-          ! grep -R -E 'WlrLayershell\\.(layer|keyboardFocus|namespace|focusable)' upstream/ryoku --include='*.qml'
-          ! grep -R -E '\\.WlrLayershell\\.keyboardFocus' upstream/ryoku --include='*.qml'
+          ! grep -r -E 'WlrLayershell\\.(layer|keyboardFocus|namespace|focusable)' upstream/ryoku --include='*.qml'
+          ! grep -r -E '\\.WlrLayershell\\.keyboardFocus' upstream/ryoku --include='*.qml'
       - name: Inventory pinned Ryoku QML APIs
         run: python3 scripts/audit-rxb-qml.py upstream --output dist/qml-x11-inventory.json
       - name: Resolve active shell QML dependency candidates
