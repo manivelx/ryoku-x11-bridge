@@ -286,14 +286,17 @@ fi
 
 
 def patch_x11_login1_graphical_session(root: pathlib.Path) -> None:
-    # Permit Type=x11 only for the same constrained graphical user classes
-    # as Wayland. Exact-session, UID, Active and inhibitor checks remain intact.
+    # RXB X11 sessions are Class=user only. Preserve upstream Wayland's
+    # user and user-early classes, while rejecting X11 greeter/lock/early.
     p = root / "ryoku/shell/ipc/sleepwake.go"
     replace_once(p, '''func graphicalLogin1UserSession(sessionType, sessionClass string) bool {
 	return sessionType == "wayland" &&
 		(sessionClass == "user" || sessionClass == "user-early")
 }''', '''func graphicalLogin1UserSession(sessionType, sessionClass string) bool {
-	return (sessionType == "wayland" || sessionType == "x11") &&
+	if sessionType == "x11" {
+		return sessionClass == "user"
+	}
+	return sessionType == "wayland" &&
 		(sessionClass == "user" || sessionClass == "user-early")
 }''')
     test = root / "ryoku/shell/ipc/sleepwake_x11_session_test.go"
@@ -304,7 +307,7 @@ import "testing"
 func TestRXBGraphicalLogin1UserSession(t *testing.T) {
 	tests := []struct { name, typ, class string; want bool }{
 		{"x11 user", "x11", "user", true},
-		{"x11 early user", "x11", "user-early", true},
+		{"x11 early user rejected", "x11", "user-early", false},
 		{"wayland user", "wayland", "user", true},
 		{"wayland early user", "wayland", "user-early", true},
 		{"tty rejected", "tty", "user", false},
@@ -322,6 +325,7 @@ func TestRXBGraphicalLogin1UserSession(t *testing.T) {
 	}
 }
 """)
+
 
 def patch_x11_suspend(root: pathlib.Path) -> None:
     p = root / "ryoku/shell/quickshell/shell/services/SessionActions.qml"
