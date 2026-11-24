@@ -21,9 +21,22 @@ export QT_OPENGL=software
 xvfb_pid=""
 i3_pid=""
 cleanup() {
+  trap - EXIT
   [[ -z "$i3_pid" ]] || kill "$i3_pid" 2>/dev/null || true
   [[ -z "$xvfb_pid" ]] || kill "$xvfb_pid" 2>/dev/null || true
-  rm -rf "$tmp"
+  # Quickshell helpers can outlive the daemon and keep writing the QML cache
+  # while we delete the temp tree. Stop anything started from this tree first,
+  # then retry the removal; a leftover temp dir must not fail a passed test.
+  pkill -TERM -f -- "$tmp" 2>/dev/null || true
+  sleep 0.3
+  pkill -KILL -f -- "$tmp" 2>/dev/null || true
+  [[ -z "$i3_pid" ]] || wait "$i3_pid" 2>/dev/null || true
+  [[ -z "$xvfb_pid" ]] || wait "$xvfb_pid" 2>/dev/null || true
+  for _ in 1 2 3 4 5; do
+    rm -rf -- "$tmp" 2>/dev/null && return 0
+    sleep 0.5
+  done
+  echo "warning: could not fully remove $tmp" >&2
 }
 trap cleanup EXIT
 
