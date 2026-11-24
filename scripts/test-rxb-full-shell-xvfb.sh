@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-for command in Xvfb i3 i3-msg xdotool qs pipewire wireplumber pw-cli ryoku ryoku-shell ryoku-wm-i3 ryoku-hub jq dbus-run-session timeout ps pgrep xrandr maim ryoku-cmd-grim python3; do
+for command in Xvfb i3 i3-msg xdotool qs ryogami pipewire wireplumber pw-cli ryoku ryoku-shell ryoku-wm-i3 ryoku-hub jq dbus-run-session timeout ps pgrep xrandr maim ryoku-cmd-grim python3; do
   command -v "$command" >/dev/null 2>&1 || {
     echo "RXB full-shell Xvfb test requires $command" >&2
     exit 127
@@ -37,6 +37,7 @@ unset WAYLAND_DISPLAY SWAYSOCK I3SOCK
 
 xvfb_pid=""
 i3_pid=""
+ryogami_pid=""
 cleanup_quickshell_processes() {
   local pass pids pid
   for pass in $(seq 1 50); do
@@ -58,6 +59,7 @@ cleanup() {
   trap - EXIT
   cleanup_quickshell_processes
   pkill -x xterm 2>/dev/null || true
+  [[ -z "$ryogami_pid" ]] || kill -TERM "$ryogami_pid" 2>/dev/null || true
   [[ -z "$i3_pid" ]] || kill "$i3_pid" 2>/dev/null || true
   [[ -z "$xvfb_pid" ]] || kill "$xvfb_pid" 2>/dev/null || true
   [[ -z "$i3_pid" ]] || wait "$i3_pid" 2>/dev/null || true
@@ -259,7 +261,9 @@ dbus-run-session -- bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HO
       kill -TERM "$daemon_pid" 2>/dev/null || true
     fi
     wait "$daemon_pid" 2>/dev/null || true
+    if [[ -n "$ryogami_pid" ]]; then kill -TERM "$ryogami_pid" 2>/dev/null || true; wait "$ryogami_pid" 2>/dev/null || true; fi
     cleanup_audio
+    cleanup
     exit "$status"
   }
   trap cleanup_daemon EXIT
@@ -300,6 +304,70 @@ dbus-run-session -- bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HO
     echo "Ryoku shell component exited during the daemon smoke window." >&2
     exit 1
   }
+
+  # The old physical failure lost the wallpaper daemon when systemd broke the
+  # session target ordering cycle. Start the real pinned Ryogami daemon against
+  # the live RXB i3 provider and paint a high-entropy fixture so the captured
+  # desktop must contain an actual wallpaper, not merely a black Xvfb root.
+  mkdir -p "$HOME/Pictures/Wallpapers"
+  wallpaper_fixture="$HOME/Pictures/Wallpapers/00-rxb-xvfb-fixture.png"
+  python3 - "$wallpaper_fixture" <<'PY'
+import struct
+import sys
+import zlib
+
+width, height = 800, 450
+raw = bytearray()
+seed = 0x525842
+for y in range(height):
+    raw.append(0)  # PNG filter: None
+    for x in range(width):
+        seed = (1664525 * seed + 1013904223) & 0xffffffff
+        r = (seed >> 24) & 0xff
+        seed = (1664525 * seed + 1013904223) & 0xffffffff
+        g = (seed >> 24) & 0xff
+        seed = (1664525 * seed + 1013904223) & 0xffffffff
+        b = (seed >> 24) & 0xff
+        raw.extend((r, g, b))
+
+def chunk(kind, data):
+    return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff)
+
+png = b"\x89PNG\r\n\x1a\n"
+png += chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+png += chunk(b"IDAT", zlib.compress(bytes(raw), 1))
+png += chunk(b"IEND", b"")
+with open(sys.argv[1], "wb") as image:
+    image.write(png)
+PY
+  ryogami >"$tmp/ryogami.log" 2>&1 &
+  ryogami_pid=$!
+  ryogami_ready=0
+  for _ in $(seq 1 100); do
+    if grep -q "ryogami: listening on" "$tmp/ryogami.log" 2>/dev/null; then ryogami_ready=1; break; fi
+    if ! kill -0 "$ryogami_pid" 2>/dev/null; then
+      cat "$tmp/ryogami.log" >&2
+      echo "Ryogami wallpaper daemon exited before opening its X11 provider connection." >&2
+      exit 1
+    fi
+    sleep 0.1
+  done
+  if [[ "$ryogami_ready" != 1 ]]; then
+    cat "$tmp/ryogami.log" >&2
+    echo "Ryogami wallpaper daemon did not become ready." >&2
+    exit 1
+  fi
+  timeout 15s ryogami wallpaper set "$wallpaper_fixture" || {
+    cat "$tmp/ryogami.log" >&2
+    echo "Ryogami could not apply a wallpaper through the RXB i3 provider." >&2
+    exit 1
+  }
+  sleep 2
+  if grep -Eiq 'default wallpaper .*:|no active output|provider unavailable|no compositor' "$tmp/ryogami.log"; then
+    cat "$tmp/ryogami.log" >&2
+    echo "Ryogami reported an X11 wallpaper/provider failure." >&2
+    exit 1
+  fi
 
   shell_log="$XDG_STATE_HOME/ryoku/surfaces/shell.log"
   [[ -s "$shell_log" ]] || {
@@ -468,6 +536,12 @@ if (width, height) != (1600, 900):
     raise SystemExit(f"X11 capture dimensions were {width}x{height}, expected 1600x900")
 print(f"X11 capture adapter produced a {width}x{height} PNG.")
 PY
+  capture_size="$(stat -c %s "$capture_file")"
+  if (( capture_size < 500000 )); then
+    echo "Xvfb desktop capture is only ${capture_size} bytes; the wallpaper surface appears blank or was never painted." >&2
+    exit 1
+  fi
+  echo "RXB X11 desktop rendered a wallpaper-backed frame (${capture_size} bytes)."
   if [[ -n ${RXB_ARTIFACT_DIR:-} ]]; then
     install -D -m 0644 "$capture_file" "$RXB_ARTIFACT_DIR/rxb-x11-shell-xvfb.png"
     echo "Saved Xvfb shell screenshot to $RXB_ARTIFACT_DIR/rxb-x11-shell-xvfb.png"
