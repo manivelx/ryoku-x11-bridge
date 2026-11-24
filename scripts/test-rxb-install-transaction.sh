@@ -216,9 +216,35 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Pending system updates must block installation even when no external
-# dependency needs to be installed. This protects the host from partial
-# upgrades and prevents RXB from requiring a kernel/NVIDIA maintenance step.
+# The normal-user installer entry point must use checkupdates before
+# sudo escalation. This catches updates absent from a stale pacman -Qu view.
+checkupdates_dir="$upgrade_dir/checkupdates-bin"
+mkdir -p "$checkupdates_dir"
+cat > "$checkupdates_dir/checkupdates" <<'CHECKUPDATES_PENDING'
+#!/usr/bin/env bash
+printf '%s\\n' 'flex 2.7.1-1.1 -> 2.7.6-1.1'
+CHECKUPDATES_PENDING
+chmod 0755 "$checkupdates_dir/checkupdates"
+if ! command -v runuser >/dev/null 2>&1; then
+  echo "runuser is required for the non-root update-gate regression test." >&2
+  exit 1
+fi
+if runuser -u nobody -- env PATH="$checkupdates_dir:$PATH" \\
+  bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" \\
+  > "$upgrade_dir/checkupdates-installer.log" 2>&1; then
+  echo "Installer accepted a non-root host with checkupdates-reported updates." >&2
+  exit 1
+fi
+grep -Fq "pending system updates detected by checkupdates" "$upgrade_dir/checkupdates-installer.log" &&
+  grep -Fq "flex 2.7.1-1.1 -> 2.7.6-1.1" "$upgrade_dir/checkupdates-installer.log" || {
+  cat "$upgrade_dir/checkupdates-installer.log" >&2
+  echo "Non-root checkupdates gate did not report the pending flex update." >&2
+  exit 1
+}
+
+# Pending system updates must also block the root-side transaction path even
+# when no external dependency needs to be installed. This protects the host
+# from partial upgrades and prevents RXB from requiring kernel/NVIDIA changes.
 pending_updates_dir="$upgrade_dir/pending-updates-bin"
 pending_updates_log="$upgrade_dir/pending-updates-pacman.log"
 mkdir -p "$pending_updates_dir"
