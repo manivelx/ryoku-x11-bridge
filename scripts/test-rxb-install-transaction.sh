@@ -274,6 +274,78 @@ rm -f "$pacman_marker"
 # Arch test container, so explicitly opt in to the audited upstream files.
 export RXB_ALLOW_UNREVIEWED_UPSTREAM_HOST_FILES=1
 
+# Interrupted-install recovery: stop the installer immediately before its
+# local pacman -U transaction, SIGKILL the installer, then prove the manifest
+# already records all newly introduced local packages and the remover cleans
+# the installed dependency subset without guessing.
+interrupt_pacman_dir="$manifest_attack_dir/interrupt-bin"
+mkdir -p "$interrupt_pacman_dir"
+interrupt_marker="$manifest_attack_dir/interrupt-at-local-transaction"
+interrupt_continue="$manifest_attack_dir/continue-interrupt-wrapper"
+interrupt_wrapper_pid="$manifest_attack_dir/interrupt-wrapper.pid"
+cat > "$interrupt_pacman_dir/pacman" <<'INTERRUPT_PACMAN'
+#!/usr/bin/env bash
+if [[ "${3:-}" == "-U" ]]; then
+  printf '%s\n' "$" > "$RXB_INTERRUPT_WRAPPER_PID"
+  : > "$RXB_INTERRUPT_MARKER"
+  while [[ ! -e "$RXB_INTERRUPT_CONTINUE" ]]; do sleep 0.1; done
+  exit 99
+fi
+exec /usr/bin/pacman "$@"
+INTERRUPT_PACMAN
+chmod 0755 "$interrupt_pacman_dir/pacman"
+rm -f "$interrupt_marker" "$interrupt_continue" "$interrupt_wrapper_pid"
+PATH="$interrupt_pacman_dir:$PATH" \
+  RXB_INTERRUPT_MARKER="$interrupt_marker" \
+  RXB_INTERRUPT_CONTINUE="$interrupt_continue" \
+  RXB_INTERRUPT_WRAPPER_PID="$interrupt_wrapper_pid" \
+  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
+  bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" \
+  > "$manifest_attack_dir/interrupted-install.log" 2>&1 &
+interrupted_installer_pid=$!
+for attempt in {1..900}; do
+  [[ -e "$interrupt_marker" ]] && break
+  kill -0 "$interrupted_installer_pid" 2>/dev/null || break
+  sleep 0.1
+done
+if [[ ! -e "$interrupt_marker" ]]; then
+  kill -KILL "$interrupted_installer_pid" 2>/dev/null || true
+  touch "$interrupt_continue"
+  wait "$interrupted_installer_pid" 2>/dev/null || true
+  echo "Installer did not reach the intercepted local package transaction; interrupted-install test cannot continue." >&2
+  cat "$manifest_attack_dir/interrupted-install.log" >&2
+  exit 1
+fi
+for name in "${package_names[@]}"; do
+  grep -Fxq "$name" /var/lib/rxb/installed-packages || {
+    kill -KILL "$interrupted_installer_pid" 2>/dev/null || true
+    touch "$interrupt_continue"
+    wait "$interrupted_installer_pid" 2>/dev/null || true
+    echo "Interrupted-install manifest did not pre-record newly introduced local package: $name" >&2
+    exit 1
+  }
+done
+kill -KILL "$interrupted_installer_pid" 2>/dev/null || true
+if wait "$interrupted_installer_pid" 2>/dev/null; then
+  touch "$interrupt_continue"
+  echo "Installer unexpectedly survived the simulated SIGKILL." >&2
+  exit 1
+fi
+touch "$interrupt_continue"
+sleep 0.2
+PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
+  bash "$repo_root/scripts/remove-rxb-packages.sh"
+[[ ! -e /var/lib/rxb/installed-packages ]] || {
+  echo "Interrupted-install recovery left an RXB ownership manifest." >&2
+  exit 1
+}
+for name in "${package_names[@]}"; do
+  if pacman -Q "$name" >/dev/null 2>&1; then
+    echo "Interrupted-install recovery left a local RXB package installed: $name" >&2
+    exit 1
+  fi
+done
+
 printf 'ryoku-desktop-i3\n' > "$manifest_attack_dir/attacker-dir/installed-packages"
 chmod 0600 "$manifest_attack_dir/attacker-dir/installed-packages"
 
