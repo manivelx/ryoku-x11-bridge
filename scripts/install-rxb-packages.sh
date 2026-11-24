@@ -231,6 +231,19 @@ write_manifest() {
   rm -f -- "$manifest_tmp"
 }
 
+# Refuse every transaction while system upgrades are pending, even when all
+# dependencies are already installed. RXB never updates the host kernel/GPU.
+if ! pending_updates="$(pacman_exec -Qu 2>/dev/null)"; then
+  echo "install-rxb-packages: unable to query pending system updates; refusing installation." >&2
+  exit 1
+fi
+if [[ -n "$pending_updates" ]]; then
+  echo "install-rxb-packages: pending system updates detected; refusing installation." >&2
+  echo "Do not update the kernel or NVIDIA driver as part of RXB testing. Resolve updates only in a separately approved maintenance window, then rerun preflight." >&2
+  printf '%s\n' "$pending_updates" >&2
+  exit 1
+fi
+
 before_file="$(mktemp)"
 trap 'rm -f -- "$before_file"' EXIT
 pacman_exec -Qq | sort -u > "$before_file"
@@ -243,20 +256,12 @@ if (("${#external_dependency_specs[@]}" > 0)); then
         sed -E 's/[<>=].*$//' |
         sort -u
     )
-    # Do not let an RXB install become a partial system upgrade. Require a
-    # fully updated host, enforce Ryogami's Qt floor, and preview the exact
-    # dependency transaction before pacman is allowed to mutate the system.
-    pending_updates="$(pacman_exec -Qu 2>/dev/null || true)"
-    if [[ -n "$pending_updates" ]]; then
-      echo "install-rxb-packages: pending system updates detected. Run a deliberate full 'pacman -Syu', reboot, and revalidate the existing desktop before installing RXB." >&2
-      printf '%s\n' "$pending_updates" >&2
-      exit 1
-    fi
-
+    # Enforce Ryogami's Qt floor and preview the exact dependency transaction
+    # before pacman is allowed to mutate the system.
     if current_qt="$(pacman_exec -Q qt6-base 2>/dev/null)"; then
       installed_qt="${current_qt#qt6-base }"
       if (( $(vercmp "$installed_qt" 6.12) < 0 )); then
-        echo "install-rxb-packages: installed qt6-base $installed_qt is older than the required 6.12. Update the complete system and verify Quickshell/BSPWM before retrying." >&2
+        echo "install-rxb-packages: installed qt6-base $installed_qt is older than the required 6.12. Stop; resolve this in a separately approved maintenance window without changing the protected kernel/NVIDIA driver, then rerun preflight." >&2
         exit 1
       fi
     fi
@@ -277,7 +282,7 @@ if (("${#external_dependency_specs[@]}" > 0)); then
         if [[ "$installed_version" != "$planned_version" ]]; then
           rm -f -- "$plan_file"
           echo "install-rxb-packages: dependency plan would upgrade installed package '$planned_name' from '$installed_version' to '$planned_version'." >&2
-          echo "Refusing an implicit upgrade. Fully update and validate the host first, or use a disposable test environment." >&2
+          echo "Refusing an implicit upgrade. Do not update the host as part of RXB testing; use a separately approved maintenance window or a disposable test environment." >&2
           exit 1
         fi
       fi
