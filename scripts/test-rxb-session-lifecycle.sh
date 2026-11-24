@@ -151,8 +151,8 @@ SH
 cat > "$fakebin/xcompmgr" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
-printf 'started %s %s\\n' "$BASHPID" "$*" >> "$TEST_XCOMPMGR_LOG"
-printf '%s\\n' "$BASHPID" > "$TEST_XCOMPMGR_PID"
+printf 'started %s %s\n' "$BASHPID" "$*" >> "$TEST_XCOMPMGR_LOG"
+printf '%s\n' "$BASHPID" > "$TEST_XCOMPMGR_PID"
 exec sleep 60
 SH
 chmod +x "$fakebin/xcompmgr"
