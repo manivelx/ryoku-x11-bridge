@@ -1445,7 +1445,22 @@ func main() {""",
         """func (a *App) Execute(args []string) int {
 	if len(args) == 0 {""",
         """func rxbHostCommandBlocked(args []string) bool {
-	return len(args) >= 2 && args[0] == "svc" && args[1] == "reconcile"
+	if len(args) < 2 {
+		return false
+	}
+	switch args[0] {
+	case "svc":
+		return args[1] == "reconcile"
+	case "session":
+		return args[1] == "ensure" || args[1] == "fix-wrappers"
+	case "repo":
+		return args[1] == "set-channel" || args[1] == "sync"
+	case "initramfs":
+		return args[1] == "rebuild"
+	case "power":
+		return args[1] == "suspend" || args[1] == "hibernate"
+	}
+	return false
 }
 
 func (a *App) Execute(args []string) int {
@@ -1513,8 +1528,29 @@ func TestRXBBlocksServiceReconciliation(t *testing.T) {
 	if len(runner.commands) != 0 {
 		t.Fatalf("blocked command reached host runner: %#v", runner.commands)
 	}
-	if rxbHostCommandBlocked([]string{"svc", "--system", "is-active", "NetworkManager"}) {
-		t.Fatal("read-only service inspection should not be blocked")
+	for _, args := range [][]string{
+		{"svc", "--system", "is-active", "NetworkManager"},
+		{"repo", "channel"},
+		{"pkg", "installed", "quickshell"},
+		{"power", "profile"},
+	} {
+		if rxbHostCommandBlocked(args) {
+			t.Errorf("read-only command should not be blocked: %#v", args)
+		}
+	}
+	for _, args := range [][]string{
+		{"svc", "reconcile", "--system"},
+		{"session", "ensure", "--user"},
+		{"session", "fix-wrappers"},
+		{"repo", "set-channel", "testing"},
+		{"repo", "sync"},
+		{"initramfs", "rebuild"},
+		{"power", "suspend"},
+		{"power", "hibernate"},
+	} {
+		if !rxbHostCommandBlocked(args) {
+			t.Errorf("host-wide mutation should be blocked: %#v", args)
+		}
 	}
 }
 """)
