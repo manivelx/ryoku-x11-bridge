@@ -1478,7 +1478,7 @@ func (a *App) Execute(args []string) int {
 		return ExitOK
 	}
 	if rxbHostCommandBlocked(args) {
-		fmt.Fprintln(a.cfg.Stderr, "ryoku-host: service reconciliation is disabled in the RXB X11 build; RXB does not own host service activation.")
+		fmt.Fprintln(a.cfg.Stderr, "ryoku-host: this host-wide mutation is disabled in the RXB X11 build; RXB does not own system service, session bootstrap, repository, initramfs or suspend/hibernate policy.")
 		return ExitFalse
 	}
 	switch args[0] {""",
