@@ -195,6 +195,7 @@ cleanup() {
   local status=$?
   trap - EXIT
   if [[ -n ${verify_root:-} ]]; then rm -rf "$verify_root"; fi
+  if [[ -n ${checkupdates_dir:-} ]]; then rm -rf "$checkupdates_dir"; fi
   local -a present=()
   for name in "${package_names[@]}"; do
     if pacman -Q "$name" >/dev/null 2>&1; then present+=("$name"); fi
@@ -218,8 +219,8 @@ trap cleanup EXIT
 
 # The normal-user installer entry point must use checkupdates before
 # sudo escalation. This catches updates absent from a stale pacman -Qu view.
-checkupdates_dir="$upgrade_dir/checkupdates-bin"
-mkdir -p "$checkupdates_dir"
+checkupdates_dir="$(mktemp -d)"
+chmod 0755 "$checkupdates_dir"
 cat > "$checkupdates_dir/checkupdates" <<'CHECKUPDATES_PENDING'
 #!/usr/bin/env bash
 printf '%s\n' 'flex 2.7.1-1.1 -> 2.7.6-1.1'
