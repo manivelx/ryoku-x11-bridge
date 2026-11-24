@@ -66,7 +66,7 @@ record "Compositor version" picom --version
 record "Quickshell version" qs --version
 
 section "Relevant installed package versions"
-for pkg in linux-cachyos-lts nvidia-470xx-dkms nvidia-utils i3-wm quickshell picom xorg-server xorg-xrandr xsecurelock i3lock; do
+for pkg in linux-cachyos-lts nvidia-470xx-dkms nvidia-470xx-utils lib32-nvidia-470xx-utils nvidia-utils i3-wm quickshell picom xorg-server xorg-xrandr xsecurelock i3lock; do
   package_version "$pkg" >> "$report"
 done
 
