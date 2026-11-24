@@ -70,6 +70,7 @@ ryoku-wm-i3 apply "$RYOKU_CONFIG_HOME/ryoku/desktop.json" >/dev/null
 runtime_dir=${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required for a systemd user session}
 env_file="$runtime_dir/ryoku-x11-session.env"
 compositor_pid=""
+runtime_config=""
 cleanup() {
   local status=$?
   trap - EXIT
@@ -78,7 +79,8 @@ cleanup() {
     kill -TERM "$compositor_pid" 2>/dev/null || true
     wait "$compositor_pid" 2>/dev/null || true
   fi
-  rm -f "$env_file" "$runtime_config" || true
+  rm -f "$env_file" || true
+  [[ -z "$runtime_config" ]] || rm -f "$runtime_config" || true
   exit "$status"
 }
 trap cleanup EXIT
