@@ -98,40 +98,6 @@ for required in ryoku-desktop-i3 ryoku-desktop ryogami; do
   }
 done
 
-# Refuse known replacements/conflicts before any dependency transaction. The
-# preflight reports these too, but the installer must enforce the boundary.
-for conflict in bibata-cursor-theme bibata-cursor-theme-bin gpk-bin tlp tuned-ppd; do
-  if pacman_exec -Q "$conflict" >/dev/null 2>&1; then
-    echo "install-rxb-packages: refusing because conflicting package '$conflict' is already installed." >&2
-    echo "Resolve the conflict deliberately, then rerun the read-only host preflight." >&2
-    exit 1
-  fi
-done
-
-# Validate local Ryoku dependencies and collect only external dependency specs.
-for pkg in "${packages[@]}"; do
-  metadata="$(bsdtar -xOf "$pkg" .PKGINFO)"
-  while IFS= read -r dependency; do
-    dependency_name="${dependency%%[<>=]*}"
-    case "$dependency_name" in
-      ryoku*|ryogami*|gpk)
-        [[ -n "${local_provides[$dependency_name]:-}" ]] || {
-          echo "install-rxb-packages: missing local RXB dependency $dependency_name required by $pkg" >&2
-          exit 1
-        }
-        continue
-        ;;
-    esac
-    if [[ -n "${local_provides[$dependency_name]:-}" ]]; then
-      continue
-    fi
-    if [[ -z "${seen_external_dependencies[$dependency]:-}" ]]; then
-      seen_external_dependencies["$dependency"]=1
-      external_dependency_specs+=("$dependency")
-    fi
-  done < <(sed -n 's/^depend = //p' <<<"$metadata")
-done
-
 # The manifest is the ownership boundary for safe upgrades and rollback.
 manifest_dir="/var/lib/rxb"
 manifest="$manifest_dir/installed-packages"
@@ -175,6 +141,40 @@ for name in "${package_names[@]}"; do
     echo "Remove or back up that package deliberately, or use the RXB installer that originally installed it." >&2
     exit 1
   fi
+done
+
+# Refuse known replacements/conflicts before any dependency transaction. The
+# preflight reports these too, but the installer must enforce the boundary.
+for conflict in bibata-cursor-theme bibata-cursor-theme-bin gpk-bin tlp tuned-ppd; do
+  if pacman_exec -Q "$conflict" >/dev/null 2>&1; then
+    echo "install-rxb-packages: refusing because conflicting package '$conflict' is already installed." >&2
+    echo "Resolve the conflict deliberately, then rerun the read-only host preflight." >&2
+    exit 1
+  fi
+done
+
+# Validate local Ryoku dependencies and collect only external dependency specs.
+for pkg in "${packages[@]}"; do
+  metadata="$(bsdtar -xOf "$pkg" .PKGINFO)"
+  while IFS= read -r dependency; do
+    dependency_name="${dependency%%[<>=]*}"
+    case "$dependency_name" in
+      ryoku*|ryogami*|gpk)
+        [[ -n "${local_provides[$dependency_name]:-}" ]] || {
+          echo "install-rxb-packages: missing local RXB dependency $dependency_name required by $pkg" >&2
+          exit 1
+        }
+        continue
+        ;;
+    esac
+    if [[ -n "${local_provides[$dependency_name]:-}" ]]; then
+      continue
+    fi
+    if [[ -z "${seen_external_dependencies[$dependency]:-}" ]]; then
+      seen_external_dependencies["$dependency"]=1
+      external_dependency_specs+=("$dependency")
+    fi
+  done < <(sed -n 's/^depend = //p' <<<"$metadata")
 done
 
 write_manifest() {
