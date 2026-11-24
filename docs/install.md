@@ -11,7 +11,7 @@ The full repository audit (2026-11-24) classified the project as **READY FOR ISO
 - **F1 — upstream host files (fixed in this branch):** the RXB overlay sets `RYOKU_X11_BRIDGE=1` for the upstream `ryoku` package and omits both `ryoku-boot-guard.service` and `ryoku.conf` tmpfiles installation. The boot guard can inspect or repoint `/boot/limine.conf` and EFI variables; the tmpfiles rules create shared `/etc/ryoku` and `/var/lib/ryoku` state plus SDDM greeter hand-off files. RXB does not own those host-wide policies. Package safety now checks every built package and rejects either path.
 - **F2 — Qt version:** `ryogami` requires `qt6-base>=6.12`. A stale host can pull a Qt upgrade and related package changes into the install transaction. Perform a deliberate full system update, reboot, and verify the existing BSPWM, Orbital SDDM theme and Quickshell lockscreen before considering RXB. Abort if the transaction proposes a Qt/Quickshell upgrade or removal.
 - **F3/F4 — dependency transaction:** the installer now refuses known pre-existing conflicts (`bibata-cursor-theme(-bin)`, `gpk-bin`, `tlp`, `tuned-ppd`). It also checks for pending system updates, checks the installed Qt floor, prints a read-only dependency plan, and refuses to upgrade already-installed packages as an RXB side effect. Review every package pacman proposes to install. Do not use `RXB_PACMAN_NOCONFIRM=1` on a host. Abort if the transaction includes packages or removals you have not explicitly approved.
-- **F5 — upstream CLI:** do not run `ryoku update`, `ryoku doctor`, `ryoku svc reconcile`, `ryoku boot-guard`, or any `ryoku-host` subcommand on the host. Their host-mutating behavior has not been fully audited.
+- **F5 — upstream CLI (guarded in this branch):** `ryoku update`, `rollback`, `boot-guard`, `boot-menu`, `deploy`, `recovery` and `track` are disabled in the RXB build; `ryoku doctor` is forced into read-only `--check` mode. `ryoku-host` blocks service reconciliation, session bootstrap/wrapper repair, repository changes, initramfs rebuilds, and suspend/hibernate. Explicit package-management and other privileged UI actions still use the upstream authorization path; only invoke them when you intentionally want that host change.
 - **Target hardware:** no acceptance has been performed on the GT 740 / NVIDIA 470 / Picom setup. Lock recovery, real input grabs, VT switching and multi-monitor behavior remain unverified.
 
 These blockers must be resolved, documented and covered by passing tests before the readiness decision can be raised to controlled PC installation testing.
@@ -57,7 +57,7 @@ After installation, the display manager should offer **Ryoku (X11 / i3)** as a s
 
 ## First-login checks
 
-Only perform these checks in a disposable VM or dedicated test installation while F1 and the other host-install blockers remain unresolved.
+Perform the first install and functional acceptance in a disposable VM or dedicated test installation. F1–F5 are guarded in this branch, but target-hardware acceptance (especially GT 740/NVIDIA 470/Picom and real keyboard/pointer lock behavior) remains outstanding.
 
 1. Confirm the session is X11 and i3 is the window manager.
 2. Confirm the RXB user target and Quickshell services are active.
