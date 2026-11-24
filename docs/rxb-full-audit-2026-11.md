@@ -146,3 +146,17 @@ Prefer a VM or a dedicated spare installation first. On the real PC, only after 
 **READY FOR ISOLATED TESTING ONLY.**
 
 Build, package, installer-transaction, Xvfb and Xephyr/PAM evidence is solid and reproducible. It is not **READY FOR CONTROLLED PC INSTALLATION TESTING** because: F1 needs an owner decision, F2/F3 are only mitigated by the preflight and procedure, `ryoku` CLI host-mutating subcommands are unaudited (F5), interrupted-install and conflict cases are untested, and nothing has been tested on the target hardware. Once those are handled and CI passes on the resulting commit, the decision can be re-evaluated.
+
+
+## 14. Post-audit remediation on `claude/full-repo-audit`
+
+The following changes were made after the audit tree described above. They are implementation changes, not yet accepted test evidence; the CI run for the resulting head must pass before this branch is promoted to `development`.
+
+- **F1 — resolved in the overlay:** the RXB build sets `RYOKU_X11_BRIDGE=1` in the upstream `ryoku` package. Its package payload omits `ryoku-boot-guard.service` and `ryoku.conf` tmpfiles installation. This avoids the host boot guard's `/boot/limine.conf`/EFI behavior and the global `/etc/ryoku`, `/var/lib/ryoku`, and SDDM greeter hand-off file creation. Package safety scans every artifact (not only the desktop pair) and rejects either path.
+- **F2 — installer enforcement added:** the installer refuses pending system updates, checks the installed `qt6-base` floor, prints a read-only dependency plan, and refuses a dependency plan that would upgrade an already-installed package as an RXB side effect.
+- **F3 — installer enforcement added:** known conflicts/replacements (`bibata-cursor-theme`, `bibata-cursor-theme-bin`, `gpk-bin`, `tlp`, `tuned-ppd`) are rejected before package transactions.
+- **F4 — review made explicit:** the installer prints the dependency transaction plan before it asks pacman to install dependencies. Interactive pacman confirmation remains required; do not use the test-only no-confirm variable on a host.
+- **F5 — command boundaries added:** the RXB `ryoku` CLI refuses update/rollback/boot/deploy/recovery/channel-tracking commands and forces `doctor` into read-only `--check` mode. `ryoku-host` refuses service reconciliation, session bootstrap/wrapper repair, repository mutation, initramfs rebuild, and suspend/hibernate commands. Explicit privileged UI actions such as package installation remain available through the upstream authorization path and still require deliberate user action.
+- **Installer recovery tests added:** the transaction suite now simulates a pre-existing conflict and kills the installer at the local package transaction boundary to verify that the ownership manifest is already present and the remover cleans the subset that actually landed.
+
+**Status at time of writing:** CI for the updated overlay, package build, package-safety checks and transaction tests is pending. F6/F7 (real X11 input/lock behavior and target GPU/rendering acceptance) remain hardware-test gates. No daily-use host installation has been performed.
