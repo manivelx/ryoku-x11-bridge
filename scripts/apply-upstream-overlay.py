@@ -1577,7 +1577,27 @@ func TestRXBHostGuardKeepsReadOnlyAndSessionScopedActions(t *testing.T) {
 		}
 	}
 }
+
+func TestRXBPowerBlocksSuspendAndHibernateBeforeRunningHostCommands(t *testing.T) {
+	for _, action := range []string{"suspend", "hibernate"} {
+		runner := &fakeRunner{}
+		app, _, _ := testApp(runner, nil)
+		if code := app.Execute([]string{"power", action}); code != ExitFalse {
+			t.Fatalf("%s exit = %d, want blocked", action, code)
+		}
+		if len(runner.commands) != 0 {
+			t.Fatalf("%s unexpectedly reached host command runner: %#v", action, runner.commands)
+		}
+	}
+}
 """)
+    # The upstream power test must reflect RXB's fail-closed sleep policy.
+    p = root / "ryoku/cli/internal/host/power_test.go"
+    replace_once(
+        p,
+        '''for _, action := range []string{"poweroff", "reboot", "suspend", "hibernate"} {''',
+        '''for _, action := range []string{"poweroff", "reboot"} {''',
+    )
     # The upstream host package tests exercise generic distro-management
     # commands. In RXB, initramfs rebuild and session bootstrap are deliberately
     # blocked; adapt those expectations instead of weakening the runtime guard.
