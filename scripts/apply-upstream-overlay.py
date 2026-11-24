@@ -204,7 +204,7 @@ def patch_x11_terminal_launcher(root: pathlib.Path) -> None:
     # Upstream's default terminal is Kitty. RXB supports the user's installed
     # X11 terminal without forcing a particular terminal package onto CachyOS.
     p = root / "ryoku/shell/scripts/ryoku-app"
-    replace_once(p, '\\tterminal) echo "kitty" ;;', '''\tterminal)
+    replace_once(p, '\tterminal) echo "kitty" ;;', '''\tterminal)
 \t\tif [[ "${RYOKU_X11_BRIDGE:-}" == "1" && -n "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" ]]; then
 \t\t\tif [[ -n "${TERMINAL:-}" ]] && command -v "${TERMINAL%% *}" >/dev/null 2>&1; then
 \t\t\t\techo "$TERMINAL"
