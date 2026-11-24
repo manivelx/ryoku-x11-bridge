@@ -1397,7 +1397,127 @@ post_remove() { _refresh; }
     )
     p.write_text(text)
 
+    # The stock Ryoku updater/doctor can manage the host OS, boot entries,
+    # services and package state. RXB is a session integration, not a distro
+    # manager: make doctor read-only and refuse host update/boot workflows.
+    p = root / "ryoku/cli/main.go"
+    replace_once(
+        p,
+        "func main() {",
+        """func rxbGuardCommand(command string, args []string) ([]string, bool) {
+	switch command {
+	case "update", "rollback", "boot-guard", "boot-menu", "deploy", "recovery", "track":
+		return args, true
+	case "doctor":
+		if len(args) == 0 || args[0] != "--check" {
+			args = append([]string{"--check"}, args...)
+		}
+	}
+	return args, false
+}
 
+func main() {""",
+    )
+    replace_once(
+        p,
+        """	if len(os.Args) < 2 {
+		usage()
+		os.Exit(2)
+	}
+	var err error""",
+        """	if len(os.Args) < 2 {
+		usage()
+		os.Exit(2)
+	}
+	guardedArgs, blocked := rxbGuardCommand(os.Args[1], os.Args[2:])
+	if blocked {
+		die("'%s' is disabled in the RXB X11 build; host update, rollback and boot management remain under the existing OS.", os.Args[1])
+	}
+	os.Args = append([]string{os.Args[0], os.Args[1]}, guardedArgs...)
+	var err error""",
+    )
+
+    # Never let a generic doctor reconciliation rewrite the host's system or
+    # user service activation roster in an RXB session.
+    p = root / "ryoku/cli/internal/host/command.go"
+    replace_once(
+        p,
+        """func (a *App) Execute(args []string) int {
+	if len(args) == 0 {""",
+        """func rxbHostCommandBlocked(args []string) bool {
+	return len(args) >= 2 && args[0] == "svc" && args[1] == "reconcile"
+}
+
+func (a *App) Execute(args []string) int {
+	if len(args) == 0 {""",
+    )
+    replace_once(
+        p,
+        """	if args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
+		fmt.Fprint(a.cfg.Stdout, Usage)
+		return ExitOK
+	}
+	switch args[0] {""",
+        """	if args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
+		fmt.Fprint(a.cfg.Stdout, Usage)
+		return ExitOK
+	}
+	if rxbHostCommandBlocked(args) {
+		fmt.Fprintln(a.cfg.Stderr, "ryoku-host: service reconciliation is disabled in the RXB X11 build; RXB does not own host service activation.")
+		return ExitFalse
+	}
+	switch args[0] {""",
+    )
+
+    (root / "ryoku/cli/main_rxb_guard_test.go").write_text("""package main
+
+import "testing"
+
+func TestRXBGuardBlocksHostUpdateAndBootCommands(t *testing.T) {
+	for _, command := range []string{"update", "rollback", "boot-guard", "boot-menu", "deploy", "recovery", "track"} {
+		if _, blocked := rxbGuardCommand(command, nil); !blocked {
+			t.Errorf("%q should be blocked in the RXB X11 build", command)
+		}
+	}
+}
+
+func TestRXBGuardMakesDoctorReadOnly(t *testing.T) {
+	args, blocked := rxbGuardCommand("doctor", []string{"--explain"})
+	if blocked {
+		t.Fatal("doctor should remain available in read-only mode")
+	}
+	if len(args) != 2 || args[0] != "--check" || args[1] != "--explain" {
+		t.Fatalf("doctor args = %#v, want --check --explain", args)
+	}
+	if _, blocked := rxbGuardCommand("doctor", []string{"--check"}); blocked {
+		t.Fatal("explicit read-only doctor check should be allowed")
+	}
+}
+""")
+    (root / "ryoku/cli/internal/host/rxb_guard_test.go").write_text("""package host
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestRXBBlocksServiceReconciliation(t *testing.T) {
+	runner := &fakeRunner{}
+	app, _, stderr := testApp(runner, nil)
+	if got := app.Execute([]string{"svc", "reconcile", "--system"}); got != ExitFalse {
+		t.Fatalf("svc reconcile exit = %d, want %d", got, ExitFalse)
+	}
+	if !strings.Contains(stderr.String(), "disabled in the RXB X11 build") {
+		t.Fatalf("missing RXB safety explanation: %q", stderr.String())
+	}
+	if len(runner.commands) != 0 {
+		t.Fatalf("blocked command reached host runner: %#v", runner.commands)
+	}
+	if rxbHostCommandBlocked([]string{"svc", "--system", "is-active", "NetworkManager"}) {
+		t.Fatal("read-only service inspection should not be blocked")
+	}
+}
+""")
 
 def patch_quickshell_config_isolation(root: pathlib.Path) -> None:
     # Keep all Ryoku-managed user configuration in a session-owned subtree.
