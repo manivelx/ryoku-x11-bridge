@@ -284,6 +284,45 @@ fi
                  'captureSource: Wm.caps.persistentScreenCapture === true ? root.dragTl : null\n                live: false\n                visible: Wm.caps.persistentScreenCapture === true && root.dragTl !== null')
 
 
+
+def patch_x11_login1_graphical_session(root: pathlib.Path) -> None:
+    # Permit Type=x11 only for the same constrained graphical user classes
+    # as Wayland. Exact-session, UID, Active and inhibitor checks remain intact.
+    p = root / "ryoku/shell/ipc/sleepwake.go"
+    replace_once(p, '''func graphicalLogin1UserSession(sessionType, sessionClass string) bool {
+	return sessionType == "wayland" &&
+		(sessionClass == "user" || sessionClass == "user-early")
+}''', '''func graphicalLogin1UserSession(sessionType, sessionClass string) bool {
+	return (sessionType == "wayland" || sessionType == "x11") &&
+		(sessionClass == "user" || sessionClass == "user-early")
+}''')
+    test = root / "ryoku/shell/ipc/sleepwake_x11_session_test.go"
+    test.write_text("""package main
+
+import "testing"
+
+func TestRXBGraphicalLogin1UserSession(t *testing.T) {
+	tests := []struct { name, typ, class string; want bool }{
+		{"x11 user", "x11", "user", true},
+		{"x11 early user", "x11", "user-early", true},
+		{"wayland user", "wayland", "user", true},
+		{"wayland early user", "wayland", "user-early", true},
+		{"tty rejected", "tty", "user", false},
+		{"greeter rejected", "x11", "greeter", false},
+		{"lock-screen rejected", "x11", "lock-screen", false},
+		{"manager rejected", "x11", "manager", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := graphicalLogin1UserSession(tt.typ, tt.class); got != tt.want {
+				t.Fatalf("graphicalLogin1UserSession(%q, %q) = %v, want %v",
+					tt.typ, tt.class, got, tt.want)
+			}
+		})
+	}
+}
+""")
+
 def patch_x11_suspend(root: pathlib.Path) -> None:
     p = root / "ryoku/shell/quickshell/shell/services/SessionActions.qml"
     replace_once(p, '''        if (action === "lock" || action === "suspend") {
@@ -2414,6 +2453,7 @@ def main() -> int:
     patch_x11_region_tools(root)
     patch_lock_dispatch(root)
     patch_x11_suspend(root)
+    patch_x11_login1_graphical_session(root)
     patch_ryogami_package(root)
     patch_x11_package_safety(root)
     patch_quickshell_config_isolation(root)

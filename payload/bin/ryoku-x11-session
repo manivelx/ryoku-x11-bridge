@@ -10,6 +10,25 @@ if [[ -n ${WAYLAND_DISPLAY:-} ]]; then
   exit 1
 fi
 
+# Bind to the exact logind session created by the display manager. Fail closed
+# before starting i3 if this is not a normal graphical user login.
+if [[ -z ${XDG_SESSION_ID:-} ]]; then
+  echo "ryoku-x11-session: XDG_SESSION_ID is missing; cannot bind RXB to logind." >&2
+  exit 1
+fi
+if ! loginctl show-session "$XDG_SESSION_ID" --property=User --value 2>/dev/null | grep -Fxq "$(id -u)"; then
+  echo "ryoku-x11-session: logind session does not belong to this user." >&2
+  exit 1
+fi
+if ! loginctl show-session "$XDG_SESSION_ID" --property=Type --value 2>/dev/null | grep -Fxq x11; then
+  echo "ryoku-x11-session: logind does not identify this as an X11 session." >&2
+  exit 1
+fi
+if ! loginctl show-session "$XDG_SESSION_ID" --property=Class --value 2>/dev/null | grep -Exq 'user|user-early'; then
+  echo "ryoku-x11-session: logind does not identify this as a graphical user session." >&2
+  exit 1
+fi
+
 # Do not let a stale socket from a previous i3/Sway session steer this one.
 unset SWAYSOCK I3SOCK
 
@@ -37,15 +56,15 @@ for name in config generated.conf user.conf; do
   fi
 done
 
-for cmd in i3 ryoku-wm-i3 qs ryoku-shell; do
+for cmd in i3 ryoku-wm-i3 qs ryoku-shell loginctl; do
   command -v "$cmd" >/dev/null 2>&1 || {
     echo "ryoku-x11-session: required command not found: $cmd" >&2
     exit 1
   }
 done
 
-# Generate the pinned upstream Ryoku keybinding catalogue before i3 reads its
-# config. This writes only RXB's generated.conf; the user's user.conf is untouched.
+# Generate Ryoku's keybinding catalogue before i3 reads the config.
+# This writes only RXB's generated.conf; user.conf remains user-owned.
 ryoku-wm-i3 apply "$RYOKU_CONFIG_HOME/ryoku/desktop.json" >/dev/null
 
 runtime_dir=${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required for a systemd user session}
@@ -59,17 +78,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# i3's include directive uses the user's home config path. RXB stores its
-# isolated files under XDG_CONFIG_HOME, which may be non-default. Build a
-# session-only runtime copy with those two RXB include paths resolved exactly;
-# never rewrite the user-owned config file.
+# Resolve only the two RXB-owned includes into a session-only runtime copy.
 runtime_config="$runtime_dir/ryoku-x11-i3.conf"
 if [[ -L "$runtime_config" ]]; then
   echo "ryoku-x11-session: refusing a symlinked runtime i3 config." >&2
   exit 1
 fi
-# Replace a stale regular runtime copy safely; create the new file with
-# noclobber so a raced symlink cannot redirect the write.
 rm -f -- "$runtime_config"
 (umask 077; set -o noclobber; : > "$runtime_config")
 while IFS= read -r line || [[ -n "$line" ]]; do

@@ -17,7 +17,10 @@ systemctl --user --no-pager status \
   ryoku-x11-session.target ryoku-shell-x11.service ryogami-x11.service
 ```
 
-The expected session type is `x11`. The NVIDIA driver should remain the version you had before testing. Do not install or switch drivers to make RXB start.
+The expected session type is `x11`. RXB no longer starts Picom automatically or reuses the BSPWM Picom configuration. Do not launch Picom with BSPWM settings to diagnose RXB. The NVIDIA driver should remain the version you had before testing. Do not install or switch drivers to make RXB start.
+
+The session wrapper requires the display-manager-provided `XDG_SESSION_ID`. It verifies that login1 reports the current UID, `Type=x11`, and graphical `Class=user` or `user-early`. The pinned shell sleep guard independently resolves that exact ID; it does not guess a session by UID. Greeter, lock-screen, TTY and manager sessions remain excluded.
+
 
 ## Session missing from SDDM
 
@@ -33,6 +36,9 @@ RXB installs a separate session entry. It does not edit SDDM configuration or th
 
 ## Black screen, missing panels or Hub
 
+RXB intentionally does not start Picom. This isolates the X11 session from the NVIDIA 470/Picom crash seen on the GT 740. It does not stop or modify the BSPWM Picom process or configuration. The RXB shell must remain usable without a compositor; do not copy the BSPWM Picom configuration into RXB.
+
+
 Switch to a TTY with Ctrl+Alt+F3, log in, and inspect:
 
 ```bash
@@ -42,6 +48,7 @@ journalctl --user -b -u ryoku-x11-session.target \
 journalctl -b -u sddm --no-pager
 i3-msg -t get_version
 pgrep -a -f 'i3|quickshell|ryoku|ryogami|picom'
+loginctl show-session "$XDG_SESSION_ID" -p Id -p User -p Type -p Class -p Active
 ```
 
 Return to the display manager and select the existing **BSPWM** session. Do not replace its config with RXB files. The RXB i3 config lives under the dedicated ryoku-x11 configuration directory.

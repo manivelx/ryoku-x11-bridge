@@ -30,7 +30,9 @@ Original Ryoku QML + Go services + Hub
 Quickshell owns QML rendering and shell surfaces. i3 owns windows, focus, workspaces, tiling and outputs. RXB's provider implements the upstream ryoku-wm subprocess contract over i3 IPC. Dedicated X11 adapters replace unsupported Wayland services.
 
 ## Session service isolation
-RXB starts only `ryoku-x11-session.target`, which owns `ryoku-shell-x11.service` and `ryogami-x11.service`. These dedicated units consume a mode-restricted session EnvironmentFile. The original upstream `ryoku-shell.service`, `ryogami.service`, `ryoku-session.target`, and their Wayland-specific hooks are not modified or reused. No default user target is enabled and no global user-manager environment is imported.
+RXB starts only `ryoku-x11-session.target`, which owns `ryoku-shell-x11.service` and `ryogami-x11.service`. The target is explicitly started by the RXB i3 XSession wrapper and does not depend on `graphical-session.target`, which X11 display managers do not consistently establish in the user manager. Service ordering is one-way: the shell follows the RXB target, and Ryogami follows the shell. The services consume a mode-restricted session EnvironmentFile. The original upstream Wayland units are not modified or reused. No default user target is enabled and no global user-manager environment is imported.
+
+The wrapper requires `XDG_SESSION_ID` and verifies via login1 that it belongs to the current UID, has `Type=x11`, and uses `Class=user` or `user-early`. The pinned upstream sleep guard accepts X11 alongside Wayland only for those graphical user classes. Greeter, lock-screen, TTY and manager sessions remain excluded. Missing or mismatched session IDs fail closed.
 
 ## Provider boundary
 Implement the upstream `ryoku-wm-<name>` executable contract, not a new API. Inspect and match upstream's current JSON schemas and verbs for caps, state, watch, act, apply, defaults, schema, binds, outputs, session and environment. Window/workspace IDs are opaque handles. Capability declarations are promises and must be conservative. Watch must emit a full initial state, ready frame, typed newline-delimited JSON frames, and recover from socket loss by resynchronizing.
@@ -46,6 +48,9 @@ Keep neutral desktop settings separate from provider-owned wm.i3 settings. Gener
 
 ## X11 surface adaptation
 Quickshell X11 windows are not Wayland layer-shell surfaces. Test struts, stacking, popup placement, focus, click-through and monitor association under i3. Adapt each surface class deliberately rather than assuming WlrLayershell equivalence.
+
+## Compositor isolation
+RXB does not automatically start Picom. The first physical RXB session on the NVIDIA GT 740 / proprietary 470 stack recorded a Picom segmentation fault inside `libnvidia-glcore`. The existing BSPWM Picom configuration is not evidence of RXB compatibility. RXB therefore runs without a compositor by default; it does not start, stop, or edit the BSPWM Picom process/configuration. A dedicated RXB compositor profile may be evaluated only after isolated testing on the target driver.
 
 ## Locking
 A normal fullscreen QML window is not a secure X11 lock. Use a security-reviewed X11 locker (candidate: XSecureLock with PAM) as the security boundary. Ryoku QML may only be a visual layer beneath it. No QML unlock path. Validate grabs, multi-monitor coverage, PAM failure, process death, saver failure and suspend/resume before exposing lock capability.

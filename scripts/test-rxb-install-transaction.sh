@@ -644,7 +644,7 @@ command -v systemd-analyze >/dev/null 2>&1 || {
 }
 verify_root="$(mktemp -d)"
 mkdir -p "$verify_root/usr/lib/systemd/system" "$verify_root/usr/bin"
-for unit in graphical-session.target graphical-session-pre.target sysinit.target; do
+for unit in sysinit.target; do
   printf '[Unit]\nDescription=RXB offline verification stub (%s)\n' "$unit" \
     > "$verify_root/usr/lib/systemd/system/$unit"
 done
@@ -658,6 +658,17 @@ for unit in ryoku-x11-session.target ryoku-shell-x11.service ryogami-x11.service
   install -m 0644 "/usr/lib/systemd/user/$unit" \
     "$verify_root/usr/lib/systemd/system/$unit"
 done
+# Regression checks for the previous graphical-session ordering cycle
+# and unsafe Picom autostart/shared configuration path.
+! grep -Eq '^(After|Before|Wants|Requires|BindsTo|PartOf)=.*graphical-session' \
+  /usr/lib/systemd/user/ryoku-x11-session.target
+grep -Fxq 'PartOf=ryoku-x11-session.target' /usr/lib/systemd/user/ryoku-shell-x11.service
+grep -Fxq 'After=ryoku-x11-session.target' /usr/lib/systemd/user/ryoku-shell-x11.service
+grep -Fxq 'PartOf=ryoku-x11-session.target' /usr/lib/systemd/user/ryogami-x11.service
+grep -Fxq 'After=ryoku-shell-x11.service' /usr/lib/systemd/user/ryogami-x11.service
+! grep -q 'picom --daemon' /usr/share/ryoku/config/ryoku-x11/config
+! grep -q '^exec .*picom' /usr/share/ryoku/config/ryoku-x11/config
+
 systemd-analyze verify --root="$verify_root" --man=no \
   "$verify_root/usr/lib/systemd/system/ryoku-x11-session.target" \
   "$verify_root/usr/lib/systemd/system/ryoku-shell-x11.service" \

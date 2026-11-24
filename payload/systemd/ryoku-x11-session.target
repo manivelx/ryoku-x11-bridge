@@ -1,6 +1,7 @@
 [Unit]
-Description=Ryoku X11 session services (RXB)
+Description=RXB X11 session services
 Documentation=man:systemd.special(7)
-BindsTo=graphical-session.target
-Wants=graphical-session-pre.target graphical-session.target
-After=graphical-session-pre.target graphical-session.target
+# Started explicitly by the RXB i3 XSession wrapper after validating login1.
+# Do not bind to graphical-session.target: X11 display managers do not
+# consistently establish that user-manager target. The exact logind session
+# ID is carried into the shell and independently verified by its sleep guard.

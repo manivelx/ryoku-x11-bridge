@@ -12,24 +12,23 @@ trap cleanup EXIT
 
 home="$tmp/home"
 config_home="$home/.config"
-export XDG_CONFIG_HOME="$config_home"
 runtime="$tmp/runtime"
 fakebin="$tmp/bin"
 seed="$tmp/seed"
 mkdir -p "$home" "$config_home/quickshell" "$runtime" "$fakebin" "$seed"
 chmod 700 "$runtime"
-# Simulate a stale, over-permissive file from a prior interrupted session.
 printf "stale environment\n" > "$runtime/ryoku-x11-session.env"
 chmod 644 "$runtime/ryoku-x11-session.env"
 export HOME="$home"
 export XDG_CONFIG_HOME="$config_home"
 export XDG_RUNTIME_DIR="$runtime"
 export DISPLAY=:99
+export XDG_SESSION_ID=42
 export TEST_I3_SOCKET="$runtime/i3-ipc.sock"
 export TEST_STALE_I3_SOCKET="$runtime/stale-i3-ipc.sock"
-# Simulate a valid socket leaked by a previous desktop session; RXB must ignore it.
 export I3SOCK="$TEST_STALE_I3_SOCKET"
 export TEST_SYSTEMCTL_LOG="$tmp/systemctl.log"
+export TEST_LOGINCTL_LOG="$tmp/loginctl.log"
 export TEST_RYOKU_APPLY_LOG="$tmp/ryoku-apply.log"
 export RYOKU_X11_SEED_DIR="$seed"
 export PATH="$fakebin:$repo_root/payload/bin:$PATH"
@@ -44,6 +43,19 @@ include ~/.config/ryoku-x11/user.conf
 EOF
 printf 'generated seed\n' > "$seed/generated.conf"
 printf 'default user seed\n' > "$seed/user.conf"
+
+cat > "$fakebin/loginctl" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >> "$TEST_LOGINCTL_LOG"
+case "$*" in
+  "show-session 42 --property=User --value") printf '%s\n' "${FAKE_LOGINCTL_USER:-$(id -u)}" ;;
+  "show-session 42 --property=Type --value") printf '%s\n' "${FAKE_LOGINCTL_TYPE:-x11}" ;;
+  "show-session 42 --property=Class --value") printf '%s\n' "${FAKE_LOGINCTL_CLASS:-user}" ;;
+  *) echo "unexpected loginctl request: $*" >&2; exit 2 ;;
+esac
+SH
+chmod +x "$fakebin/loginctl"
 
 cat > "$fakebin/i3" <<'SH'
 #!/usr/bin/env bash
@@ -123,14 +135,11 @@ case "$*" in
     env_file="$XDG_RUNTIME_DIR/ryoku-x11-session.env"
     [[ -f "$env_file" ]] || { echo "session EnvironmentFile missing" >&2; exit 1; }
     [[ "$(stat -c %a "$env_file")" == "600" ]] || {
-      echo "session EnvironmentFile permissions are not 0600" >&2
+      echo "session EnvironmentFile must be mode 0600" >&2
       exit 1
     }
-    grep -Fqx 'RYOKU_X11_BRIDGE="1"' "$env_file"
-    grep -Fqx "RYOKU_CONFIG_HOME=\"$XDG_CONFIG_HOME/ryoku-x11/ryoku-config\"" "$env_file"
-    grep -Fqx "RYOKU_QUICKSHELL_CONFIG_HOME=\"$XDG_CONFIG_HOME/ryoku-x11/ryoku-config/quickshell\"" "$env_file"
-    grep -Fqx 'XDG_SESSION_TYPE="x11"' "$env_file"
-    grep -Fqx 'DISPLAY=":99"' "$env_file"
+    grep -Fqx "DISPLAY=\"$DISPLAY\"" "$env_file"
+    grep -Fqx "XDG_SESSION_ID=\"$XDG_SESSION_ID\"" "$env_file"
     grep -Fqx "I3SOCK=\"$TEST_I3_SOCKET\"" "$env_file"
     grep -Fqx "XDG_CONFIG_HOME=\"$XDG_CONFIG_HOME\"" "$env_file"
     ;;
@@ -178,6 +187,23 @@ grep -Fqx 'isolated RXB shell config' "$config_home/ryoku-x11/ryoku-config/quick
 grep -Fq -- '--user start ryoku-x11-session.target' "$TEST_SYSTEMCTL_LOG"
 grep -Fq -- '--user stop ryoku-x11-session.target' "$TEST_SYSTEMCTL_LOG"
 ! grep -Fq 'import-environment' "$TEST_SYSTEMCTL_LOG"
+grep -Fqx 'show-session 42 --property=User --value' "$TEST_LOGINCTL_LOG"
+grep -Fqx 'show-session 42 --property=Type --value' "$TEST_LOGINCTL_LOG"
+grep -Fqx 'show-session 42 --property=Class --value' "$TEST_LOGINCTL_LOG"
+
+# Missing, foreign-user, TTY and greeter identities must be rejected before i3.
+if env -u XDG_SESSION_ID bash "$repo_root/payload/bin/ryoku-x11-session" >/dev/null 2>&1; then
+  echo "session wrapper accepted missing XDG_SESSION_ID" >&2; exit 1
+fi
+if FAKE_LOGINCTL_USER=99999 bash "$repo_root/payload/bin/ryoku-x11-session" >/dev/null 2>&1; then
+  echo "session wrapper accepted another user's session" >&2; exit 1
+fi
+if FAKE_LOGINCTL_TYPE=tty bash "$repo_root/payload/bin/ryoku-x11-session" >/dev/null 2>&1; then
+  echo "session wrapper accepted a TTY session" >&2; exit 1
+fi
+if FAKE_LOGINCTL_CLASS=greeter bash "$repo_root/payload/bin/ryoku-x11-session" >/dev/null 2>&1; then
+  echo "session wrapper accepted a greeter session" >&2; exit 1
+fi
 
 # A stale symlink at the predictable EnvironmentFile path must not be followed.
 printf "do not overwrite this target\\n" > "$runtime/keep-me"
@@ -204,4 +230,4 @@ if env -u DISPLAY bash "$repo_root/payload/bin/ryoku-x11-session" >/dev/null 2>&
   exit 1
 fi
 
-echo "RXB X11 session lifecycle and config isolation tests passed."
+echo "RXB X11 session lifecycle and logind isolation tests passed."

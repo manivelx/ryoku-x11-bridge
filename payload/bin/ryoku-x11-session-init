@@ -4,18 +4,31 @@ set -euo pipefail
 [[ -n ${DISPLAY:-} ]] || exit 1
 [[ -z ${WAYLAND_DISPLAY:-} ]] || exit 1
 
+# Revalidate exact login1 session prior to creating RXB services.
+if [[ -z ${XDG_SESSION_ID:-} ]]; then
+  echo "ryoku-x11-session-init: XDG_SESSION_ID is missing; refusing an unbound session" >&2
+  exit 1
+fi
+if ! loginctl show-session "$XDG_SESSION_ID" --property=User --value 2>/dev/null | grep -Fxq "$(id -u)"; then
+  echo "ryoku-x11-session-init: XDG_SESSION_ID does not belong to this user" >&2
+  exit 1
+fi
+if ! loginctl show-session "$XDG_SESSION_ID" --property=Type --value 2>/dev/null | grep -Fxq x11; then
+  echo "ryoku-x11-session-init: logind does not identify this session as X11" >&2
+  exit 1
+fi
+if ! loginctl show-session "$XDG_SESSION_ID" --property=Class --value 2>/dev/null | grep -Exq 'user|user-early'; then
+  echo "ryoku-x11-session-init: logind session is not a graphical user session" >&2
+  exit 1
+fi
+
 # Never trust an inherited I3SOCK: it may belong to a previous i3/Sway session.
-# Discover the socket from the i3 process started by this RXB session only.
 socket=""
 for _ in $(seq 1 50); do
   if [[ -z "$socket" || ! -S "$socket" ]]; then
-    # i3 and Sway share the IPC protocol; explicitly ignore SWAYSOCK so this
-    # X11 session cannot accidentally bootstrap against a Sway instance.
     socket="$(env -u SWAYSOCK -u I3SOCK i3 --get-socketpath 2>/dev/null || true)"
   fi
-  if [[ -n "$socket" && -S "$socket" ]]; then
-    break
-  fi
+  if [[ -n "$socket" && -S "$socket" ]]; then break; fi
   sleep 0.1
 done
 [[ -n "$socket" && -S "$socket" ]] || {
@@ -33,7 +46,7 @@ config_dir="$config_home/ryoku-x11"
 ryoku_config_dir="$config_dir/ryoku-config"
 quickshell_dir="$ryoku_config_dir/quickshell"
 if [[ -L "$config_dir" || -L "$ryoku_config_dir" || -L "$quickshell_dir" ]]; then
-  echo "ryoku-x11-session-init: refusing symlinked RXB config paths." >&2
+  echo "ryoku-x11-session-init: refusing symlinked RXB config paths" >&2
   exit 1
 fi
 install -d -m 700 "$config_dir" "$ryoku_config_dir" "$quickshell_dir"
@@ -46,17 +59,14 @@ ryoku materialize || {
   exit 1
 }
 
-# Keep X11 session variables local to the Ryoku shell unit. Importing them into
-# the shared systemd user manager would leak DISPLAY/I3SOCK into BSPWM sessions.
+# Keep X11 session variables local to the Ryoku shell unit; never import them
+# into the shared systemd user manager where they would leak into BSPWM.
 runtime_dir=${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required for a systemd user session}
 env_file="$runtime_dir/ryoku-x11-session.env"
 if [[ -L "$env_file" ]]; then
   echo "ryoku-x11-session-init: refusing a symlinked session EnvironmentFile" >&2
   exit 1
 fi
-# Replace any prior regular file rather than truncating it in place:
-# a hard link must not let the EnvironmentFile overwrite another user file.
-# The private runtime directory and restrictive umask give the new inode 0600.
 rm -f -- "$env_file"
 (umask 077; : > "$env_file")
 chmod 600 "$env_file"
@@ -71,6 +81,7 @@ write_env() {
 umask 077
 {
   write_env DISPLAY "$DISPLAY"
+  write_env XDG_SESSION_ID "$XDG_SESSION_ID"
   write_env XDG_SESSION_TYPE x11
   write_env XDG_CURRENT_DESKTOP Ryoku
   write_env RYOKU_WM i3
@@ -86,5 +97,4 @@ umask 077
 } > "$env_file"
 
 systemctl --user daemon-reload
-# The package links RXB-owned shell and Ryogami units only into the dedicated RXB target.
 systemctl --user start ryoku-x11-session.target
