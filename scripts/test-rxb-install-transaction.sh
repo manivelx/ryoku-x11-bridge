@@ -234,10 +234,10 @@ done
 exec /usr/bin/pacman "$@"
 PENDING_UPDATES_PACMAN
 chmod 0755 "$pending_updates_dir/pacman"
-if PATH="$pending_updates_dir:$PATH" \\
-  RXB_PENDING_PACMAN_LOG="$pending_updates_log" \\
-  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \\
-  bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" \\
+if PATH="$pending_updates_dir:$PATH" \
+  RXB_PENDING_PACMAN_LOG="$pending_updates_log" \
+  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
+  bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" \
   > "$upgrade_dir/pending-updates-installer.log" 2>&1; then
   echo "Installer accepted a host with pending system updates." >&2
   exit 1
