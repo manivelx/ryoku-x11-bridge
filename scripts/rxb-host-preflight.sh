@@ -34,7 +34,7 @@ else
   fail "/etc/os-release is unavailable."
 fi
 
-for cmd in pacman sha256sum stat pgrep; do
+for cmd in pacman sha256sum stat pgrep vercmp; do
   if command -v "$cmd" >/dev/null 2>&1; then pass "Required command available: $cmd."; else fail "Missing required command: $cmd."; fi
 done
 
