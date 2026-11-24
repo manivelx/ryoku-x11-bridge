@@ -317,11 +317,9 @@ if (("${#external_dependency_packages[@]}" > 0)); then
   pacman_exec -D --asdeps "${external_dependency_packages[@]}"
 fi
 
-echo "Installing the complete RXB X11 package set from $package_dir."
-pacman_confirmed -U "${packages[@]}"
-
-# Persist ownership immediately after pacman commits the local package set,
-# before verification or install-reason updates can fail.
+# Pre-record newly introduced local packages before pacman starts the
+# transaction. If the installer is killed during the transaction, the remover
+# can query which recorded packages actually landed and clean up that subset.
 declare -a local_dependency_packages=()
 for name in "${package_names[@]}"; do
   if ! grep -Fxq "$name" "$before_file"; then
@@ -330,6 +328,10 @@ for name in "${package_names[@]}"; do
   fi
 done
 write_manifest
+
+echo "Installing the complete RXB X11 package set from $package_dir."
+pacman_confirmed -U "${packages[@]}"
+
 if (("${#local_dependency_packages[@]}" > 0)); then
   pacman_exec -D --asdeps "${local_dependency_packages[@]}"
 fi
