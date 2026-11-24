@@ -216,6 +216,43 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# Pending system updates must block installation even when no external
+# dependency needs to be installed. This protects the host from partial
+# upgrades and prevents RXB from requiring a kernel/NVIDIA maintenance step.
+pending_updates_dir="$upgrade_dir/pending-updates-bin"
+pending_updates_log="$upgrade_dir/pending-updates-pacman.log"
+mkdir -p "$pending_updates_dir"
+cat > "$pending_updates_dir/pacman" <<'PENDING_UPDATES_PACMAN'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$RXB_PENDING_PACMAN_LOG"
+for arg in "$@"; do
+  if [[ "$arg" == "-Qu" ]]; then
+    printf '%s\n' 'linux-cachyos-lts 6.18.64-1 -> 6.18.65-1'
+    exit 0
+  fi
+done
+exec /usr/bin/pacman "$@"
+PENDING_UPDATES_PACMAN
+chmod 0755 "$pending_updates_dir/pacman"
+if PATH="$pending_updates_dir:$PATH" \\
+  RXB_PENDING_PACMAN_LOG="$pending_updates_log" \\
+  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \\
+  bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" \\
+  > "$upgrade_dir/pending-updates-installer.log" 2>&1; then
+  echo "Installer accepted a host with pending system updates." >&2
+  exit 1
+fi
+grep -Fq "pending system updates detected" "$upgrade_dir/pending-updates-installer.log" || {
+  cat "$upgrade_dir/pending-updates-installer.log" >&2
+  echo "Pending-update refusal did not report the expected reason." >&2
+  exit 1
+}
+if grep -Eq '(^|[[:space:]])-S([[:space:]]|$)|(^|[[:space:]])-U([[:space:]]|$)' "$pending_updates_log"; then
+  echo "Installer attempted a package mutation after detecting pending updates." >&2
+  cat "$pending_updates_log" >&2
+  exit 1
+fi
+
 # The installer must reject unsafe ownership metadata before asking pacman to
 # inspect or mutate the installed package database.
 manifest_attack_dir="$upgrade_dir/installer-manifest-attacks"
