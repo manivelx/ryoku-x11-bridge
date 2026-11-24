@@ -1360,7 +1360,7 @@ post_remove() { _refresh; }
     p.write_text(text)
 
     p = root / "release/packages/ryoku-desktop/PKGBUILD"
-    replace_once(p, "  'ryoku-keyring'\\n", "")
+    replace_once(p, "  'ryoku-keyring'\n", "")
 
     p = root / "release/packages/ryoku-shell/PKGBUILD"
     text = p.read_text().replace("'wtype'", "").replace("'wl-clipboard'", "")
