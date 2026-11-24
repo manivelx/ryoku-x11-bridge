@@ -13,6 +13,24 @@ if (( EUID != 0 )); then
     "$script_path" "$@"
 fi
 
+# Match the installer's test-only no-confirm gate: never permit an
+# accidental unprompted removal on a normal Arch/CachyOS host.
+if [[ "${RXB_PACMAN_NOCONFIRM:-0}" == 1 ]]; then
+  marker=/run/rxb-install-test-disposable
+  marker_uid=""
+  marker_mode=""
+  [[ -f /.dockerenv && ! -L /.dockerenv && -f "$marker" && ! -L "$marker" ]] || {
+    echo "remove-rxb-packages: RXB_PACMAN_NOCONFIRM is restricted to the disposable Arch transaction test." >&2
+    exit 1
+  }
+  marker_uid="$(stat -c '%u' -- "$marker" 2>/dev/null || true)"
+  marker_mode="$(stat -c '%a' -- "$marker" 2>/dev/null || true)"
+  [[ "$marker_uid" == 0 && "$marker_mode" == 600 ]] || {
+    echo "remove-rxb-packages: disposable transaction marker is not root-owned mode 0600." >&2
+    exit 1
+  }
+fi
+
 pacman_cmd=(pacman)
 if [[ -n "${PACMAN_CONFIG:-}" ]]; then
   [[ -f "$PACMAN_CONFIG" ]] || {
