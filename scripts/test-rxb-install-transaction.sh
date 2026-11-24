@@ -269,7 +269,7 @@ for arg in "$@"; do
       exit 1
       ;;
     -Sp)
-      printf 'rxb-test-dep 1.0-1\\n'
+      printf 'rxb-test-dep 1.0-1\n'
       exit 0
       ;;
     -S)
