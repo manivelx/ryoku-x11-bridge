@@ -11,7 +11,7 @@ printf 'session=%s desktop=%s display=%s\n' "$XDG_SESSION_TYPE" "$XDG_CURRENT_DE
 i3-msg -t get_version
 qs --version
 xrandr --query
-glxinfo -B
+if command -v glxinfo >/dev/null 2>&1; then glxinfo -B; else echo "glxinfo is optional and is not installed"; fi
 nvidia-smi
 systemctl --user --no-pager status \
   ryoku-x11-session.target ryoku-shell-x11.service ryogami-x11.service
