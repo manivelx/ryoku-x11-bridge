@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-for command in Xvfb i3 qs pipewire wireplumber pw-cli ryoku ryoku-shell ryoku-wm-i3 ryoku-hub jq dbus-run-session timeout ps pgrep xrandr maim ryoku-cmd-grim python3; do
+for command in Xvfb i3 i3-msg xdotool qs pipewire wireplumber pw-cli ryoku ryoku-shell ryoku-wm-i3 ryoku-hub jq dbus-run-session timeout ps pgrep xrandr maim ryoku-cmd-grim python3; do
   command -v "$command" >/dev/null 2>&1 || {
     echo "RXB full-shell Xvfb test requires $command" >&2
     exit 127
@@ -27,6 +27,7 @@ export RYOKU_WM=i3
 export RYOKU_CONFIG_HOME="$XDG_CONFIG_HOME/ryoku-x11/ryoku-config"
 export RYOKU_QUICKSHELL_CONFIG_HOME="$RYOKU_CONFIG_HOME/quickshell"
 export QT_QPA_PLATFORM=xcb
+export TERMINAL=xterm
 export QT_QUICK_BACKEND=opengl
 export QT_OPENGL=software
 export QML_IMPORT_TRACE=1
@@ -107,6 +108,22 @@ for _ in $(seq 1 100); do
 done
 [[ -n "$socket" && -S "$socket" ]] || { cat "$tmp/i3.log"; exit 1; }
 export I3SOCK="$socket"
+
+# Exercise the real Super+Return path end-to-end: generated i3 binding,
+# RXB terminal selection and a live X11 terminal window.
+xdotool key --clearmodifiers Super+Return
+terminal_ready=0
+for _ in $(seq 1 50); do
+  if pgrep -x xterm >/dev/null 2>&1; then terminal_ready=1; break; fi
+  sleep 0.1
+done
+if [[ "$terminal_ready" != 1 ]]; then
+  cat "$tmp/i3.log" >&2
+  echo "Super+Return did not launch the configured X11 terminal through ryoku-app." >&2
+  exit 1
+fi
+pkill -x xterm || true
+sleep 0.2
 
 # Prove the pinned upstream WM seam discovers RXB as a live i3 provider.
 # This exercises the same provider detection and caps path used by the Hub,

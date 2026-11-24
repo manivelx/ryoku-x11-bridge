@@ -9,13 +9,15 @@ import (
 
 func TestI3ChordTranslatesRyokuModifiersAndMouseButtons(t *testing.T) {
 	cases := map[string]string{
-		"SUPER + SHIFT + Q":   "Mod4+Shift+Q",
+		"SUPER + SHIFT + Q":   "Mod4+Shift+q",
 		"ALT + CTRL + Return": "Mod1+Control+Return",
 		"SUPER + mouse:272":   "Mod4+button1",
 		"SUPER + mouse:273":   "Mod4+button3",
 		"SUPER + mouse_up":    "Mod4+button4",
 		"SUPER + mouse_down":  "Mod4+button5",
 		"SUPER + KP_0":        "Mod4+KP_0",
+		"SUPER + T":           "Mod4+t",
+		"SUPER + SHIFT + P":   "Mod4+Shift+p",
 	}
 	for input, want := range cases {
 		got, ok := i3Chord(input)
@@ -61,10 +63,10 @@ func TestResolveShippedBindsMapsAndReportsCatalogue(t *testing.T) {
 		t.Fatalf("catalogue support reporting incomplete: close=%v unsupported=%v family=%v", foundClose, foundUnsupported, foundFamily)
 	}
 	generated := renderGeneratedI3Config(binds)
-	if !strings.Contains(generated, "bindsym Mod4+Q ") || !strings.Contains(generated, "workspace number 1") || !strings.Contains(generated, "bindsym Mod4+0 workspace number 10") {
+	if !strings.Contains(generated, "bindsym Mod4+q ") || !strings.Contains(generated, "workspace number 1") || !strings.Contains(generated, "bindsym Mod4+0 workspace number 10") {
 		t.Fatalf("generated i3 config is missing semantic Ryoku actions:\n%s", generated)
 	}
-	if strings.Contains(generated, "bindsym Mod4+R ") {
+	if strings.Contains(generated, "bindsym Mod4+r ") {
 		t.Fatal("unsupported pin action must not be invented or emitted")
 	}
 }
@@ -86,7 +88,7 @@ func TestResolveShippedBindsHonoursFamilyRebindAndDisabledRows(t *testing.T) {
 	if !contains("Mod4+Control+1") || contains("Mod4+1") {
 		t.Fatalf("workspace family rebind not applied with upstream semantics: %+v", binds)
 	}
-	if contains("Mod4+F") {
+	if contains("Mod4+f") {
 		t.Fatal("disabled fullscreen chord was emitted")
 	}
 	for _, row := range rows {
@@ -104,13 +106,13 @@ func TestReboundDefaultWinsChordCollisionBeforeStaticDefault(t *testing.T) {
 	binds, _, _ := resolveShippedBinds(store)
 	var owner string
 	for _, bind := range binds {
-		if bind.chord == "Mod4+F" {
+		if bind.chord == "Mod4+f" {
 			owner = bind.id
 			break
 		}
 	}
 	if owner != "window.close" {
-		t.Fatalf("rebound close must claim SUPER+F before fullscreen static default; owner=%q", owner)
+		t.Fatalf("rebound close must claim SUPER+f before fullscreen static default; owner=%q", owner)
 	}
 }
 
@@ -121,7 +123,7 @@ func TestCustomBindWinsShippedChordAndCanUseRelease(t *testing.T) {
 		t.Fatalf("custom bind did not claim the chord first: %+v", binds)
 	}
 	generated := renderGeneratedI3Config(binds)
-	if !strings.Contains(generated, "bindsym --release Mod4+Q") {
+	if !strings.Contains(generated, "bindsym --release Mod4+q") {
 		t.Fatalf("release flag missing from generated custom binding: %s", generated)
 	}
 }
@@ -130,7 +132,7 @@ func TestUnsupportedCustomBindStillOverridesShippedDefault(t *testing.T) {
 	store := keybindStore{Keybinds: []keybind{{Keys: "SUPER + Q", Action: "unsupported-action"}}}
 	binds, rows, report := resolveShippedBinds(store)
 	for _, bind := range binds {
-		if bind.chord == "Mod4+Q" {
+		if bind.chord == "Mod4+q" {
 			t.Fatalf("unsupported custom action fell through to a shipped default: %+v", bind)
 		}
 	}

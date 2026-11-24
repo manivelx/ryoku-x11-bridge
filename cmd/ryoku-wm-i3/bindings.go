@@ -132,6 +132,12 @@ func i3Chord(raw string) (string, bool) {
 		if !safeI3KeyToken.MatchString(token) {
 			return "", false
 		}
+		// X11 keysyms are case-sensitive: "T" is the shifted keysym.
+		// Shift is represented explicitly by the modifier, so emit alphabetic
+		// base keysyms in lowercase (Mod4+t, not Mod4+T).
+		if len(token) == 1 && token[0] >= 'A' && token[0] <= 'Z' {
+			token = strings.ToLower(token)
+		}
 		out = append(out, token)
 	}
 	return strings.Join(out, "+"), true
