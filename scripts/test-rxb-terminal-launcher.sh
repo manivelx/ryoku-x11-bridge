@@ -53,6 +53,7 @@ PATH="$fakebin" RYOKU_X11_BRIDGE=1 TERMINAL= "$BASH" "$launcher" terminal
 [[ "$(cat "$RXB_TERMINAL_TEST_RESULT")" == foot ]]
 rm -f "$fakebin/jq"
 unset RYOKU_CONFIG_HOME
+rm -f "$fakebin/foot"
 
 # Without an explicit preference, an installed Konsole is selected before xterm.
 rm -f "$RXB_TERMINAL_TEST_RESULT"
