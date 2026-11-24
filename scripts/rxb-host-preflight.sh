@@ -78,7 +78,7 @@ if command -v pacman >/dev/null 2>&1; then
     if pacman -Q "$package" >/dev/null 2>&1; then existing_ryoku+=("$package"); fi
   done
   if (("${#existing_ryoku[@]}" > 0)); then
-    printf '[INFO] Existing Ryoku packages: %s\\n' "${existing_ryoku[*]}"
+    printf '[INFO] Existing Ryoku packages: %s\n' "${existing_ryoku[*]}"
     # /var/lib/rxb is intentionally root-only (0700), and its manifest is
     # root-only (0600). A normal-user -r check therefore reports a false
     # absence. Inspect directory metadata without weakening permissions;
