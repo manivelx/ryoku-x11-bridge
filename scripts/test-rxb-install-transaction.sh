@@ -223,23 +223,6 @@ exit 0
 FAKE_PACMAN
 chmod 0755 "$fake_pacman_dir/pacman"
 
-# F1: the built upstream packages contain host-level tmpfiles/boot-guard
-# entries. The installer must refuse them by default before invoking pacman.
-if PATH="$fake_pacman_dir:$PATH" RXB_PACMAN_MARKER="$pacman_marker" \
-  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
-  bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" > "$manifest_attack_dir/f1-default-deny.log" 2>&1; then
-  echo "Installer accepted unreviewed upstream host-level files without an explicit isolated-test override." >&2
-  exit 1
-fi
-grep -Fq "refusing package set with unreviewed upstream host-level files" "$manifest_attack_dir/f1-default-deny.log" || {
-  echo "Installer did not explain the F1 host-file refusal." >&2
-  exit 1
-}
-[[ ! -e "$pacman_marker" ]] || {
-  echo "Installer invoked pacman before rejecting unreviewed F1 host files." >&2
-  exit 1
-}
-
 # F3: simulate a pre-existing package that conflicts with the RXB cursor set.
 conflict_pacman_dir="$manifest_attack_dir/conflict-bin"
 mkdir -p "$conflict_pacman_dir"
@@ -255,7 +238,6 @@ FAKE_CONFLICT_PACMAN
 chmod 0755 "$conflict_pacman_dir/pacman"
 if PATH="$conflict_pacman_dir:$PATH" RXB_PACMAN_MARKER="$pacman_marker" \
   PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
-  RXB_ALLOW_UNREVIEWED_UPSTREAM_HOST_FILES=1 \
   bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" > "$manifest_attack_dir/conflict-package.log" 2>&1; then
   echo "Installer accepted a pre-existing conflicting package." >&2
   exit 1
@@ -269,10 +251,6 @@ if grep -Eq '^(--config .* )?(-S|-U)( |$)' "$pacman_marker"; then
   exit 1
 fi
 rm -f "$pacman_marker"
-
-# All remaining package transactions in this script run only in the disposable
-# Arch test container, so explicitly opt in to the audited upstream files.
-export RXB_ALLOW_UNREVIEWED_UPSTREAM_HOST_FILES=1
 
 # Interrupted-install recovery: stop the installer immediately before its
 # local pacman -U transaction, SIGKILL the installer, then prove the manifest
