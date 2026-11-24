@@ -663,7 +663,7 @@ done
 ! grep -Eq '^(After|Before|Wants|Requires|BindsTo|PartOf)=.*graphical-session' \
   /usr/lib/systemd/user/ryoku-x11-session.target
 grep -Fxq 'PartOf=ryoku-x11-session.target' /usr/lib/systemd/user/ryoku-shell-x11.service
-grep -Fxq 'After=ryoku-x11-session.target' /usr/lib/systemd/user/ryoku-shell-x11.service
+! grep -Fxq 'After=ryoku-x11-session.target' /usr/lib/systemd/user/ryoku-shell-x11.service
 grep -Fxq 'PartOf=ryoku-x11-session.target' /usr/lib/systemd/user/ryogami-x11.service
 grep -Fxq 'After=ryoku-shell-x11.service' /usr/lib/systemd/user/ryogami-x11.service
 ! grep -q 'picom --daemon' /usr/share/ryoku/config/ryoku-x11/config

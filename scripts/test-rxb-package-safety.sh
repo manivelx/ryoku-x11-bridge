@@ -26,9 +26,16 @@ if grep -Eq 'systemctl --user (import-environment|unset-environment)' "$root/pay
   exit 1
 fi
 target_file="$root/payload/systemd/ryoku-x11-session.target"
-if ! grep -Fq 'BindsTo=graphical-session.target' "$target_file" ||
-   ! grep -Fq 'After=graphical-session-pre.target graphical-session.target' "$target_file"; then
-  echo "RXB target must be bound to the active graphical session." >&2
+if grep -Eq '^(After|Before|Wants|Requires|BindsTo|PartOf)=.*graphical-session' "$target_file"; then
+  echo "RXB X11 target must not depend on graphical-session.target; X11 DM sessions do not reliably start it." >&2
+  exit 1
+fi
+if grep -Fxq 'After=ryoku-x11-session.target' "$root/payload/systemd/ryoku-shell-x11.service"; then
+  echo "RXB shell must not be ordered after a target that Wants it (would create a target ordering cycle)." >&2
+  exit 1
+fi
+if ! grep -Fq 'After=ryoku-shell-x11.service' "$root/payload/systemd/ryogami-x11.service"; then
+  echo "Ryogami must start after the RXB shell daemon." >&2
   exit 1
 fi
 for unit in ryoku-shell-x11.service ryogami-x11.service; do
