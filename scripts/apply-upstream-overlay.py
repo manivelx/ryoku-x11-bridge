@@ -1554,6 +1554,25 @@ func TestRXBGuardMakesDoctorReadOnly(t *testing.T) {
 	}''',
     )
 
+    replace_once(
+        p,
+        '''			got := make([]string, len(runner.commands))
+			for index := range runner.commands {
+				got[index] = argv(runner.commands[index])
+			}
+			if !reflect.DeepEqual(got, test.commands) {
+				t.Fatalf("commands = %v, want %v", got, test.commands)
+			}''',
+        '''			if len(runner.commands) != 0 {
+				t.Fatalf("blocked initramfs rebuild reached host runner: %#v", runner.commands)
+			}''',
+    )
+    replace_once(
+        p,
+        '''app, _, stderr := testApp(&fakeRunner{}, map[string]string{"RYOKU_HOST_PKGMGR": "dnf"})''',
+        '''app, _, _ := testApp(&fakeRunner{}, map[string]string{"RYOKU_HOST_PKGMGR": "dnf"})''',
+    )
+
     p = root / "ryoku/cli/internal/host/turnstile_test.go"
     replace_once(
         p,
