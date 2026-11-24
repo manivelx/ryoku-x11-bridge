@@ -32,6 +32,28 @@ make_terminal konsole
 PATH="$fakebin" RYOKU_X11_BRIDGE=1 TERMINAL=foot "$BASH" "$launcher" terminal
 [[ "$(cat "$RXB_TERMINAL_TEST_RESULT")" == foot ]]
 
+# RXB must read Ryoku-owned app preferences from its isolated config root,
+# never the user's shared ~/.config/ryoku store.
+export RYOKU_CONFIG_HOME="$tmp/config/ryoku-x11/ryoku-config"
+mkdir -p "$RYOKU_CONFIG_HOME/ryoku" "$XDG_CONFIG_HOME/ryoku"
+printf '{"desktop":{"apps":{"terminal":"foot"}}}\n' > "$RYOKU_CONFIG_HOME/ryoku/desktop.json"
+printf '{"desktop":{"apps":{"terminal":"kitty"}}}\n' > "$XDG_CONFIG_HOME/ryoku/desktop.json"
+cat > "$fakebin/jq" <<'SH'
+#!/bin/bash
+file="${!#}"
+if [[ "$file" == "$RYOKU_CONFIG_HOME/ryoku/desktop.json" ]]; then
+  printf 'foot\n'
+else
+  printf 'kitty\n'
+fi
+SH
+chmod +x "$fakebin/jq"
+rm -f "$RXB_TERMINAL_TEST_RESULT"
+PATH="$fakebin" RYOKU_X11_BRIDGE=1 TERMINAL= "$BASH" "$launcher" terminal
+[[ "$(cat "$RXB_TERMINAL_TEST_RESULT")" == foot ]]
+rm -f "$fakebin/jq"
+unset RYOKU_CONFIG_HOME
+
 # Without an explicit preference, an installed Konsole is selected before xterm.
 rm -f "$RXB_TERMINAL_TEST_RESULT"
 make_terminal xterm
