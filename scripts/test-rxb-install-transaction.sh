@@ -336,7 +336,6 @@ interrupt_continue="$manifest_attack_dir/continue-interrupt-wrapper"
 cat > "$interrupt_pacman_dir/pacman" <<'INTERRUPT_PACMAN'
 #!/usr/bin/env bash
 if [[ "${3:-}" == "-U" ]]; then
-  printf '%s\n' "$" > "$RXB_INTERRUPT_WRAPPER_PID"
   : > "$RXB_INTERRUPT_MARKER"
   while [[ ! -e "$RXB_INTERRUPT_CONTINUE" ]]; do sleep 0.1; done
   exit 99
