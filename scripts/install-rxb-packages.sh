@@ -264,6 +264,15 @@ if (("${#external_dependency_specs[@]}" > 0)); then
         fi
       fi
     done < "$plan_file"
+
+    # Pre-record the planned new dependencies before pacman starts. If the
+    # installer or pacman is interrupted mid-transaction, removal can inspect
+    # which of these package names actually landed and remove only that subset.
+    while read -r planned_name planned_version; do
+      [[ -n "$planned_name" && -n "$planned_version" ]] || continue
+      owned_packages["$planned_name"]=1
+    done < "$plan_file"
+    write_manifest
     rm -f -- "$plan_file"
 
     echo "Installing unsatisfied external dependencies from the reviewed plan."
