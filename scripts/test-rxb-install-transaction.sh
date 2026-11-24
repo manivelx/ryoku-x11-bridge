@@ -8,7 +8,12 @@ repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 # only host package-manager hooks (for example kernel-module reload hooks) in
 # this isolated test transaction; package .install scripts and file ownership
 # checks still execute normally. A real Arch/CachyOS install uses its normal
-# pacman.conf and hooks.
+# pacman.conf and hooks. This root-owned marker is the only authorization for
+# the installer's test-only no-confirm mode and is removed by the EXIT cleanup.
+(( EUID == 0 )) || { echo "Install transaction acceptance must run as root in its disposable container." >&2; exit 1; }
+test_marker=/run/rxb-install-test-disposable
+[[ ! -e "$test_marker" && ! -L "$test_marker" ]] || { echo "Stale disposable transaction marker exists: $test_marker" >&2; exit 1; }
+install -o root -g root -m 600 /dev/null "$test_marker"
 pacman_config="$(mktemp)"
 pacman_hook_dir="$(mktemp -d)"
 awk -v hook_dir="$pacman_hook_dir" '
@@ -19,6 +24,7 @@ pacman() { command pacman --config "$pacman_config" "$@"; }
 cleanup_test_config() {
   rm -f -- "$pacman_config"
   rm -rf -- "$pacman_hook_dir"
+  [[ ! -f "$test_marker" || -L "$test_marker" ]] || rm -f -- "$test_marker"
 }
 trap cleanup_test_config EXIT
 shopt -s nullglob
