@@ -265,7 +265,7 @@ cat > "$dependency_pacman_dir/pacman" <<'DEPENDENCY_INTERRUPT_PACMAN'
 for arg in "$@"; do
   case "$arg" in
     -T)
-      printf 'rxb-test-dep>=1.0\\n'
+      printf 'rxb-test-dep>=1.0\n'
       exit 1
       ;;
     -Sp)
