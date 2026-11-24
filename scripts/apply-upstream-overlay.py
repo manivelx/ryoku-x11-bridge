@@ -1457,8 +1457,6 @@ func main() {""",
 		return args[1] == "set-channel" || args[1] == "sync"
 	case "initramfs":
 		return args[1] == "rebuild"
-	case "power":
-		return args[1] == "suspend" || args[1] == "hibernate"
 	}
 	return false
 }
@@ -1509,6 +1507,81 @@ func TestRXBGuardMakesDoctorReadOnly(t *testing.T) {
 	}
 }
 """)
+    # The upstream host package tests exercise generic distro-management
+    # commands. In RXB, initramfs rebuild and session bootstrap are deliberately
+    # blocked; adapt those expectations instead of weakening the runtime guard.
+    p = root / "ryoku/cli/internal/host/initramfs_test.go"
+    replace_once(
+        p,
+        '''if code := app.Execute([]string{"initramfs", "rebuild"}); code != ExitOK {
+				t.Fatalf("initramfs rebuild exit = %d", code)
+			}''',
+        '''if code := app.Execute([]string{"initramfs", "rebuild"}); code != ExitFalse {
+				t.Fatalf("RXB initramfs rebuild exit = %d, want blocked", code)
+			}
+			if len(runner.commands) != 0 {
+				t.Fatalf("blocked initramfs rebuild reached host runner: %#v", runner.commands)
+			}''',
+    )
+    replace_once(
+        p,
+        '''if code := app.Execute([]string{"initramfs", "rebuild"}); code != ExitOK {
+		t.Fatalf("initramfs rebuild exit = %d", code)
+	}
+	if got := argv(runner.commands[0]); got != "pkexec ryoku-host initramfs rebuild" {
+		t.Fatalf("escalation = %q", got)
+	}''',
+        '''if code := app.Execute([]string{"initramfs", "rebuild"}); code != ExitFalse {
+		t.Fatalf("RXB initramfs rebuild exit = %d, want blocked", code)
+	}
+	if len(runner.commands) != 0 {
+		t.Fatalf("blocked initramfs rebuild reached host runner: %#v", runner.commands)
+	}''',
+    )
+    replace_once(
+        p,
+        '''if code := app.Execute([]string{"initramfs", "rebuild"}); code != ExitAbsent {
+		t.Fatalf("missing dracut exit = %d, want %d", code, ExitAbsent)
+	}
+	if stderr.String() != "dracut is not installed\\n" {
+		t.Fatalf("missing dracut stderr = %q", stderr.String())
+	}''',
+        '''if code := app.Execute([]string{"initramfs", "rebuild"}); code != ExitFalse {
+		t.Fatalf("RXB initramfs rebuild exit = %d, want blocked", code)
+	}
+	if len(app.cfg.Runner.(*fakeRunner).commands) != 0 {
+		t.Fatal("blocked initramfs rebuild reached host runner")
+	}''',
+    )
+
+    p = root / "ryoku/cli/internal/host/turnstile_test.go"
+    replace_once(
+        p,
+        '''	for _, args := range [][]string{
+		{"session", "ensure", "--system"},
+		{"session", "ensure", "--user"},
+		{"session", "check"},
+		{"session", "fix-wrappers", "--backup-dir", "/unused"},
+	} {
+		if code := app.Execute(args); code != ExitOK {
+			t.Fatalf("%v exit = %d", args, code)
+		}
+	}''',
+        '''	for _, test := range []struct {
+		args []string
+		want int
+	}{
+		{[]string{"session", "ensure", "--system"}, ExitFalse},
+		{[]string{"session", "ensure", "--user"}, ExitFalse},
+		{[]string{"session", "check"}, ExitOK},
+		{[]string{"session", "fix-wrappers", "--backup-dir", "/unused"}, ExitFalse},
+	} {
+		if code := app.Execute(test.args); code != test.want {
+			t.Fatalf("%v exit = %d, want %d", test.args, code, test.want)
+		}
+	}''',
+    )
+
     (root / "ryoku/cli/internal/host/rxb_guard_test.go").write_text("""package host
 
 import (
@@ -1545,8 +1618,6 @@ func TestRXBBlocksServiceReconciliation(t *testing.T) {
 		{"repo", "set-channel", "testing"},
 		{"repo", "sync"},
 		{"initramfs", "rebuild"},
-		{"power", "suspend"},
-		{"power", "hibernate"},
 	} {
 		if !rxbHostCommandBlocked(args) {
 			t.Errorf("host-wide mutation should be blocked: %#v", args)
