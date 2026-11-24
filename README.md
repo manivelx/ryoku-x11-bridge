@@ -86,4 +86,4 @@ See the build guide for source-build prerequisites and the reproducible upstream
 
 ## Upstream attribution
 
-RXB adapts the original [Ryoku desktop](https://github.com/Ryoku-dev/ryoku). Upstream code, assets and third-party components retain their respective licenses and attribution requirements. Consult the upstream repository and the license/notice files shipped with the validated development package set before redistributing derived artifacts.
+RXB adapts the original [Ryoku desktop](https://github.com/Ryoku-dev/ryoku). RXB's source license is provided in [LICENSE](LICENSE); upstream attribution and component-specific terms are recorded in [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Upstream code, assets and third-party components retain their respective licenses and attribution requirements.
