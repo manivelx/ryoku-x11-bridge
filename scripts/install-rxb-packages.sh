@@ -24,7 +24,7 @@ if (( EUID != 0 )); then
     "$script_path" "$package_dir"
 fi
 
-for command in pacman bsdtar awk sed head sort comm grep install mktemp stat; do
+for command in pacman bsdtar awk sed head sort comm grep install mktemp stat vercmp; do
   command -v "$command" >/dev/null 2>&1 || {
     echo "install-rxb-packages: required command is missing: $command" >&2
     exit 1
@@ -44,6 +44,32 @@ packages=("$package_dir"/*.pkg.tar.*)
   echo "install-rxb-packages: no Arch package archives found in $package_dir" >&2
   exit 1
 }
+
+# The independent audit found two upstream files with host-wide effects. Keep
+# the package contents unchanged pending the owner's F1 decision, but refuse
+# ordinary installs until those files are explicitly accepted for a disposable
+# test environment.
+unreviewed_host_files=()
+for pkg in "${packages[@]}"; do
+  while IFS= read -r archive_path; do
+    archive_path="${archive_path#./}"
+    case "$archive_path" in
+      usr/lib/tmpfiles.d/ryoku.conf|usr/lib/systemd/system/ryoku-boot-guard.service)
+        unreviewed_host_files+=("$archive_path")
+        ;;
+    esac
+  done < <(bsdtar -tf "$pkg")
+done
+if (("${#unreviewed_host_files[@]}" > 0)); then
+  if [[ "${RXB_ALLOW_UNREVIEWED_UPSTREAM_HOST_FILES:-0}" != 1 ]]; then
+    printf 'install-rxb-packages: refusing package set with unreviewed upstream host-level files:\n' >&2
+    printf '  %s\n' "${unreviewed_host_files[@]}" >&2
+    echo "F1 is unresolved. Use only a disposable test system after explicit review; do not bypass this guard on a daily-use host." >&2
+    echo "For an isolated test only, set RXB_ALLOW_UNREVIEWED_UPSTREAM_HOST_FILES=1." >&2
+    exit 1
+  fi
+  echo "WARNING: explicitly allowing unreviewed upstream host-level files for an isolated test environment only." >&2
+fi
 
 pacman_cmd=(pacman)
 if [[ -n "${PACMAN_CONFIG:-}" ]]; then
@@ -96,6 +122,16 @@ for required in ryoku-desktop-i3 ryoku-desktop ryogami; do
     echo "install-rxb-packages: package set is missing required local package/provider: $required" >&2
     exit 1
   }
+done
+
+# Refuse known replacements/conflicts before any dependency transaction. The
+# preflight reports these too, but the installer must enforce the boundary.
+for conflict in bibata-cursor-theme bibata-cursor-theme-bin gpk-bin tlp tuned-ppd; do
+  if pacman_exec -Q "$conflict" >/dev/null 2>&1; then
+    echo "install-rxb-packages: refusing because conflicting package '$conflict' is already installed." >&2
+    echo "Resolve the conflict deliberately, then rerun the read-only host preflight." >&2
+    exit 1
+  fi
 done
 
 # Validate local Ryoku dependencies and collect only external dependency specs.
@@ -215,7 +251,48 @@ if (("${#external_dependency_specs[@]}" > 0)); then
         sed -E 's/[<>=].*$//' |
         sort -u
     )
-    echo "Installing unsatisfied external dependencies from the configured Arch repositories."
+    # Do not let an RXB install become a partial system upgrade. Require a
+    # fully updated host, enforce Ryogami's Qt floor, and preview the exact
+    # dependency transaction before pacman is allowed to mutate the system.
+    pending_updates="$(pacman_exec -Qu 2>/dev/null || true)"
+    if [[ -n "$pending_updates" ]]; then
+      echo "install-rxb-packages: pending system updates detected. Run a deliberate full 'pacman -Syu', reboot, and revalidate the existing desktop before installing RXB." >&2
+      printf '%s\n' "$pending_updates" >&2
+      exit 1
+    fi
+
+    if current_qt="$(pacman_exec -Q qt6-base 2>/dev/null)"; then
+      installed_qt="${current_qt#qt6-base }"
+      if (( $(vercmp "$installed_qt" 6.12) < 0 )); then
+        echo "install-rxb-packages: installed qt6-base $installed_qt is older than the required 6.12. Update the complete system and verify Quickshell/BSPWM before retrying." >&2
+        exit 1
+      fi
+    fi
+
+    plan_file="$(mktemp)"
+    if ! pacman_exec -Sp --needed --print-format '%n %v' "${external_dependencies[@]}" > "$plan_file"; then
+      rm -f -- "$plan_file"
+      echo "install-rxb-packages: could not resolve a read-only dependency transaction plan." >&2
+      exit 1
+    fi
+    echo "Dependency transaction plan (new packages only):"
+    if [[ -s "$plan_file" ]]; then cat "$plan_file"; else echo "  No external packages need to be installed."; fi
+    while read -r planned_name planned_version; do
+      [[ -n "$planned_name" && -n "$planned_version" ]] || continue
+      installed_record="$(pacman_exec -Q "$planned_name" 2>/dev/null || true)"
+      if [[ -n "$installed_record" ]]; then
+        installed_version="${installed_record#"$planned_name "}"
+        if [[ "$installed_version" != "$planned_version" ]]; then
+          rm -f -- "$plan_file"
+          echo "install-rxb-packages: dependency plan would upgrade installed package '$planned_name' from '$installed_version' to '$planned_version'." >&2
+          echo "Refusing an implicit upgrade. Fully update and validate the host first, or use a disposable test environment." >&2
+          exit 1
+        fi
+      fi
+    done < "$plan_file"
+    rm -f -- "$plan_file"
+
+    echo "Installing unsatisfied external dependencies from the reviewed plan."
     pacman_confirmed -S --needed "${external_dependencies[@]}"
   fi
   pacman_exec -T "${external_dependency_specs[@]}" >/dev/null || {
