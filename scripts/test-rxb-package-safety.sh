@@ -128,7 +128,7 @@ for forbidden in \
   'usr/lib/udev/rules.d/90-ryoku-gpu.rules' \
   'usr/lib/udev/rules.d/90-ryoku-backlight.rules' \
   'usr/lib/udev/rules.d/60-ryoku-i2c.rules' \
-  'usr/lib/systemd/system/ryoku-greeter-guard.service'
+  'usr/lib/systemd/system/ryoku-greeter-guard.service' \
   'usr/lib/systemd/system/ryoku-boot-guard.service' \
   'usr/lib/tmpfiles.d/ryoku.conf' \
   'usr/lib/sysusers.d/ryoku-i2c.conf' \
