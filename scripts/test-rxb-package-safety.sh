@@ -85,6 +85,7 @@ done
 
 base_list="$(bsdtar -tf "$base_pkg")"
 variant_list="$(bsdtar -tf "$variant_pkg")"
+all_list="$(for pkg in "${packages[@]}"; do bsdtar -tf "$pkg"; done)"
 
 # The RXB package must carry the project license and the complete pinned
 # upstream notice tree, including iNiR's additional terms and font licenses.
@@ -127,7 +128,9 @@ for forbidden in \
   'usr/lib/udev/rules.d/90-ryoku-gpu.rules' \
   'usr/lib/udev/rules.d/90-ryoku-backlight.rules' \
   'usr/lib/udev/rules.d/60-ryoku-i2c.rules' \
-  'usr/lib/systemd/system/ryoku-greeter-guard.service' \
+  'usr/lib/systemd/system/ryoku-greeter-guard.service'
+  'usr/lib/systemd/system/ryoku-boot-guard.service' \
+  'usr/lib/tmpfiles.d/ryoku.conf' \
   'usr/lib/sysusers.d/ryoku-i2c.conf' \
   'etc/modules-load.d/ryoku-i2c.conf' \
   'usr/bin/ryoku-qylock-activate' \
@@ -139,7 +142,7 @@ for forbidden in \
   'usr/lib/systemd/user/ryogami.service.d/10-rxb-x11.conf' \
   'usr/lib/systemd/user/ryoku-session.target.wants/ryoku-shell.service' \
   'usr/lib/systemd/user/ryoku-session.target.wants/ryogami.service'; do
-  if grep -Fq "$forbidden" <<<"$base_list" || grep -Fq "$forbidden" <<<"$variant_list"; then
+  if grep -Fq "$forbidden" <<<"$all_list"; then
     echo "Forbidden host integration in RXB package set: $forbidden" >&2
     exit 1
   fi
