@@ -32,7 +32,7 @@ if (( EUID != 0 )); then
     else
       echo "install-rxb-packages: unable to verify pending system updates with $pending_source; refusing installation." >&2
     fi
-    printf '%s\\n' "$pending_updates" >&2
+    printf '%s\n' "$pending_updates" >&2
     exit 1
   fi
 
