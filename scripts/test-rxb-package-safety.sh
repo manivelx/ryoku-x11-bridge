@@ -4,6 +4,15 @@ set -euo pipefail
 dist="${1:-dist}"
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# RXB must not ship hand-written i3 shortcuts. The original upstream Ryoku
+# catalogue is the sole source of generated keybindings.
+for config in "$root/payload/ryoku-x11/config" "$root/payload/ryoku-x11/generated.conf"; do
+  if grep -Eq '^[[:space:]]*bind(sym|code)[[:space:]]' "$config"; then
+    echo "RXB must not ship custom i3 keybindings in $config." >&2
+    exit 1
+  fi
+done
+
 if grep -Fq 'systemctl --user enable' "$root/payload/bin/ryoku-x11-session-init"; then
   echo "X11 session init must not persistently enable the shell for non-RXB sessions." >&2
   exit 1
