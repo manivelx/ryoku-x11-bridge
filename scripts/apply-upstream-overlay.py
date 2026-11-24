@@ -1458,9 +1458,9 @@ func main() {""",
 		}
 		scope := "--user"
 		verbIndex := 1
-		if args[1] == "--user" || args[1] == "--system" {
-			scope = args[1]
-			verbIndex = 2
+		for verbIndex < len(args) && (args[verbIndex] == "--user" || args[verbIndex] == "--system") {
+			scope = args[verbIndex]
+			verbIndex++
 		}
 		if verbIndex >= len(args) {
 			return false
@@ -1549,6 +1549,7 @@ func TestRXBHostGuardBlocksSystemServiceMutationsAndPersistentActivation(t *test
 		{"svc", "--system", "enable", "ryoku-boot-guard"},
 		{"svc", "--system", "start", "ryoku-boot-guard"},
 		{"svc", "--system", "restart", "NetworkManager"},
+		{"svc", "--user", "--system", "start", "NetworkManager"},
 		{"svc", "--user", "enable", "ryoku-shell"},
 		{"svc", "--user", "disable", "ryogami"},
 		{"svc", "--user", "start", "ryoku-shell"},
