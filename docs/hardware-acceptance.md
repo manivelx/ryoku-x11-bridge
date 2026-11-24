@@ -48,7 +48,7 @@ This is the intended acceptance target, not a compatibility claim. The machine h
    for path in "$HOME/.config/bspwm" "$HOME/.config/sxhkd" "$HOME/.config/picom" "$HOME/.config/quickshell" "$HOME/.local/share/quickshell-lockscreen"; do
      [[ ! -e "$path" ]] || cp -a --parents "$path" "$backup"
    done
-   printf 'Preservation backup: %s\\n' "$backup"
+   printf 'Preservation backup: %s\n' "$backup"
    ```
 
 5. Keep a working TTY login and confirm that you can return to SDDM and select BSPWM before testing the lock action.
