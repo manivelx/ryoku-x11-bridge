@@ -19,7 +19,7 @@ systemctl --user --no-pager status \
 
 The expected session type is `x11`. RXB no longer starts Picom automatically or reuses the BSPWM Picom configuration. Do not launch Picom with BSPWM settings to diagnose RXB. The NVIDIA driver should remain the version you had before testing. Do not install or switch drivers to make RXB start.
 
-The session wrapper requires the display-manager-provided `XDG_SESSION_ID`. It verifies that login1 reports the current UID, `Type=x11`, and graphical `Class=user` or `user-early`. The pinned shell sleep guard independently resolves that exact ID; it does not guess a session by UID. Greeter, lock-screen, TTY and manager sessions remain excluded.
+The session wrapper requires the display-manager-provided `XDG_SESSION_ID`. It verifies that login1 reports the current UID, `Type=x11`, and graphical `Class=user` only for X11. The pinned shell sleep guard independently resolves that exact ID; it does not guess a session by UID. Greeter, lock-screen, TTY and manager sessions remain excluded.
 
 
 ## Session missing from SDDM

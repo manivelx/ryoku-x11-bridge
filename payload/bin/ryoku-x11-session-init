@@ -17,7 +17,7 @@ if ! loginctl show-session "$XDG_SESSION_ID" --property=Type --value 2>/dev/null
   echo "ryoku-x11-session-init: logind does not identify this session as X11" >&2
   exit 1
 fi
-if ! loginctl show-session "$XDG_SESSION_ID" --property=Class --value 2>/dev/null | grep -Exq 'user|user-early'; then
+if ! loginctl show-session "$XDG_SESSION_ID" --property=Class --value 2>/dev/null | grep -Fxq user; then
   echo "ryoku-x11-session-init: logind session is not a graphical user session" >&2
   exit 1
 fi

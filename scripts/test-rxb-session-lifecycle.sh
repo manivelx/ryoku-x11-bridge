@@ -204,6 +204,12 @@ fi
 if FAKE_LOGINCTL_CLASS=greeter bash "$repo_root/payload/bin/ryoku-x11-session" >/dev/null 2>&1; then
   echo "session wrapper accepted a greeter session" >&2; exit 1
 fi
+if FAKE_LOGINCTL_CLASS=user-early bash "$repo_root/payload/bin/ryoku-x11-session" >/dev/null 2>&1; then
+  echo "session wrapper accepted an X11 user-early session" >&2; exit 1
+fi
+if FAKE_LOGINCTL_CLASS=user-early bash "$repo_root/payload/bin/ryoku-x11-session-init" >/dev/null 2>&1; then
+  echo "session initializer accepted an X11 user-early session" >&2; exit 1
+fi
 
 # A stale symlink at the predictable EnvironmentFile path must not be followed.
 printf "do not overwrite this target\\n" > "$runtime/keep-me"
