@@ -1527,6 +1527,23 @@ func TestRXBGuardBlocksHostUpdateAndBootCommands(t *testing.T) {
 	}
 }
 
+func TestRXBGuardMakesDoctorReadOnly(t *testing.T) {
+	args, blocked := rxbGuardCommand("doctor", []string{"--explain"})
+	if blocked {
+		t.Fatal("doctor should remain available in read-only mode")
+	}
+	if len(args) != 2 || args[0] != "--check" || args[1] != "--explain" {
+		t.Fatalf("doctor args = %#v, want --check --explain", args)
+	}
+	if _, blocked := rxbGuardCommand("doctor", []string{"--check"}); blocked {
+		t.Fatal("explicit read-only doctor check should be allowed")
+	}
+}
+""")
+    (root / "ryoku/cli/internal/host/command_rxb_guard_test.go").write_text("""package host
+
+import "testing"
+
 func TestRXBHostGuardBlocksSystemServiceMutationsAndPersistentActivation(t *testing.T) {
 	blockedCases := [][]string{
 		{"svc", "--system", "enable", "ryoku-boot-guard"},
@@ -1556,19 +1573,6 @@ func TestRXBHostGuardKeepsReadOnlyAndSessionScopedActions(t *testing.T) {
 		if rxbHostCommandBlocked(args) {
 			t.Errorf("%v should remain available", args)
 		}
-	}
-}
-
-func TestRXBGuardMakesDoctorReadOnly(t *testing.T) {
-	args, blocked := rxbGuardCommand("doctor", []string{"--explain"})
-	if blocked {
-		t.Fatal("doctor should remain available in read-only mode")
-	}
-	if len(args) != 2 || args[0] != "--check" || args[1] != "--explain" {
-		t.Fatalf("doctor args = %#v, want --check --explain", args)
-	}
-	if _, blocked := rxbGuardCommand("doctor", []string{"--check"}); blocked {
-		t.Fatal("explicit read-only doctor check should be allowed")
 	}
 }
 """)
