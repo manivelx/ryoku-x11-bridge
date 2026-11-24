@@ -100,6 +100,10 @@ for pkg in "${packages[@]}"; do
     echo "RXB package contains a pacman trust-store mutation: $pkg" >&2
     exit 1
   fi
+  if grep -Eiq '(^|[;&|[:space:]])(systemctl|loginctl|systemd-run|ryoku-host|mkinitcpio|dracut|efibootmgr|bootctl|limine|udevadm|modprobe|tmpfiles)([[:space:]]|$)' <<<"$install_script"; then
+    echo "RXB package contains a host service, boot, kernel, or tmpfiles scriptlet mutation: $pkg" >&2
+    exit 1
+  fi
 done
 
 # The RXB package must carry the project license and the complete pinned
