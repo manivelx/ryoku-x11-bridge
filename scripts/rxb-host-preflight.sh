@@ -78,24 +78,37 @@ if command -v pacman >/dev/null 2>&1; then
     if pacman -Q "$package" >/dev/null 2>&1; then existing_ryoku+=("$package"); fi
   done
   if (("${#existing_ryoku[@]}" > 0)); then
-    printf '[INFO] Existing Ryoku packages: %s\n' "${existing_ryoku[*]}"
-    if [[ -r /var/lib/rxb/installed-packages ]]; then
-      warn "Existing Ryoku packages and an RXB ownership record were found; review both before an upgrade."
+    printf '[INFO] Existing Ryoku packages: %s\\n' "${existing_ryoku[*]}"
+    # /var/lib/rxb is intentionally root-only (0700), and its manifest is
+    # root-only (0600). A normal-user -r check therefore reports a false
+    # absence. Inspect directory metadata without weakening permissions;
+    # the root-running installer validates manifest contents and entries.
+    if [[ -d /var/lib/rxb && ! -L /var/lib/rxb ]]; then
+      manifest_dir_meta="$(stat -c '%u:%a' -- /var/lib/rxb 2>/dev/null || true)"
+      manifest_dir_uid="${manifest_dir_meta%%:*}"
+      manifest_dir_mode="${manifest_dir_meta#*:}"
+      if [[ "$manifest_dir_uid" == 0 && "$manifest_dir_mode" =~ ^[0-7]{3,4}$ ]] &&
+        (( (8#$manifest_dir_mode & 077) == 0 )); then
+        warn "Root-protected RXB ownership directory exists; the installer will validate its manifest contents as root."
+      else
+        fail "RXB ownership directory exists but is not root-owned with private permissions."
+      fi
     else
-      fail "Existing Ryoku packages lack an RXB ownership record; the installer is expected to refuse this state."
+      fail "Existing Ryoku packages have no RXB ownership directory; the installer will refuse to claim them."
     fi
   else
     pass "No pre-existing RXB/Ryoku package names were detected."
   fi
 fi
 
-# Packages the RXB set conflicts with or replaces. pacman would offer to remove
-# them during the install; the preflight reports them first so nothing is
-# removed by surprise.
+# pacman -Q accepts virtual provides, so querying a virtual name can return
+# ryoku-cursors even when the standalone conflicting package is not installed.
+# Use the exact package-name list from -Qq for conflict checks.
 if command -v pacman >/dev/null 2>&1; then
+  installed_package_names="$(pacman -Qq 2>/dev/null || true)"
   for package in bibata-cursor-theme bibata-cursor-theme-bin gpk-bin; do
-    if pacman -Q "$package" >/dev/null 2>&1; then
-      fail "Installed package '$package' conflicts with the RXB package set (ryoku-cursors/gpk replace it). Resolve this deliberately before installing."
+    if grep -Fxq -- "$package" <<<"$installed_package_names"; then
+      fail "Exact installed package '$package' conflicts with the RXB package set. Resolve this deliberately before installing."
     fi
   done
   for package in tlp auto-cpufreq tuned-ppd; do
@@ -118,14 +131,22 @@ if command -v pacman >/dev/null 2>&1; then
     warn "qt6-base is not installed; RXB would install Qt as a dependency."
   fi
   if command -v checkupdates >/dev/null 2>&1; then
-    pending="$(checkupdates 2>/dev/null | wc -l)"
-    if (( pending > 0 )); then
-      warn "$pending package update(s) are pending. Apply a full system update deliberately before installing RXB to avoid a partial upgrade."
+    pending_source="checkupdates"
+    pending="$(checkupdates 2>&1 || true)"
+  else
+    pending_source="pacman -Qu"
+    pending="$(pacman -Qu 2>&1 || true)"
+  fi
+  if [[ -n "$pending" ]]; then
+    pending_rows="$(grep -E '^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+->[[:space:]]+[^[:space:]]+' <<<"$pending" || true)"
+    if [[ -n "$pending_rows" ]]; then
+      pending_names="$(awk '{print $1}' <<<"$pending_rows" | paste -sd ', ' -)"
+      warn "Pending package updates reported by $pending_source: $pending_names. Resolve them in a separately approved maintenance window before RXB testing."
     else
-      pass "No pending package updates were reported by checkupdates."
+      warn "$pending_source could not verify update state; inspect its output before installing: $pending"
     fi
   else
-    warn "checkupdates (pacman-contrib) is unavailable; pending updates were not checked."
+    pass "No pending package updates were reported by $pending_source."
   fi
 fi
 
