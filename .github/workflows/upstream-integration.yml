@@ -55,6 +55,8 @@ jobs:
           docker run --rm \
             -v "$GITHUB_WORKSPACE:/workspace" \
             -w /workspace \
+            -e RXB_PAM_TEST_DISPOSABLE=1 \
+            -e RXB_ARTIFACT_DIR=/workspace/dist/rxb-lock-pam-evidence \
             archlinux:base-devel \
             bash -lc '
               set -euxo pipefail
@@ -67,7 +69,7 @@ jobs:
                 qt6-shadertools qt6-quick3d qt6-svg qt6-5compat \
                 qt6-imageformats qt6-wayland vulkan-headers \
                 imagemagick pipewire wireplumber quickshell i3-wm i3lock procps-ng xorg-server-xvfb \
-                xorg-xrandr maim xclip slop dbus mesa
+                xorg-xrandr xorg-server-xephyr xorg-xwininfo xterm xdotool xsecurelock pam shadow maim xclip slop dbus mesa
               builder_uid="$(stat -c %u /workspace)"
               useradd -m -u "$builder_uid" builder
               echo "[ci] Testing package-builder output and source-tree safety."
@@ -82,7 +84,9 @@ jobs:
               su builder -c "bash /workspace/scripts/test-quickshell-i3-smoke.sh"
               echo "[ci] Running dependency resolution, installation, full-shell and removal tests."
               bash /workspace/scripts/test-rxb-install-transaction.sh /workspace/dist
-              echo "[ci] Disposable Arch package acceptance completed."
+              echo "[ci] Running real XSecureLock/i3lock PAM acceptance in isolated Xephyr."
+              bash /workspace/scripts/test-x11-lock-pam-xephyr.sh
+              echo "[ci] Disposable Arch package and lock/PAM acceptance completed."
             '
       - name: Upload Arch package build log
         if: always()
@@ -98,6 +102,14 @@ jobs:
         with:
           name: rxb-xvfb-shell-evidence
           path: dist/rxb-x11-shell-xvfb.png
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Upload X11 lock/PAM evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rxb-x11-lock-pam-evidence
+          path: dist/rxb-lock-pam-evidence/
           if-no-files-found: ignore
           retention-days: 14
       - name: Bundle Arch packages for artifact upload
