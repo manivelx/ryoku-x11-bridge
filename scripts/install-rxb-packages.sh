@@ -233,13 +233,17 @@ write_manifest() {
 
 # Refuse every transaction while system upgrades are pending, even when all
 # dependencies are already installed. RXB never updates the host kernel/GPU.
-if ! pending_updates="$(pacman_exec -Qu 2>/dev/null)"; then
-  echo "install-rxb-packages: unable to query pending system updates; refusing installation." >&2
-  exit 1
-fi
+# pacman -Qu may return a nonzero status with an empty result on some
+# configurations. Treat actual upgrade rows as pending updates; treat any
+# other diagnostic output as an unsafe query failure.
+pending_updates="$(pacman_exec -Qu 2>&1 || true)"
 if [[ -n "$pending_updates" ]]; then
-  echo "install-rxb-packages: pending system updates detected; refusing installation." >&2
-  echo "Do not update the kernel or NVIDIA driver as part of RXB testing. Resolve updates only in a separately approved maintenance window, then rerun preflight." >&2
+  if grep -Eq '^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+->[[:space:]]+[^[:space:]]+' <<<"$pending_updates"; then
+    echo "install-rxb-packages: pending system updates detected; refusing installation." >&2
+    echo "Do not update the kernel or NVIDIA driver as part of RXB testing. Resolve updates only in a separately approved maintenance window, then rerun preflight." >&2
+  else
+    echo "install-rxb-packages: unable to verify pending system updates; refusing installation." >&2
+  fi
   printf '%s\n' "$pending_updates" >&2
   exit 1
 fi
