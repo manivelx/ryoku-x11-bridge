@@ -333,7 +333,6 @@ interrupt_pacman_dir="$manifest_attack_dir/interrupt-bin"
 mkdir -p "$interrupt_pacman_dir"
 interrupt_marker="$manifest_attack_dir/interrupt-at-local-transaction"
 interrupt_continue="$manifest_attack_dir/continue-interrupt-wrapper"
-interrupt_wrapper_pid="$manifest_attack_dir/interrupt-wrapper.pid"
 cat > "$interrupt_pacman_dir/pacman" <<'INTERRUPT_PACMAN'
 #!/usr/bin/env bash
 if [[ "${3:-}" == "-U" ]]; then
@@ -345,11 +344,10 @@ fi
 exec /usr/bin/pacman "$@"
 INTERRUPT_PACMAN
 chmod 0755 "$interrupt_pacman_dir/pacman"
-rm -f "$interrupt_marker" "$interrupt_continue" "$interrupt_wrapper_pid"
+rm -f "$interrupt_marker" "$interrupt_continue"
 PATH="$interrupt_pacman_dir:$PATH" \
   RXB_INTERRUPT_MARKER="$interrupt_marker" \
   RXB_INTERRUPT_CONTINUE="$interrupt_continue" \
-  RXB_INTERRUPT_WRAPPER_PID="$interrupt_wrapper_pid" \
   PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
   bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" \
   > "$manifest_attack_dir/interrupted-install.log" 2>&1 &
