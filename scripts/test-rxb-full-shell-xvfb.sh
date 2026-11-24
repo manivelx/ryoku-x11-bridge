@@ -451,43 +451,45 @@ PY
     echo "RXB unexpectedly accepted suspend on X11 without a secure lock handoff." >&2
     exit 1
   fi
-  # i3lock --nofork still creates a helper child on some builds. Compare
-  # independent locker roots, not pgrep's newest PID (which may be that child).
-  i3lock_roots() {
+  # i3lock and XSecureLock can both be installed in the test container.
+  # Count independent roots across both trusted PAM lockers, not only the
+  # fallback implementation selected by older test images.
+  active_locker_pids() {
+    { pgrep -x i3lock || true; pgrep -x xsecurelock || true; } | sort -u
+  }
+  locker_roots() {
     local all pid ppid
-    all="$(pgrep -x i3lock | tr '\n' ' ' || true)"
+    all="$(active_locker_pids | tr '\n' ' ')"
     for pid in $all; do
       ppid="$(awk '/^PPid:/{print $2; exit}' "/proc/$pid/status" 2>/dev/null)" || continue
       [[ " $all " == *" $ppid "* ]] || printf '%s\n' "$pid"
     done
   }
   ryoku-shell lock >/dev/null
-  locker_roots="$(i3lock_roots)"
-  [[ -n "$locker_roots" && "$(wc -l <<<"$locker_roots")" == 1 ]] || {
+  locker_roots_before="$(locker_roots)"
+  [[ -n "$locker_roots_before" && "$(wc -l <<<"$locker_roots_before")" == 1 ]] || {
     cat "$tmp/daemon.log"
-    echo "X11 lock dispatch did not start exactly one independent PAM-backed i3lock." >&2
-    ps -eo pid,ppid,comm,args | grep '[i]3lock' >&2 || true
+    echo "X11 lock dispatch did not start exactly one independent PAM-backed X11 locker." >&2
+    ps -eo pid,ppid,comm,args | grep -E '[i]3lock|[x]securelock' >&2 || true
     exit 1
   }
-  locker_pid="$locker_roots"
   ryoku-shell lock >/dev/null
-  locker_roots_after="$(i3lock_roots)"
-  [[ "$locker_roots_after" == "$locker_pid" ]] || {
-    echo "Repeated lock request changed independent i3lock roots ($locker_pid -> $locker_roots_after)." >&2
-    ps -eo pid,ppid,comm,args | grep '[i]3lock' >&2 || true
+  locker_roots_after="$(locker_roots)"
+  [[ "$locker_roots_after" == "$locker_roots_before" ]] || {
+    echo "Repeated lock request changed independent locker roots ($locker_roots_before -> $locker_roots_after)." >&2
+    ps -eo pid,ppid,comm,args | grep -E '[i]3lock|[x]securelock' >&2 || true
     exit 1
   }
-  # Terminate every process from this isolated test's i3lock family. The
-  # --nofork helper can outlive its parent if only the root PID is signalled.
-  locker_pids="$(pgrep -x i3lock || true)"
-  for pid in $locker_pids; do kill "$pid" 2>/dev/null || true; done
+  # Terminate every process from this isolated test's trusted locker family.
+  active_pids="$(active_locker_pids)"
+  for pid in $active_pids; do kill "$pid" 2>/dev/null || true; done
   for _ in $(seq 1 50); do
-    [[ -z "$(pgrep -x i3lock || true)" ]] && break
+    [[ -z "$(active_locker_pids)" ]] && break
     sleep 0.1
   done
-  [[ -z "$(pgrep -x i3lock || true)" ]] || {
+  [[ -z "$(active_locker_pids)" ]] || {
     echo "PAM locker process family did not exit after termination." >&2
-    ps -eo pid,ppid,comm,args | grep '[i]3lock' >&2 || true
+    ps -eo pid,ppid,comm,args | grep -E '[i]3lock|[x]securelock' >&2 || true
     exit 1
   }
   echo "X11 PAM locker start/idempotency/exit checks passed; X11 suspend failed closed."
