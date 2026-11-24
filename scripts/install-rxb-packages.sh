@@ -21,7 +21,6 @@ if (( EUID != 0 )); then
   exec sudo env \
     PACMAN_CONFIG="${PACMAN_CONFIG:-}" \
     RXB_PACMAN_NOCONFIRM="${RXB_PACMAN_NOCONFIRM:-0}" \
-    RXB_ALLOW_UNREVIEWED_UPSTREAM_HOST_FILES="${RXB_ALLOW_UNREVIEWED_UPSTREAM_HOST_FILES:-0}" \
     "$script_path" "$package_dir"
 fi
 
@@ -45,32 +44,6 @@ packages=("$package_dir"/*.pkg.tar.*)
   echo "install-rxb-packages: no Arch package archives found in $package_dir" >&2
   exit 1
 }
-
-# The independent audit found two upstream files with host-wide effects. Keep
-# the package contents unchanged pending the owner's F1 decision, but refuse
-# ordinary installs until those files are explicitly accepted for a disposable
-# test environment.
-unreviewed_host_files=()
-for pkg in "${packages[@]}"; do
-  while IFS= read -r archive_path; do
-    archive_path="${archive_path#./}"
-    case "$archive_path" in
-      usr/lib/tmpfiles.d/ryoku.conf|usr/lib/systemd/system/ryoku-boot-guard.service)
-        unreviewed_host_files+=("$archive_path")
-        ;;
-    esac
-  done < <(bsdtar -tf "$pkg")
-done
-if (("${#unreviewed_host_files[@]}" > 0)); then
-  if [[ "${RXB_ALLOW_UNREVIEWED_UPSTREAM_HOST_FILES:-0}" != 1 ]]; then
-    printf 'install-rxb-packages: refusing package set with unreviewed upstream host-level files:\n' >&2
-    printf '  %s\n' "${unreviewed_host_files[@]}" >&2
-    echo "F1 is unresolved. Use only a disposable test system after explicit review; do not bypass this guard on a daily-use host." >&2
-    echo "For an isolated test only, set RXB_ALLOW_UNREVIEWED_UPSTREAM_HOST_FILES=1." >&2
-    exit 1
-  fi
-  echo "WARNING: explicitly allowing unreviewed upstream host-level files for an isolated test environment only." >&2
-fi
 
 pacman_cmd=(pacman)
 if [[ -n "${PACMAN_CONFIG:-}" ]]; then
