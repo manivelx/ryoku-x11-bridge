@@ -62,6 +62,10 @@ for pkg in "${packages[@]}"; do
     echo "Split debug packages must not be included in the RXB runtime artifact set: $pkg_name" >&2
     exit 1
   fi
+  if [[ "$pkg_name" == "ryoku-keyring" ]]; then
+    echo "RXB must not install or trust the upstream pacman signing key; its updater is disabled." >&2
+    exit 1
+  fi
   case "$pkg_name" in
     ryoku-desktop) base_pkg="$pkg" ;;
     ryoku-desktop-i3) variant_pkg="$pkg" ;;
@@ -86,6 +90,17 @@ done
 base_list="$(bsdtar -tf "$base_pkg")"
 variant_list="$(bsdtar -tf "$variant_pkg")"
 all_list="$(for pkg in "${packages[@]}"; do bsdtar -tf "$pkg"; done)"
+
+# No RXB package may modify pacman's global trust database. The upstream
+# ryoku-keyring .INSTALL runs pacman-key --populate ryoku; RXB uses local
+# package artifacts and has the upstream updater disabled.
+for pkg in "${packages[@]}"; do
+  install_script="$(bsdtar -xOf "$pkg" .INSTALL 2>/dev/null || true)"
+  if grep -Eq 'pacman-key[[:space:]]+--populate|pacman-key[[:space:]]+-a' <<<"$install_script"; then
+    echo "RXB package contains a pacman trust-store mutation: $pkg" >&2
+    exit 1
+  fi
+done
 
 # The RXB package must carry the project license and the complete pinned
 # upstream notice tree, including iNiR's additional terms and font licenses.
@@ -131,6 +146,7 @@ for forbidden in \
   'usr/lib/systemd/system/ryoku-greeter-guard.service' \
   'usr/lib/systemd/system/ryoku-boot-guard.service' \
   'usr/lib/tmpfiles.d/ryoku.conf' \
+  'usr/share/pacman/keyrings/' \
   'usr/lib/sysusers.d/ryoku-i2c.conf' \
   'etc/modules-load.d/ryoku-i2c.conf' \
   'usr/bin/ryoku-qylock-activate' \
