@@ -834,7 +834,7 @@ func verifyX11LockerState(procRoot, state string, uid int, trustedDir string) bo
 		return false
 	}
 	owned := false
-	for _, line := range strings.Split(string(status), "\n") {
+	for _, line := range strings.Split(string(status), "\\n") {
 		if strings.HasPrefix(line, "Uid:") {
 			f := strings.Fields(line)
 			owned = len(f) > 1 && f[1] == strconv.Itoa(uid)
@@ -890,8 +890,8 @@ func fakeProc(t *testing.T, comm, state, uid, exe string) string {
 		}
 	}
 	write("stat", "4242 ("+comm+") "+state+fakeStatRest)
-	write("status", "Name:\\t"+comm+"\\nUid:\\t"+uid+"\\t"+uid+"\\t"+uid+"\\t"+uid+"\n")
-	write("comm", comm+"\n")
+	write("status", "Name:\\t"+comm+"\\nUid:\\t"+uid+"\\t"+uid+"\\t"+uid+"\\t"+uid+"\\n")
+	write("comm", comm+"\\n")
 	if exe != "" {
 		if err := os.Symlink(exe, filepath.Join(dir, "exe")); err != nil {
 			t.Fatal(err)
@@ -2180,7 +2180,7 @@ func TestPicturesDirStillUsesStandardXDGConfig(t *testing.T) {
 	if err := os.MkdirAll(pictures, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(xdg, "user-dirs.dirs"), []byte("XDG_PICTURES_DIR=\\""+pictures+"\\"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(xdg, "user-dirs.dirs"), []byte("XDG_PICTURES_DIR=\\""+pictures+"\\"\\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("XDG_CONFIG_HOME", xdg)
