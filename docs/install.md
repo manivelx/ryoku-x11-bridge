@@ -59,7 +59,7 @@ After installation, the display manager should offer **Ryoku (X11 / i3)** as a s
 
 Perform the first install only after reviewing the artifact, creating a recovery point and explicitly approving the controlled PC test. This is not a daily-use release. Target-hardware acceptance (especially GT 740/NVIDIA 470/Picom and real keyboard/pointer lock behavior) remains outstanding.
 
-1. Confirm the session is X11 and i3 is the window manager: `printf '%s\\n' "$XDG_SESSION_TYPE"` and `i3-msg -t get_version`.
+1. Confirm the session is X11 and i3 is the window manager: `printf '%s\n' "$XDG_SESSION_TYPE"` and `i3-msg -t get_version`.
 2. Confirm the RXB user target and Quickshell services are active: `systemctl --user status ryoku-x11-session.target ryoku-shell-x11.service ryogami-x11.service`.
 3. Open the original shell panels, launcher, settings and Hub; check navigation and window focus.
 4. Verify the existing Picom process and rendering: `pgrep -a picom`, `xrandr --query`, `nvidia-smi`, and `glxinfo -B` if installed.
