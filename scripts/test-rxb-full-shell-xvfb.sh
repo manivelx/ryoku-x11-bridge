@@ -267,6 +267,7 @@ dbus-run-session -- bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HO
 
   timeout --signal=TERM --kill-after=3s 120s ryoku-shell daemon >"$tmp/daemon.log" 2>&1 &
   daemon_pid=$!
+  ryogami_pid=""
   cleanup_daemon() {
     local status=$?
     trap - EXIT
@@ -277,7 +278,6 @@ dbus-run-session -- bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HO
     wait "$daemon_pid" 2>/dev/null || true
     if [[ -n "$ryogami_pid" ]]; then kill -TERM "$ryogami_pid" 2>/dev/null || true; wait "$ryogami_pid" 2>/dev/null || true; fi
     cleanup_audio
-    cleanup
     exit "$status"
   }
   trap cleanup_daemon EXIT
