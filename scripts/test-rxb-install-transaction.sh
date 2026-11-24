@@ -666,6 +666,12 @@ grep -Fxq 'PartOf=ryoku-x11-session.target' /usr/lib/systemd/user/ryoku-shell-x1
 ! grep -Fxq 'After=ryoku-x11-session.target' /usr/lib/systemd/user/ryoku-shell-x11.service
 grep -Fxq 'PartOf=ryoku-x11-session.target' /usr/lib/systemd/user/ryogami-x11.service
 grep -Fxq 'After=ryoku-shell-x11.service' /usr/lib/systemd/user/ryogami-x11.service
+# Both services own their full process trees. The previous physical logout
+# left dbus-monitor alive because KillMode=process only signalled the main PID.
+for unit in ryoku-shell-x11.service ryogami-x11.service; do
+  grep -Fxq 'KillMode=control-group' "/usr/lib/systemd/user/$unit"
+  grep -Fxq 'TimeoutStopSec=15s' "/usr/lib/systemd/user/$unit"
+done
 ! grep -q 'picom --daemon' /usr/share/ryoku/config/ryoku-x11/config
 ! grep -q '^exec .*picom' /usr/share/ryoku/config/ryoku-x11/config
 

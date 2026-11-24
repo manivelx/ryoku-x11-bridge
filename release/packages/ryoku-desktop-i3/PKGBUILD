@@ -2,7 +2,7 @@
 # depends on the Ryoku base and provides the compositor virtual required by it.
 pkgname=ryoku-desktop-i3
 pkgver=${RYOKU_PKGVER:?set RYOKU_PKGVER to the pinned upstream Ryoku VERSION}
-pkgrel=2
+pkgrel=3
 epoch=1
 pkgdesc="Ryoku desktop X11/i3 session and RXB window-manager provider"
 arch=('x86_64')

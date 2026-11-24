@@ -17,7 +17,7 @@ systemctl --user --no-pager status \
   ryoku-x11-session.target ryoku-shell-x11.service ryogami-x11.service
 ```
 
-The expected session type is `x11`. RXB starts a session-owned `xcompmgr -n` XRender compositor. It does not start Picom or reuse the BSPWM Picom configuration. Check `cat "$XDG_RUNTIME_DIR/ryoku-x11-compositor.log"` if transparency is missing. Do not launch Picom with BSPWM settings to diagnose RXB. The NVIDIA driver should remain the version you had before testing. Do not install or switch drivers to make RXB start.
+The expected session type is `x11`. RXB starts a session-owned `xcompmgr -n` XRender compositor. Its shell and wallpaper units use control-group cleanup; if a child process remains after logout, capture the user journal before another login. It does not start Picom or reuse the BSPWM Picom configuration. Check `cat "$XDG_RUNTIME_DIR/ryoku-x11-compositor.log"` if transparency is missing. Do not launch Picom with BSPWM settings to diagnose RXB. The NVIDIA driver should remain the version you had before testing. Do not install or switch drivers to make RXB start.
 
 The session wrapper requires the display-manager-provided `XDG_SESSION_ID`. It verifies that login1 reports the current UID, `Type=x11`, and graphical `Class=user` only for X11. The pinned shell sleep guard independently resolves that exact ID; it does not guess a session by UID. Greeter, lock-screen, TTY and manager sessions remain excluded.
 
@@ -52,6 +52,7 @@ journalctl -b -u sddm --no-pager
 i3-msg -t get_version
 pgrep -a -f 'i3|quickshell|ryoku|ryogami|picom'
 loginctl show-session "$XDG_SESSION_ID" -p Id -p User -p Type -p Class -p Active
+pgrep -a -f 'dbus-monitor|quickshell|ryogami|ryoku-shell'
 ```
 
 Return to the display manager and select the existing **BSPWM** session. Do not replace its config with RXB files. The RXB i3 config lives under the dedicated ryoku-x11 configuration directory.

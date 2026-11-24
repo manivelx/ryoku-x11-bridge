@@ -13,6 +13,7 @@ UnsetEnvironment=WAYLAND_DISPLAY SWAYSOCK
 ExecStart=/usr/bin/ryogami
 Restart=always
 RestartSec=2
-KillMode=process
+TimeoutStopSec=15s
+KillMode=control-group
 Slice=session.slice
 Environment=MALLOC_CONF=narenas:2,background_thread:true,dirty_decay_ms:5000,muzzy_decay_ms:5000
