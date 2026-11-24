@@ -222,15 +222,15 @@ checkupdates_dir="$upgrade_dir/checkupdates-bin"
 mkdir -p "$checkupdates_dir"
 cat > "$checkupdates_dir/checkupdates" <<'CHECKUPDATES_PENDING'
 #!/usr/bin/env bash
-printf '%s\\n' 'flex 2.7.1-1.1 -> 2.7.6-1.1'
+printf '%s\n' 'flex 2.7.1-1.1 -> 2.7.6-1.1'
 CHECKUPDATES_PENDING
 chmod 0755 "$checkupdates_dir/checkupdates"
 if ! command -v runuser >/dev/null 2>&1; then
   echo "runuser is required for the non-root update-gate regression test." >&2
   exit 1
 fi
-if runuser -u nobody -- env PATH="$checkupdates_dir:$PATH" \\
-  bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" \\
+if runuser -u nobody -- env PATH="$checkupdates_dir:$PATH" \ 
+  bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" \ 
   > "$upgrade_dir/checkupdates-installer.log" 2>&1; then
   echo "Installer accepted a non-root host with checkupdates-reported updates." >&2
   exit 1
@@ -301,7 +301,7 @@ printf '%s\n' "$*" >> "$RXB_PACMAN_MARKER"
 case " $* " in
   *" -Qu "*) exit 0 ;;
   *" -Qq "*)
-    printf 'bibata-cursor-theme\\n'
+    printf 'bibata-cursor-theme\n'
     exit 0
     ;;
 esac
@@ -331,11 +331,11 @@ provider_marker="$manifest_attack_dir/provider-only-transaction"
 mkdir -p "$provider_pacman_dir"
 cat > "$provider_pacman_dir/pacman" <<'PROVIDER_ONLY_PACMAN'
 #!/usr/bin/env bash
-printf '%s\\n' "$*" >> "$RXB_PROVIDER_MARKER"
+printf '%s\n' "$*" >> "$RXB_PROVIDER_MARKER"
 case " $* " in
   *" -Qu "*) exit 0 ;;
   *" -Qq "*)
-    printf 'ryoku-cursors\\n'
+    printf 'ryoku-cursors\n'
     exit 0
     ;;
   *" -T "*) exit 0 ;;
@@ -347,8 +347,8 @@ esac
 exit 1
 PROVIDER_ONLY_PACMAN
 chmod 0755 "$provider_pacman_dir/pacman"
-if PATH="$provider_pacman_dir:$PATH" RXB_PROVIDER_MARKER="$provider_marker" \\
-  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \\
+if PATH="$provider_pacman_dir:$PATH" RXB_PROVIDER_MARKER="$provider_marker" \ 
+  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \ 
   bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" > "$manifest_attack_dir/provider-only.log" 2>&1; then
   echo "Provider-only conflict test unexpectedly completed the package transaction." >&2
   exit 1
