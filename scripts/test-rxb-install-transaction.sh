@@ -222,6 +222,195 @@ printf '%s\n' "$*" >> "$RXB_PACMAN_MARKER"
 exit 0
 FAKE_PACMAN
 chmod 0755 "$fake_pacman_dir/pacman"
+
+# F3: simulate a pre-existing package that conflicts with the RXB cursor set.
+conflict_pacman_dir="$manifest_attack_dir/conflict-bin"
+mkdir -p "$conflict_pacman_dir"
+cat > "$conflict_pacman_dir/pacman" <<'FAKE_CONFLICT_PACMAN'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$RXB_PACMAN_MARKER"
+case " $* " in
+  *" -Q bibata-cursor-theme "*)
+    printf 'bibata-cursor-theme 1.0-1\n'
+    exit 0
+    ;;
+esac
+exit 1
+FAKE_CONFLICT_PACMAN
+chmod 0755 "$conflict_pacman_dir/pacman"
+if PATH="$conflict_pacman_dir:$PATH" RXB_PACMAN_MARKER="$pacman_marker" \
+  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
+  bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" > "$manifest_attack_dir/conflict-package.log" 2>&1; then
+  echo "Installer accepted a pre-existing conflicting package." >&2
+  exit 1
+fi
+grep -Fq "conflicting package 'bibata-cursor-theme' is already installed" "$manifest_attack_dir/conflict-package.log" || {
+  echo "Installer did not identify the pre-existing conflicting package." >&2
+  exit 1
+}
+if grep -Eq '^(--config .* )?(-S|-U)( |$)' "$pacman_marker"; then
+  echo "Installer started a package transaction despite the pre-existing conflict." >&2
+  exit 1
+fi
+rm -f "$pacman_marker"
+
+# Interrupted dependency recovery: the manifest must contain every new
+# package from the reviewed -S plan before pacman starts that transaction.
+dependency_pacman_dir="$manifest_attack_dir/dependency-interrupt-bin"
+mkdir -p "$dependency_pacman_dir"
+dependency_marker="$manifest_attack_dir/interrupt-at-dependency-transaction"
+dependency_continue="$manifest_attack_dir/continue-dependency-wrapper"
+cat > "$dependency_pacman_dir/pacman" <<'DEPENDENCY_INTERRUPT_PACMAN'
+#!/usr/bin/env bash
+# Inject a deterministic missing dependency/plan so this test is independent
+# of which runtime dependencies the package-build container already has.
+for arg in "$@"; do
+  case "$arg" in
+    -T)
+      printf 'rxb-test-dep>=1.0\n'
+      exit 1
+      ;;
+    -Sp)
+      printf 'rxb-test-dep 1.0-1\n'
+      exit 0
+      ;;
+    -S)
+      : > "$RXB_DEPENDENCY_MARKER"
+      while [[ ! -e "$RXB_DEPENDENCY_CONTINUE" ]]; do sleep 0.1; done
+      exit 99
+      ;;
+  esac
+done
+case " $* " in
+  *" -Q rxb-test-dep "*) exit 1 ;;
+esac
+exec /usr/bin/pacman "$@"
+DEPENDENCY_INTERRUPT_PACMAN
+chmod 0755 "$dependency_pacman_dir/pacman"
+rm -f "$dependency_marker" "$dependency_continue"
+PATH="$dependency_pacman_dir:$PATH" \
+  RXB_DEPENDENCY_MARKER="$dependency_marker" \
+  RXB_DEPENDENCY_CONTINUE="$dependency_continue" \
+  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
+  bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" \
+  > "$manifest_attack_dir/interrupted-dependency-install.log" 2>&1 &
+dependency_installer_pid=$!
+for attempt in {1..900}; do
+  [[ -e "$dependency_marker" ]] && break
+  kill -0 "$dependency_installer_pid" 2>/dev/null || break
+  sleep 0.1
+done
+if [[ ! -e "$dependency_marker" ]]; then
+  kill -KILL "$dependency_installer_pid" 2>/dev/null || true
+  touch "$dependency_continue"
+  wait "$dependency_installer_pid" 2>/dev/null || true
+  echo "Installer did not reach the intercepted external dependency transaction." >&2
+  cat "$manifest_attack_dir/interrupted-dependency-install.log" >&2
+  exit 1
+fi
+mapfile -t planned_external < <(
+  sed -n '/Dependency transaction plan (new packages only):/,/Installing unsatisfied external dependencies from the reviewed plan./{ 
+    /Dependency transaction plan/d
+    /Installing unsatisfied external dependencies/d
+    s/[[:space:]].*$//
+    /^[[:alnum:]@._+-][[:alnum:]@._+-]*$/p
+  }' "$manifest_attack_dir/interrupted-dependency-install.log"
+)
+(("${#planned_external[@]}" > 0)) || {
+  kill -KILL "$dependency_installer_pid" 2>/dev/null || true
+  touch "$dependency_continue"
+  wait "$dependency_installer_pid" 2>/dev/null || true
+  echo "No external package names were captured from the dependency plan." >&2
+  exit 1
+}
+for name in "${planned_external[@]}"; do
+  grep -Fxq "$name" /var/lib/rxb/installed-packages || {
+    kill -KILL "$dependency_installer_pid" 2>/dev/null || true
+    touch "$dependency_continue"
+    wait "$dependency_installer_pid" 2>/dev/null || true
+    echo "Interrupted dependency manifest did not pre-record planned package: $name" >&2
+    exit 1
+  }
+done
+kill -KILL "$dependency_installer_pid" 2>/dev/null || true
+wait "$dependency_installer_pid" 2>/dev/null || true
+touch "$dependency_continue"
+PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
+  bash "$repo_root/scripts/remove-rxb-packages.sh"
+[[ ! -e /var/lib/rxb/installed-packages ]] || {
+  echo "Interrupted dependency recovery left an RXB ownership manifest." >&2
+  exit 1
+}
+
+# Interrupted-install recovery: stop the installer immediately before its
+# local pacman -U transaction, SIGKILL the installer, then prove the manifest
+# already records all newly introduced local packages and the remover cleans
+# the installed dependency subset without guessing.
+interrupt_pacman_dir="$manifest_attack_dir/interrupt-bin"
+mkdir -p "$interrupt_pacman_dir"
+interrupt_marker="$manifest_attack_dir/interrupt-at-local-transaction"
+interrupt_continue="$manifest_attack_dir/continue-interrupt-wrapper"
+cat > "$interrupt_pacman_dir/pacman" <<'INTERRUPT_PACMAN'
+#!/usr/bin/env bash
+if [[ "${3:-}" == "-U" ]]; then
+  : > "$RXB_INTERRUPT_MARKER"
+  while [[ ! -e "$RXB_INTERRUPT_CONTINUE" ]]; do sleep 0.1; done
+  exit 99
+fi
+exec /usr/bin/pacman "$@"
+INTERRUPT_PACMAN
+chmod 0755 "$interrupt_pacman_dir/pacman"
+rm -f "$interrupt_marker" "$interrupt_continue"
+PATH="$interrupt_pacman_dir:$PATH" \
+  RXB_INTERRUPT_MARKER="$interrupt_marker" \
+  RXB_INTERRUPT_CONTINUE="$interrupt_continue" \
+  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
+  bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" \
+  > "$manifest_attack_dir/interrupted-install.log" 2>&1 &
+interrupted_installer_pid=$!
+for attempt in {1..900}; do
+  [[ -e "$interrupt_marker" ]] && break
+  kill -0 "$interrupted_installer_pid" 2>/dev/null || break
+  sleep 0.1
+done
+if [[ ! -e "$interrupt_marker" ]]; then
+  kill -KILL "$interrupted_installer_pid" 2>/dev/null || true
+  touch "$interrupt_continue"
+  wait "$interrupted_installer_pid" 2>/dev/null || true
+  echo "Installer did not reach the intercepted local package transaction; interrupted-install test cannot continue." >&2
+  cat "$manifest_attack_dir/interrupted-install.log" >&2
+  exit 1
+fi
+for name in "${package_names[@]}"; do
+  grep -Fxq "$name" /var/lib/rxb/installed-packages || {
+    kill -KILL "$interrupted_installer_pid" 2>/dev/null || true
+    touch "$interrupt_continue"
+    wait "$interrupted_installer_pid" 2>/dev/null || true
+    echo "Interrupted-install manifest did not pre-record newly introduced local package: $name" >&2
+    exit 1
+  }
+done
+kill -KILL "$interrupted_installer_pid" 2>/dev/null || true
+if wait "$interrupted_installer_pid" 2>/dev/null; then
+  touch "$interrupt_continue"
+  echo "Installer unexpectedly survived the simulated SIGKILL." >&2
+  exit 1
+fi
+touch "$interrupt_continue"
+sleep 0.2
+PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
+  bash "$repo_root/scripts/remove-rxb-packages.sh"
+[[ ! -e /var/lib/rxb/installed-packages ]] || {
+  echo "Interrupted-install recovery left an RXB ownership manifest." >&2
+  exit 1
+}
+for name in "${package_names[@]}"; do
+  if pacman -Q "$name" >/dev/null 2>&1; then
+    echo "Interrupted-install recovery left a local RXB package installed: $name" >&2
+    exit 1
+  fi
+done
+
 printf 'ryoku-desktop-i3\n' > "$manifest_attack_dir/attacker-dir/installed-packages"
 chmod 0600 "$manifest_attack_dir/attacker-dir/installed-packages"
 

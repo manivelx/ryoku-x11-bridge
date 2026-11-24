@@ -1359,11 +1359,294 @@ post_remove() { _refresh; }
     text = text.replace(old, new)
     p.write_text(text)
 
+    p = root / "release/packages/ryoku-desktop/PKGBUILD"
+    replace_once(p, "  'ryoku-keyring'\n", "")
+
     p = root / "release/packages/ryoku-shell/PKGBUILD"
     text = p.read_text().replace("'wtype'", "").replace("'wl-clipboard'", "")
     p.write_text(text)
 
+    # The upstream boot guard is a host-wide update recovery mechanism. It
+    # can inspect/repoint /boot/limine.conf and EFI variables before the
+    # display manager starts. RXB does not own boot/update policy, and the
+    # original tmpfiles rules also mutate /etc/ryoku, /var/lib/ryoku and
+    # SDDM greeter hand-off files. Do not ship either file in the X11 build.
+    p = root / "release/packages/ryoku/payload.sh"
+    replace_once(
+        p,
+        '''\tif [ "$init" = systemd ]; then
+\t\tinstall -Dm644 "$RYOKU_SRC/ryoku/cli/systemd/ryoku-boot-guard.service" \\
+\t\t\t"$destdir/usr/lib/systemd/system/ryoku-boot-guard.service"
+\t\tinstall -Dm644 "$RYOKU_SRC/ryoku/cli/systemd/ryoku.tmpfiles.conf" \\
+\t\t\t"$destdir/usr/lib/tmpfiles.d/ryoku.conf"
+\telse''',
+        '''\tif [ "$init" = systemd ]; then
+\t\tif [ "${RYOKU_X11_BRIDGE:-0}" != 1 ]; then
+\t\t\tinstall -Dm644 "$RYOKU_SRC/ryoku/cli/systemd/ryoku-boot-guard.service" \\
+\t\t\t\t"$destdir/usr/lib/systemd/system/ryoku-boot-guard.service"
+\t\t\tinstall -Dm644 "$RYOKU_SRC/ryoku/cli/systemd/ryoku.tmpfiles.conf" \\
+\t\t\t\t"$destdir/usr/lib/tmpfiles.d/ryoku.conf"
+\t\tfi
+\telse''',
+    )
+    p = root / "release/packages/ryoku/PKGBUILD"
+    text = p.read_text()
+    old = '  RYOKU_SRC="$_repo" ' + chr(92) + "\n"
+    if text.count(old) != 2:
+        raise RuntimeError(f"{p}: expected two payload environment blocks, found {text.count(old)}")
+    text = text.replace(
+        old,
+        '  RYOKU_X11_BRIDGE=1 ' + chr(92) + "\n" + old,
+    )
+    p.write_text(text)
 
+    # The stock Ryoku updater/doctor can manage the host OS, boot entries,
+    # services and package state. RXB is a session integration, not a distro
+    # manager: make doctor read-only and refuse host update/boot workflows.
+    p = root / "ryoku/cli/main.go"
+    replace_once(
+        p,
+        "func main() {",
+        """func rxbGuardCommand(command string, args []string) ([]string, bool) {
+	switch command {
+	case "update", "rollback", "boot-guard", "boot-menu", "deploy", "recovery", "track":
+		return args, true
+	case "doctor":
+		if len(args) == 0 || args[0] != "--check" {
+			args = append([]string{"--check"}, args...)
+		}
+	}
+	return args, false
+}
+
+func main() {""",
+    )
+    replace_once(
+        p,
+        """	if len(os.Args) < 2 {
+		usage()
+		os.Exit(2)
+	}
+	var err error""",
+        """	if len(os.Args) < 2 {
+		usage()
+		os.Exit(2)
+	}
+	guardedArgs, blocked := rxbGuardCommand(os.Args[1], os.Args[2:])
+	if blocked {
+		die("'%s' is disabled in the RXB X11 build; host update, rollback and boot management remain under the existing OS.", os.Args[1])
+	}
+	os.Args = append([]string{os.Args[0], os.Args[1]}, guardedArgs...)
+	var err error""",
+    )
+
+    # Never let a generic doctor reconciliation rewrite the host's system or
+    # user service activation roster in an RXB session.
+    p = root / "ryoku/cli/internal/host/command.go"
+    replace_once(
+        p,
+        """func (a *App) Execute(args []string) int {
+	if len(args) == 0 {""",
+        """func rxbHostCommandBlocked(args []string) bool {
+	if len(args) < 2 {
+		return false
+	}
+	switch args[0] {
+	case "svc":
+		return args[1] == "reconcile"
+	case "session":
+		return args[1] == "ensure" || args[1] == "fix-wrappers"
+	case "repo":
+		return args[1] == "set-channel" || args[1] == "sync"
+	case "initramfs":
+		return args[1] == "rebuild"
+	}
+	return false
+}
+
+func (a *App) Execute(args []string) int {
+	if len(args) == 0 {""",
+    )
+    replace_once(
+        p,
+        """	if args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
+		fmt.Fprint(a.cfg.Stdout, Usage)
+		return ExitOK
+	}
+	switch args[0] {""",
+        """	if args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
+		fmt.Fprint(a.cfg.Stdout, Usage)
+		return ExitOK
+	}
+	if rxbHostCommandBlocked(args) {
+		fmt.Fprintln(a.cfg.Stderr, "ryoku-host: this host-wide mutation is disabled in the RXB X11 build; RXB does not own system service, session bootstrap, repository, initramfs or suspend/hibernate policy.")
+		return ExitFalse
+	}
+	switch args[0] {""",
+    )
+
+    (root / "ryoku/cli/main_rxb_guard_test.go").write_text("""package main
+
+import "testing"
+
+func TestRXBGuardBlocksHostUpdateAndBootCommands(t *testing.T) {
+	for _, command := range []string{"update", "rollback", "boot-guard", "boot-menu", "deploy", "recovery", "track"} {
+		if _, blocked := rxbGuardCommand(command, nil); !blocked {
+			t.Errorf("%q should be blocked in the RXB X11 build", command)
+		}
+	}
+}
+
+func TestRXBGuardMakesDoctorReadOnly(t *testing.T) {
+	args, blocked := rxbGuardCommand("doctor", []string{"--explain"})
+	if blocked {
+		t.Fatal("doctor should remain available in read-only mode")
+	}
+	if len(args) != 2 || args[0] != "--check" || args[1] != "--explain" {
+		t.Fatalf("doctor args = %#v, want --check --explain", args)
+	}
+	if _, blocked := rxbGuardCommand("doctor", []string{"--check"}); blocked {
+		t.Fatal("explicit read-only doctor check should be allowed")
+	}
+}
+""")
+    # The upstream host package tests exercise generic distro-management
+    # commands. In RXB, initramfs rebuild and session bootstrap are deliberately
+    # blocked; adapt those expectations instead of weakening the runtime guard.
+    p = root / "ryoku/cli/internal/host/initramfs_test.go"
+    replace_once(
+        p,
+        '''if code := app.Execute([]string{"initramfs", "rebuild"}); code != ExitOK {
+				t.Fatalf("initramfs rebuild exit = %d", code)
+			}''',
+        '''if code := app.Execute([]string{"initramfs", "rebuild"}); code != ExitFalse {
+				t.Fatalf("RXB initramfs rebuild exit = %d, want blocked", code)
+			}
+			if len(runner.commands) != 0 {
+				t.Fatalf("blocked initramfs rebuild reached host runner: %#v", runner.commands)
+			}''',
+    )
+    replace_once(
+        p,
+        '''if code := app.Execute([]string{"initramfs", "rebuild"}); code != ExitOK {
+		t.Fatalf("initramfs rebuild exit = %d", code)
+	}
+	if got := argv(runner.commands[0]); got != "pkexec ryoku-host initramfs rebuild" {
+		t.Fatalf("escalation = %q", got)
+	}''',
+        '''if code := app.Execute([]string{"initramfs", "rebuild"}); code != ExitFalse {
+		t.Fatalf("RXB initramfs rebuild exit = %d, want blocked", code)
+	}
+	if len(runner.commands) != 0 {
+		t.Fatalf("blocked initramfs rebuild reached host runner: %#v", runner.commands)
+	}''',
+    )
+    replace_once(
+        p,
+        '''if code := app.Execute([]string{"initramfs", "rebuild"}); code != ExitAbsent {
+		t.Fatalf("missing dracut exit = %d, want %d", code, ExitAbsent)
+	}
+	if stderr.String() != "dracut is not installed\\n" {
+		t.Fatalf("missing dracut stderr = %q", stderr.String())
+	}''',
+        '''if code := app.Execute([]string{"initramfs", "rebuild"}); code != ExitFalse {
+		t.Fatalf("RXB initramfs rebuild exit = %d, want blocked", code)
+	}
+	if len(app.cfg.Runner.(*fakeRunner).commands) != 0 {
+		t.Fatal("blocked initramfs rebuild reached host runner")
+	}''',
+    )
+
+    replace_once(
+        p,
+        '''			got := make([]string, len(runner.commands))
+			for index := range runner.commands {
+				got[index] = argv(runner.commands[index])
+			}
+			if !reflect.DeepEqual(got, test.commands) {
+				t.Fatalf("commands = %v, want %v", got, test.commands)
+			}''',
+        '''			if len(runner.commands) != 0 {
+				t.Fatalf("blocked initramfs rebuild reached host runner: %#v", runner.commands)
+			}''',
+    )
+    replace_once(
+        p,
+        '''app, _, stderr := testApp(&fakeRunner{}, map[string]string{"RYOKU_HOST_PKGMGR": "dnf"})''',
+        '''app, _, _ := testApp(&fakeRunner{}, map[string]string{"RYOKU_HOST_PKGMGR": "dnf"})''',
+    )
+
+    p = root / "ryoku/cli/internal/host/turnstile_test.go"
+    replace_once(
+        p,
+        '''	for _, args := range [][]string{
+		{"session", "ensure", "--system"},
+		{"session", "ensure", "--user"},
+		{"session", "check"},
+		{"session", "fix-wrappers", "--backup-dir", "/unused"},
+	} {
+		if code := app.Execute(args); code != ExitOK {
+			t.Fatalf("%v exit = %d", args, code)
+		}
+	}''',
+        '''	for _, test := range []struct {
+		args []string
+		want int
+	}{
+		{[]string{"session", "ensure", "--system"}, ExitFalse},
+		{[]string{"session", "ensure", "--user"}, ExitFalse},
+		{[]string{"session", "check"}, ExitOK},
+		{[]string{"session", "fix-wrappers", "--backup-dir", "/unused"}, ExitFalse},
+	} {
+		if code := app.Execute(test.args); code != test.want {
+			t.Fatalf("%v exit = %d, want %d", test.args, code, test.want)
+		}
+	}''',
+    )
+
+    (root / "ryoku/cli/internal/host/rxb_guard_test.go").write_text("""package host
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestRXBBlocksServiceReconciliation(t *testing.T) {
+	runner := &fakeRunner{}
+	app, _, stderr := testApp(runner, nil)
+	if got := app.Execute([]string{"svc", "reconcile", "--system"}); got != ExitFalse {
+		t.Fatalf("svc reconcile exit = %d, want %d", got, ExitFalse)
+	}
+	if !strings.Contains(stderr.String(), "disabled in the RXB X11 build") {
+		t.Fatalf("missing RXB safety explanation: %q", stderr.String())
+	}
+	if len(runner.commands) != 0 {
+		t.Fatalf("blocked command reached host runner: %#v", runner.commands)
+	}
+	for _, args := range [][]string{
+		{"svc", "--system", "is-active", "NetworkManager"},
+		{"repo", "channel"},
+		{"pkg", "installed", "quickshell"},
+		{"power", "profile"},
+	} {
+		if rxbHostCommandBlocked(args) {
+			t.Errorf("read-only command should not be blocked: %#v", args)
+		}
+	}
+	for _, args := range [][]string{
+		{"svc", "reconcile", "--system"},
+		{"session", "ensure", "--user"},
+		{"session", "fix-wrappers"},
+		{"repo", "set-channel", "testing"},
+		{"repo", "sync"},
+		{"initramfs", "rebuild"},
+	} {
+		if !rxbHostCommandBlocked(args) {
+			t.Errorf("host-wide mutation should be blocked: %#v", args)
+		}
+	}
+}
+""")
 
 def patch_quickshell_config_isolation(root: pathlib.Path) -> None:
     # Keep all Ryoku-managed user configuration in a session-owned subtree.

@@ -72,12 +72,30 @@ chmod 0755 "$tmp/fakebin/makepkg"
 mkdir "$tmp/output"
 PATH="$tmp/fakebin:$PATH" bash "$RXB_ROOT/scripts/build-rxb-packages.sh" "$UPSTREAM_SOURCE" "$tmp/output"
 
-mapfile -t built < <(find "$tmp/output" -maxdepth 1 -type f -name '*.pkg.tar.*' -print)
-[[ "${#built[@]}" -eq 12 ]] || {
-  echo "Expected 12 staged runtime packages, found ${#built[@]}." >&2
+mapfile -t built < <(find "$tmp/output" -maxdepth 1 -type f -name '*.pkg.tar.*' -print | sort)
+expected_packages=(
+  gpk
+  ryogami
+  ryoku
+  ryoku-blobs
+  ryoku-cursor-material
+  ryoku-cursors
+  ryoku-desktop
+  ryoku-desktop-i3
+  ryoku-hub
+  ryoku-palette-bridge
+  ryoku-shell
+)
+mapfile -t actual_packages < <(
+  for package in "${built[@]}"; do
+    bsdtar -xOf "$package" .PKGINFO | sed -n 's/^pkgname = //p' | head -n1
+  done | sort
+)
+if ! diff -u <(printf '%s\n' "${expected_packages[@]}") <(printf '%s\n' "${actual_packages[@]}"); then
+  echo "Staged runtime package inventory differs from the reviewed RXB allowlist." >&2
   printf '  %s\n' "${built[@]}" >&2
   exit 1
-}
+fi
 find "$source_pkgdir" -maxdepth 1 -type f -name '*.pkg.tar.*' -printf '%f\n' | sort > "$tmp/source-after"
 diff -u "$tmp/source-expected" "$tmp/source-after" || {
   echo "Builder modified package archives in the RXB source tree." >&2
