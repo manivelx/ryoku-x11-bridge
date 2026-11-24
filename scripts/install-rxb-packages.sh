@@ -21,6 +21,7 @@ if (( EUID != 0 )); then
   exec sudo env \
     PACMAN_CONFIG="${PACMAN_CONFIG:-}" \
     RXB_PACMAN_NOCONFIRM="${RXB_PACMAN_NOCONFIRM:-0}" \
+    RXB_ALLOW_UNREVIEWED_UPSTREAM_HOST_FILES="${RXB_ALLOW_UNREVIEWED_UPSTREAM_HOST_FILES:-0}" \
     "$script_path" "$package_dir"
 fi
 
