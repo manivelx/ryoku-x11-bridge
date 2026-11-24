@@ -273,6 +273,7 @@ cat > "$conflict_pacman_dir/pacman" <<'FAKE_CONFLICT_PACMAN'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$RXB_PACMAN_MARKER"
 case " $* " in
+  *" -Qu "*) exit 0 ;;
   *" -Q bibata-cursor-theme "*)
     printf 'bibata-cursor-theme 1.0-1\n'
     exit 0
@@ -309,6 +310,9 @@ cat > "$dependency_pacman_dir/pacman" <<'DEPENDENCY_INTERRUPT_PACMAN'
 # of which runtime dependencies the package-build container already has.
 for arg in "$@"; do
   case "$arg" in
+    -Qu)
+      exit 0
+      ;;
     -T)
       printf 'rxb-test-dep>=1.0\n'
       exit 1
@@ -395,6 +399,9 @@ interrupt_marker="$manifest_attack_dir/interrupt-at-local-transaction"
 interrupt_continue="$manifest_attack_dir/continue-interrupt-wrapper"
 cat > "$interrupt_pacman_dir/pacman" <<'INTERRUPT_PACMAN'
 #!/usr/bin/env bash
+for arg in "$@"; do
+  [[ "$arg" == "-Qu" ]] && exit 0
+done
 if [[ "${3:-}" == "-U" ]]; then
   : > "$RXB_INTERRUPT_MARKER"
   while [[ ! -e "$RXB_INTERRUPT_CONTINUE" ]]; do sleep 0.1; done
