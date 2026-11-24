@@ -252,6 +252,79 @@ if grep -Eq '^(--config .* )?(-S|-U)( |$)' "$pacman_marker"; then
 fi
 rm -f "$pacman_marker"
 
+# Interrupted dependency recovery: the manifest must contain every new
+# package from the reviewed -S plan before pacman starts that transaction.
+dependency_pacman_dir="$manifest_attack_dir/dependency-interrupt-bin"
+mkdir -p "$dependency_pacman_dir"
+dependency_marker="$manifest_attack_dir/interrupt-at-dependency-transaction"
+dependency_continue="$manifest_attack_dir/continue-dependency-wrapper"
+cat > "$dependency_pacman_dir/pacman" <<'DEPENDENCY_INTERRUPT_PACMAN'
+#!/usr/bin/env bash
+for arg in "$@"; do
+  if [[ "$arg" == "-S" ]]; then
+    : > "$RXB_DEPENDENCY_MARKER"
+    while [[ ! -e "$RXB_DEPENDENCY_CONTINUE" ]]; do sleep 0.1; done
+    exit 99
+  fi
+done
+exec /usr/bin/pacman "$@"
+DEPENDENCY_INTERRUPT_PACMAN
+chmod 0755 "$dependency_pacman_dir/pacman"
+rm -f "$dependency_marker" "$dependency_continue"
+PATH="$dependency_pacman_dir:$PATH" \
+  RXB_DEPENDENCY_MARKER="$dependency_marker" \
+  RXB_DEPENDENCY_CONTINUE="$dependency_continue" \
+  PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
+  bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" \
+  > "$manifest_attack_dir/interrupted-dependency-install.log" 2>&1 &
+dependency_installer_pid=$!
+for attempt in {1..900}; do
+  [[ -e "$dependency_marker" ]] && break
+  kill -0 "$dependency_installer_pid" 2>/dev/null || break
+  sleep 0.1
+done
+if [[ ! -e "$dependency_marker" ]]; then
+  kill -KILL "$dependency_installer_pid" 2>/dev/null || true
+  touch "$dependency_continue"
+  wait "$dependency_installer_pid" 2>/dev/null || true
+  echo "Installer did not reach the intercepted external dependency transaction." >&2
+  cat "$manifest_attack_dir/interrupted-dependency-install.log" >&2
+  exit 1
+fi
+mapfile -t planned_external < <(
+  sed -n '/Dependency transaction plan (new packages only):/,/Installing unsatisfied external dependencies from the reviewed plan./{ 
+    /Dependency transaction plan/d
+    /Installing unsatisfied external dependencies/d
+    s/[[:space:]].*$//
+    /^[[:alnum:]@._+-][[:alnum:]@._+-]*$/p
+  }' "$manifest_attack_dir/interrupted-dependency-install.log"
+)
+(("${#planned_external[@]}" > 0)) || {
+  kill -KILL "$dependency_installer_pid" 2>/dev/null || true
+  touch "$dependency_continue"
+  wait "$dependency_installer_pid" 2>/dev/null || true
+  echo "No external package names were captured from the dependency plan." >&2
+  exit 1
+}
+for name in "${planned_external[@]}"; do
+  grep -Fxq "$name" /var/lib/rxb/installed-packages || {
+    kill -KILL "$dependency_installer_pid" 2>/dev/null || true
+    touch "$dependency_continue"
+    wait "$dependency_installer_pid" 2>/dev/null || true
+    echo "Interrupted dependency manifest did not pre-record planned package: $name" >&2
+    exit 1
+  }
+done
+kill -KILL "$dependency_installer_pid" 2>/dev/null || true
+wait "$dependency_installer_pid" 2>/dev/null || true
+touch "$dependency_continue"
+PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
+  bash "$repo_root/scripts/remove-rxb-packages.sh"
+[[ ! -e /var/lib/rxb/installed-packages ]] || {
+  echo "Interrupted dependency recovery left an RXB ownership manifest." >&2
+  exit 1
+}
+
 # Interrupted-install recovery: stop the installer immediately before its
 # local pacman -U transaction, SIGKILL the installer, then prove the manifest
 # already records all newly introduced local packages and the remover cleans
