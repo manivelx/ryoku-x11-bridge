@@ -229,10 +229,12 @@ mkdir -p "$conflict_pacman_dir"
 cat > "$conflict_pacman_dir/pacman" <<'FAKE_CONFLICT_PACMAN'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$RXB_PACMAN_MARKER"
-if [[ "$1" == "-Q" && "$2" == "bibata-cursor-theme" ]]; then
-  printf 'bibata-cursor-theme 1.0-1\n'
-  exit 0
-fi
+case " $* " in
+  *" -Q bibata-cursor-theme "*)
+    printf 'bibata-cursor-theme 1.0-1\n'
+    exit 0
+    ;;
+esac
 exit 1
 FAKE_CONFLICT_PACMAN
 chmod 0755 "$conflict_pacman_dir/pacman"
