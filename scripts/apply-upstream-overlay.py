@@ -1965,6 +1965,8 @@ def patch_x11_desktop_entry_visibility(root: pathlib.Path) -> None:
         ("ryoku/hub/ryoku-hub.desktop", "Categories=Settings;DesktopSettings;"),
         ("ryoku/apps/ryostore/ryostore.desktop", "Categories=Utility;Settings;"),
         ("ryoku/apps/tools/install-app.desktop", "Categories=System;"),
+        ("ryoku/apps/tools/compress-video.desktop", "Categories=AudioVideo;"),
+        ("ryoku/apps/nvim/ryoku-nvim.desktop", "Categories=Utility;TextEditor;Development;"),
         ("ryoku/apps/ryovm/ryovm.desktop", "Categories=System;Utility;"),
     ):
         p = root / desktop_path
