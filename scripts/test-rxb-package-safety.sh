@@ -136,6 +136,26 @@ base_list="$(bsdtar -tf "$base_pkg")"
 variant_list="$(bsdtar -tf "$variant_pkg")"
 all_list="$(for pkg in "${packages[@]}"; do bsdtar -tf "$pkg"; done)"
 
+for desktop in install-app.desktop ryoku-hub.desktop ryostore.desktop; do
+  desktop_content="$(bsdtar -xOf "$base_pkg" "usr/share/applications/$desktop" 2>/dev/null || true)"
+  if [[ -z "$desktop_content" ]] || ! grep -Fxq 'OnlyShowIn=Ryoku;' <<<"$desktop_content"; then
+    echo "RXB package safety: $desktop is not restricted to the Ryoku desktop" >&2
+    exit 1
+  fi
+done
+
+if grep -R -nF 'GSK_RENDERER=gl' "$root/payload" "$root/release/packages/ryoku-desktop-i3" 2>/dev/null; then
+  echo "RXB package safety: forced GTK GL renderer is not allowed without GT740 hardware validation" >&2
+  exit 1
+fi
+
+for script in "$root/scripts/install-rxb-packages.sh" "$root/scripts/remove-rxb-packages.sh"; do
+  if grep -nE '^[[:space:]]*(loginctl[[:space:]]+terminate-(session|user)|systemctl[[:space:]]+(poweroff|reboot|suspend|hibernate)|shutdown|reboot|poweroff)([[:space:]]|$)' "$script"; then
+    echo "RXB package safety: install/remove scripts must not force logout or power actions" >&2
+    exit 1
+  fi
+done
+
 # No RXB package may modify pacman's global trust database. The upstream
 # ryoku-keyring .INSTALL runs pacman-key --populate ryoku; RXB uses local
 # package artifacts and has the upstream updater disabled.
@@ -200,6 +220,9 @@ for forbidden in \
   'etc/modules-load.d/ryoku-i2c.conf' \
   'usr/bin/ryoku-qylock-activate' \
   'usr/bin/ryoku-qylock-lock' \
+  'usr/bin/ryoku-wifi-backend' \
+  'usr/lib/systemd/user/ryoku-x11-session.target.wants/ryoku-shell-x11@.service' \
+  'usr/lib/systemd/user/ryoku-x11-session.target.wants/ryogami-x11@.service' \
   'usr/lib/systemd/user/default.target.wants/ryogami.service' \
   'usr/lib/systemd/user/default.target.wants/ryoku-shell-x11@.service' \
   'usr/lib/systemd/user/default.target.wants/ryogami-x11@.service' \
@@ -227,8 +250,6 @@ for required in \
   'usr/lib/systemd/user/ryoku-shell-x11@.service' \
   'usr/lib/systemd/user/ryogami-x11@.service' \
   'usr/lib/systemd/user/ryoku-x11-session.target' \
-  'usr/lib/systemd/user/ryoku-x11-session.target.wants/ryoku-shell-x11@.service' \
-  'usr/lib/systemd/user/ryoku-x11-session.target.wants/ryogami-x11@.service' \
   'usr/bin/ryoku-x11-session' \
   'usr/bin/ryoku-x11-session-init' \
   'usr/bin/ryoku-x11-lock' \

@@ -1582,7 +1582,7 @@ func main() {""",
 					name == "ryoku-shell" || name == "ryoku-shell.service" ||
 					name == "ryogami" || name == "ryogami.service" ||
 					(len(name) >= 6 && name[:6] == "ryoku-") ||
-					(len(name) >= 6 && name[:6] == "ryogami") {
+					(len(name) >= 7 && name[:7] == "ryogami") {
 					return true
 				}
 			}
@@ -1932,7 +1932,7 @@ def patch_x11_desktop_entry_visibility(root: pathlib.Path) -> None:
         ("ryoku/apps/tools/install-app.desktop", "Categories=System;"),
     ):
         p = root / desktop_path
-        replace_once(p, category_line, category_line + "\\nOnlyShowIn=Ryoku;")
+        replace_once(p, category_line, category_line + "\nOnlyShowIn=Ryoku;")
 
 
 def patch_x11_privileged_hub_backends(root: pathlib.Path) -> None:
