@@ -1970,20 +1970,10 @@ def patch_x11_privileged_hub_backends(root: pathlib.Path) -> None:
     # Keep the settings visible but disable every control that can mutate
     # GPU mode, CPU host profiles, PAM or SDDM in the RXB build.
     p = root / "ryoku/hub/quickshell/pages/GpuPage.qml"
-    replace_once(p, '''                SettingCard {
-                    width: gfxCol.colWidth
-                    title: I18n.tr("RYOKU RENDERS ON")''',
-                 '''                SettingCard {
-                    width: gfxCol.colWidth
-                    visible: false // RXB keeps GPU mode and firmware MUX read-only.
-                    title: I18n.tr("RYOKU RENDERS ON")''')
-    replace_once(p, '''                SettingCard {
-                    width: gfxCol.colWidth
-                    title: I18n.tr("CPU POWER PROFILES")''',
-                 '''                SettingCard {
-                    width: gfxCol.colWidth
-                    visible: false // RXB does not apply host power profiles.
-                    title: I18n.tr("CPU POWER PROFILES")''')
+    replace_once(p, '''                    visible: !!(pg.caps && pg.caps.host)''',
+                 '''                    visible: false // RXB keeps GPU mode and firmware MUX read-only.''')
+    replace_once(p, '''                    visible: pg.cpuTune.length > 0''',
+                 '''                    visible: false // RXB does not apply host power profiles.''')
     p = root / "ryoku/hub/quickshell/pages/LockscreenPage.qml"
     replace_once(p, '''Item {
     id: pg''',
