@@ -15,7 +15,7 @@ The full repository audit (2026-11-24) classified the project as suitable for is
 - **First physical X11 failure:** the first login exposed a partial shell and an NVIDIA 470/Picom crash. The development fix removes automatic Picom startup, removes RXB's dependency on the graphical-session target that caused the ordering cycle, and binds the session to the exact logind X11 graphical session. The pinned sleep guard is overlaid to accept X11 only for normal graphical user classes. CI must pass before these changes are considered validated.
 - **Target hardware:** the GT 740 / NVIDIA 470 stack has not been physically retested after these changes. Lock recovery, real input grabs, VT switching and multi-monitor behavior remain unverified.
 
-F1–F5 now have implementation guards and regression coverage. The next disposable CI run is the evidence gate for the exact package bundle. Physical hardware acceptance remains open and must be performed by the owner.
+The reviewed host-safety, home-isolation, session-lifecycle, idle-lock and interrupted-install findings have implementation guards or regression coverage. The current head's full disposable CI run is the evidence gate for the exact package bundle. Physical hardware acceptance remains open and must be performed by the owner.
 
 ## Before installing
 
