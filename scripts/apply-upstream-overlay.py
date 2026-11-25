@@ -1521,6 +1521,31 @@ func main() {""",
 		return false
 	}
 	switch args[0] {
+	case "pkg":
+		switch args[1] {
+		case "installed", "installed-at", "available", "status", "why", "advice", "version", "owner", "count", "local":
+			return false
+		default:
+			return true
+		}
+	case "users":
+		return args[1] != "list" && args[1] != "caps"
+	case "auth":
+		return !(args[1] == "fingerprint" && len(args) == 3 && args[2] == "status")
+	case "network":
+		return true
+	case "time":
+		return args[1] != "zone" && args[1] != "zones"
+	case "keymap":
+		return true
+	case "phone":
+		return args[1] != "status"
+	case "power":
+		return args[1] != "capabilities" && args[1] != "reboot" && args[1] != "poweroff"
+	case "snapshots":
+		return len(args) > 1 && args[1] == "create"
+	case "transient":
+		return true
 	case "svc":
 		if args[1] == "reconcile" {
 			return true
@@ -1623,6 +1648,19 @@ func TestRXBHostGuardBlocksSystemServiceMutationsAndPersistentActivation(t *test
 		{"power", "suspend"},
 		{"power", "hibernate"},
 		{"session", "start"},
+		{"pkg", "install", "example"},
+		{"pkg", "remove", "example"},
+		{"users", "delete", "example", "--erase-files"},
+		{"users", "set-password", "example"},
+		{"auth", "fingerprint", "set", "sudo", "on"},
+		{"network", "wifi-backend", "get"},
+		{"network", "wifi-backend", "set", "iwd"},
+		{"time", "set-zone", "Etc/UTC"},
+		{"keymap", "set", "us"},
+		{"phone", "enable"},
+		{"power", "profile", "performance"},
+		{"snapshots", "create", "before-test"},
+		{"transient", "start", "example"},
 	}
 	for _, args := range blockedCases {
 		if !rxbHostCommandBlocked(args) {
@@ -1637,6 +1675,14 @@ func TestRXBHostGuardKeepsReadOnlyAndSessionScopedActions(t *testing.T) {
 		{"svc", "--user", "start", "pipewire"},
 		{"svc", "--system", "is-active", "NetworkManager"},
 		{"power", "reboot"},
+		{"power", "capabilities"},
+		{"pkg", "installed", "quickshell"},
+		{"users", "list"},
+		{"users", "caps"},
+		{"auth", "fingerprint", "status"},
+		{"time", "zone"},
+		{"time", "zones"},
+		{"phone", "status"},
 		{"session", "check"},
 	}
 	for _, args := range allowedCases {
