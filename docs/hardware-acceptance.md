@@ -26,6 +26,7 @@ This is the intended acceptance target, not a compatibility claim. The machine h
 
 - Do not run the RXB installer until the owner has reviewed the final bundle and explicitly approved the controlled test.
 - Keep the existing BSPWM session, SDDM Orbital theme, Quickshell lockscreen, Picom configuration, NVIDIA driver, kernel, EDID setup and boot configuration unchanged.
+- Run only one graphical session for the test user at a time. RXB checks logind and refuses to start while another X11/Wayland user session is active or online; log out of BSPWM before selecting RXB.
 - Do not run a lock test that could strand the active session. Perform real lock testing only after recovery access and a second login path are confirmed.
 - Do not enable suspend/hibernate handoff. RXB intentionally fails closed for those actions on X11.
 - Review the generated report before sharing it. It excludes window titles, process command lines, serial numbers, network addresses and home-directory contents, but still contains hardware/software inventory.
