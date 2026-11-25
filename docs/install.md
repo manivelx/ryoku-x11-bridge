@@ -30,7 +30,7 @@ It checks the OS/architecture, current X11 display, pacman state, recovery-sessi
 - Use Arch Linux or CachyOS x86_64 with a working Xorg session and pacman.
 - Do not run `sudo pacman -Syu` as part of this RXB test. If preflight reports pending updates, stop; do not bypass the installer's clean-package-state check. Any system maintenance must be separately approved, with the NVIDIA driver and kernel protected.
 - If Snapper is configured for the root filesystem, create a root snapshot. Also back up the existing BSPWM, sxhkd, Picom, Quickshell and Quickshell-lockscreen directories as described in [hardware acceptance](hardware-acceptance.md).
-- Keep your existing BSPWM session available in the display manager.
+- Keep your existing BSPWM session available in the display manager. Log out of any other graphical session for the same user before starting RXB; the session wrapper now refuses to overlap an online/active X11 or Wayland login.
 - Close other package-manager processes.
 - Do not remove or replace the NVIDIA driver, kernel, SDDM Orbital theme, or existing Quickshell lockscreen.
 
