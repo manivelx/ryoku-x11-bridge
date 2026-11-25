@@ -344,7 +344,11 @@ if timeout 10s bash "$repo_root/payload/bin/ryoku-x11-session" >"$tmp/stale-live
   cat "$runtime/ryoku-x11-session-42.env" >&2
   exit 1
 fi
-grep -Fq "previous RXB session 42 still owns a live i3 socket" "$tmp/stale-live-session.log"
+grep -Fq "previous RXB session 42 still owns a live i3 socket" "$tmp/stale-live-session.log" || {
+  echo "new-session refusal did not report the live stale i3 socket:" >&2
+  cat "$tmp/stale-live-session.log" >&2
+  exit 1
+}
 
 kill -TERM "$crash_i3_pid" 2>/dev/null || true
 crash_i3_pid=""
