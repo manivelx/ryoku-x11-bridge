@@ -1551,8 +1551,6 @@ func main() {""",
 				}
 			}
 		}
-	case "power":
-		return args[1] == "suspend" || args[1] == "hibernate"
 	case "session":
 		return args[1] == "start" || args[1] == "ensure" || args[1] == "fix-wrappers"
 	case "repo":
