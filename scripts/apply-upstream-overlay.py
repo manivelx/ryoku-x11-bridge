@@ -2036,22 +2036,17 @@ def patch_x11_privileged_hub_backends(root: pathlib.Path) -> None:
     # SDDM greeter theme through pkexec. RXB must preserve the existing Orbital
     # greeter and Quickshell X11 lockscreen, so deny both command entry points.
     p = root / "ryoku/hub/backend/lock.go"
-    replace_once(p, '''\tcase "set":
-\t\tif len(args) < 2 {
-\t\t\treturn fmt.Errorf("lock set needs a slug")
-\t\t}
-\t\treturn setLockSkin(args[1])
-\tcase "apply-greeter":
-\t\tif len(args) < 3 {
-\t\t\treturn fmt.Errorf("lock apply-greeter needs a slug and true or false")
-\t\t}
-\t\tclock24h, err := strconv.ParseBool(args[2])
-\t\tif err != nil {
-\t\t\treturn fmt.Errorf("invalid clock format %q", args[2])
-\t\t}
-\t\treturn applyGreeter(args[1], clock24h)''',
-                 '''\tcase "set", "apply-greeter":
-\t\treturn fmt.Errorf("host lockscreen, PAM and SDDM changes are disabled in the RXB X11 build")''')
+    replace_once(p, '''\tif len(args) == 0 {
+\t\treturn fmt.Errorf("lock needs list|set|apply-greeter")
+\t}
+\tswitch args[0] {''',
+                 '''\tif len(args) == 0 {
+\t\treturn fmt.Errorf("lock needs list|set|apply-greeter")
+\t}
+\tif args[0] != "list" {
+\t\treturn fmt.Errorf("host lockscreen, PAM and SDDM changes are disabled in the RXB X11 build")
+\t}
+\tswitch args[0] {''')
 
     # Display-layout changes must not publish a new SDDM greeter primary-output
     # hint into /var/lib/ryoku on the host.
@@ -2117,9 +2112,11 @@ func TestRXBBlocksLockscreenAndGreeterMutations(t *testing.T) {
     for _, args := range [][]string{
         {"set", "clockwork/orbital"},
         {"apply-greeter", "clockwork/orbital", "true"},
+        {"future-action"},
     } {
-        if err := runLock(args); err == nil {
-            t.Fatalf("runLock(%v) unexpectedly allowed a host lockscreen/SDDM mutation", args)
+        err := runLock(args)
+        if err == nil || !strings.Contains(err.Error(), "disabled in the RXB X11 build") {
+            t.Fatalf("runLock(%v) = %v, want RXB fail-closed error", args, err)
         }
     }
 }
