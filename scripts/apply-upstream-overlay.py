@@ -1522,15 +1522,15 @@ func main() {""",
 	}
 	if len(args) == 1 {
 		switch args[0] {
-		case "app", "capabilities", "snapshots":
+		case "app", "capabilities", "snapshots", "init", "pkgmgr", "inhibit":
 			return false
 		default:
 			return true
 		}
 	}
 	switch args[0] {
-	case "app", "capabilities":
-		// Launching a user application and reporting capabilities are not
+	case "init", "pkgmgr", "inhibit", "app", "capabilities":
+		// These operations are read-only or user-session scoped, not host administration.
 		// host administration. Preserve upstream argument validation.
 		return false
 	case "pkg":
@@ -1613,7 +1613,7 @@ func main() {""",
 		// read-only allowlist entry before exposing any new upstream command.
 		return true
 	}
-}"""
+}""",
 
 func (a *App) Execute(args []string) int {
 	if len(args) == 0 {""",
@@ -1710,6 +1710,11 @@ func TestRXBHostGuardBlocksSystemServiceMutationsAndPersistentActivation(t *test
 
 func TestRXBHostGuardKeepsReadOnlyAndSessionScopedActions(t *testing.T) {
 	allowedCases := [][]string{
+		{"init"},
+		{"pkgmgr"},
+		{"inhibit", "--what=sleep:idle", "--mode=block", "true"},
+		{"capabilities"},
+		{"app", "--", "true"},
 		{"svc", "--user", "is-active", "ryoku-shell"},
 		{"svc", "--user", "start", "pipewire"},
 		{"svc", "--system", "is-active", "NetworkManager"},
@@ -2136,6 +2141,97 @@ func TestRXBGpuTuningMutationBlocked(t *testing.T) {
         err := runGpuTune(args)
         if err == nil || !strings.Contains(err.Error(), "disabled in the RXB X11 build") {
             t.Fatalf("runGpuTune(%v) = %v, want RXB fail-closed error", args, err)
+        }
+    }
+}
+""")
+
+
+    # Prevent the remaining Hub service/package switches from opening pkexec.
+    p = root / "ryoku/hub/backend/rashin.go"
+    replace_once(p, '''\tcase "on":
+\t\treturn rashinOn()
+\tcase "off":
+\t\treturn rashinOff()''',
+                 '''\tcase "on", "off":
+\t\treturn fmt.Errorf("Rashin package and service changes are disabled in the RXB X11 build")''')
+    p = root / "ryoku/hub/backend/phone.go"
+    replace_once(p, '''\tcase "on":
+\t\treturn privileged("phone", "enable")
+\tcase "off":
+\t\treturn privileged("phone", "disable")''',
+                 '''\tcase "on", "off":
+\t\treturn fmt.Errorf("phone service changes are disabled in the RXB X11 build")''')
+    p = root / "ryoku/hub/backend/cputune.go"
+    replace_once(p, '''\tif len(args) == 0 {
+\t\treturn fmt.Errorf("cpu needs caps|active|switch|set")
+\t}
+\tswitch args[0] {''',
+                 '''\tif len(args) == 0 {
+\t\treturn fmt.Errorf("cpu needs caps|active|switch|set")
+\t}
+\tif args[0] == "switch" || args[0] == "set" {
+\t\treturn fmt.Errorf("CPU, battery and idle policy changes are disabled in the RXB X11 build")
+\t}
+\tswitch args[0] {''')
+    p = root / "ryoku/hub/backend/wifi.go"
+    replace_once(p, '''\tdefer conn.Close()
+\treplaceProfiles(ssid)
+\terr = callOn''',
+                 '''\tdefer conn.Close()
+\terr = callOn''')
+    p = root / "ryoku/hub/backend/wifi_test.go"
+    replace_once(p, "func TestWifiConnectReplacesProfilesOnlyWithTheDaemonUp(t *testing.T) {",
+                 "func TestWifiConnectNeverDeletesSavedProfiles(t *testing.T) {")
+    replace_once(p, 'want := []string{"replace Cafe", "request"}',
+                 'want := []string{"request"}')
+    p = root / "ryoku/hub/quickshell/pages/RashinPage.qml"
+    replace_once(p, '''Item {
+    id: pg''',
+                 '''Item {
+    id: pg
+    enabled: false // RXB does not install/remove host packages or manage Rashin services.''')
+    p = root / "ryoku/hub/quickshell/pages/ConnectionsPage.qml"
+    replace_once(p, '''connProc.command = ["sh", "-c",
+                's=$1; shift; for u; do nmcli connection delete uuid "$u" </dev/null >/dev/null 2>&1; done; exec nmcli --ask dev wifi connect "$s"',
+                "sh", wifi.attemptSsid].concat(wifi.uuidsFor(wifi.attemptSsid));''',
+                 '''connProc.command = ["sh", "-c",
+                'exec nmcli --ask dev wifi connect "$1"',
+                "sh", wifi.attemptSsid];''')
+    p = root / "ryoku/hub/backend/rxb_privileged_actions_test.go"
+    p.write_text("""package main
+
+import (
+    "strings"
+    "testing"
+)
+
+func TestRXBBlocksRashinPackageAndPhoneServiceChangesBeforePkexec(t *testing.T) {
+    for _, action := range []struct {
+        name string
+        run  func() error
+    }{
+        {"Rashin on", func() error { return runRashin([]string{"on"}) }},
+        {"Rashin off", func() error { return runRashin([]string{"off"}) }},
+        {"phone on", func() error { return runPhone([]string{"on"}) }},
+        {"phone off", func() error { return runPhone([]string{"off"}) }},
+    } {
+        err := action.run()
+        if err == nil || !strings.Contains(err.Error(), "disabled in the RXB X11 build") && !strings.Contains(err.Error(), "disabled in the RXB X11 build") {
+            t.Fatalf("%s returned %v, want RXB fail-closed error", action.name, err)
+        }
+    }
+}
+
+func TestRXBBlocksCPUAndIdlePolicyMutations(t *testing.T) {
+    for _, args := range [][]string{
+        {"switch", "performance"},
+        {"set", "cpu", "governor", "performance"},
+        {"set", "idle", "enabled", "on"},
+    } {
+        err := runCpu(args)
+        if err == nil || !strings.Contains(err.Error(), "disabled in the RXB X11 build") {
+            t.Fatalf("runCpu(%v) = %v, want RXB fail-closed error", args, err)
         }
     }
 }
