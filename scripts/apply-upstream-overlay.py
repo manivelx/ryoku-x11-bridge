@@ -2001,24 +2001,36 @@ def patch_x11_privileged_hub_backends(root: pathlib.Path) -> None:
                  '''\tif len(args) == 0 {
 \t\treturn fmt.Errorf("gpu tune needs caps|get|set|reset")
 \t}
-\tif args[0] == "set" || args[0] == "reset" || args[0] == "preset" {
-\t\treturn fmt.Errorf("live GPU tuning is disabled in the RXB X11 build")
+\tif args[0] != "caps" && args[0] != "get" {
+\t\treturn fmt.Errorf("GPU tuning actions other than read-only caps/get are disabled in the RXB X11 build")
 \t}
 \tswitch args[0] {''')
     # GPU mode and firmware MUX changes are separate host mutation paths
     # from passthrough/tuning. Keep their status queries, deny all writes.
     p = root / "ryoku/hub/backend/gpumode.go"
-    replace_once(p, '''\tcase "set":
-\t\tif len(args) < 2 {''',
-                 '''\tcase "set":
+    replace_once(p, '''\tif len(args) == 0 {
+\t\treturn fmt.Errorf("gpu mode needs get|set")
+\t}
+\tswitch args[0] {''',
+                 '''\tif len(args) == 0 {
+\t\treturn fmt.Errorf("gpu mode needs get|set")
+\t}
+\tif args[0] != "get" {
 \t\treturn fmt.Errorf("GPU render-mode changes are disabled in the RXB X11 build")
-\t\tif len(args) < 2 {''')
+\t}
+\tswitch args[0] {''')
     p = root / "ryoku/hub/backend/gpumux.go"
-    replace_once(p, '''\tcase "set":
-\t\tif len(args) < 2 || (args[1] != "hybrid" && args[1] != "discrete") {''',
-                 '''\tcase "set":
+    replace_once(p, '''\tif len(args) == 0 {
+\t\treturn fmt.Errorf("gpu mux needs get|set")
+\t}
+\tswitch args[0] {''',
+                 '''\tif len(args) == 0 {
+\t\treturn fmt.Errorf("gpu mux needs get|set")
+\t}
+\tif args[0] != "get" {
 \t\treturn fmt.Errorf("GPU display-routing MUX changes are disabled in the RXB X11 build")
-\t\tif len(args) < 2 || (args[1] != "hybrid" && args[1] != "discrete") {''')
+\t}
+\tswitch args[0] {''')
 
     # The upstream lock page can change PAM/keyring settings and install an
     # SDDM greeter theme through pkexec. RXB must preserve the existing Orbital
@@ -2080,17 +2092,24 @@ def patch_x11_privileged_hub_backends(root: pathlib.Path) -> None:
 import (
     "os"
     "path/filepath"
+    "strings"
     "testing"
 
     wm "ryoku-wm"
 )
 
 func TestRXBBlocksGpuModeAndMuxWrites(t *testing.T) {
-    if err := runGpuMode([]string{"set", "performance"}); err == nil {
-        t.Fatal("GPU render-mode mutation unexpectedly allowed")
+    for _, args := range [][]string{{"set", "performance"}, {"future-action"}} {
+        err := runGpuMode(args)
+        if err == nil || !strings.Contains(err.Error(), "disabled in the RXB X11 build") {
+            t.Fatalf("runGpuMode(%v) = %v, want RXB fail-closed error", args, err)
+        }
     }
-    if err := runGpuMux([]string{"set", "discrete"}); err == nil {
-        t.Fatal("GPU firmware MUX mutation unexpectedly allowed")
+    for _, args := range [][]string{{"set", "discrete"}, {"future-action"}} {
+        err := runGpuMux(args)
+        if err == nil || !strings.Contains(err.Error(), "disabled in the RXB X11 build") {
+            t.Fatalf("runGpuMux(%v) = %v, want RXB fail-closed error", args, err)
+        }
     }
 }
 
@@ -2161,7 +2180,7 @@ func TestRXBGpuPassthroughDryRunRemainsAvailable(t *testing.T) {
 }
 
 func TestRXBGpuTuningMutationBlocked(t *testing.T) {
-    for _, args := range [][]string{{"set", "0000:01:00.0", "power_limit", "50"}, {"reset"}, {"preset", "performance"}} {
+    for _, args := range [][]string{{"set", "0000:01:00.0", "power_limit", "50"}, {"reset"}, {"preset", "performance"}, {"future-action"}} {
         err := runGpuTune(args)
         if err == nil || !strings.Contains(err.Error(), "disabled in the RXB X11 build") {
             t.Fatalf("runGpuTune(%v) = %v, want RXB fail-closed error", args, err)
