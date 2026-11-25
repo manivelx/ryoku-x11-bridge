@@ -70,18 +70,111 @@ for name in config generated.conf user.conf; do
   fi
 done
 
-for cmd in i3 ryoku-wm-i3 qs ryoku-shell loginctl xcompmgr flock; do
+for cmd in i3 ryoku-wm-i3 qs ryoku-shell loginctl systemctl xcompmgr flock stat sed head awk; do
   command -v "$cmd" >/dev/null 2>&1 || {
     echo "ryoku-x11-session: required command not found: $cmd" >&2
     exit 1
   }
 done
 
+# Recover only stale per-session state. A live i3 socket means the previous
+# session may still be active even if its wrapper died, so refuse to overlap it.
+stop_stale_compositor() {
+  local pid_file="$1" stale_pid stale_start current_start current_comm
+  [[ -f "$pid_file" && ! -L "$pid_file" ]] || { rm -f -- "$pid_file"; return 0; }
+  [[ "$(stat -c %h "$pid_file")" == "1" ]] || { rm -f -- "$pid_file"; return 0; }
+  read -r stale_pid stale_start < "$pid_file" || { rm -f -- "$pid_file"; return 0; }
+  if [[ "$stale_pid" =~ ^[0-9]+$ && "$stale_start" =~ ^[0-9]+$ &&
+        -r "/proc/$stale_pid/stat" && -r "/proc/$stale_pid/comm" ]]; then
+    current_comm="$(cat "/proc/$stale_pid/comm" 2>/dev/null || true)"
+    current_start="$(awk '{print $22}' "/proc/$stale_pid/stat" 2>/dev/null || true)"
+    if [[ "$current_comm" == "xcompmgr" && "$current_start" == "$stale_start" ]]; then
+      kill -TERM "$stale_pid" 2>/dev/null || true
+      for _ in $(seq 1 20); do
+        [[ -r "/proc/$stale_pid/stat" ]] || break
+        current_comm="$(cat "/proc/$stale_pid/comm" 2>/dev/null || true)"
+        current_start="$(awk '{print $22}' "/proc/$stale_pid/stat" 2>/dev/null || true)"
+        [[ "$current_comm" != "xcompmgr" || "$current_start" != "$stale_start" ]] && break
+        sleep 0.05
+      done
+      current_comm="$(cat "/proc/$stale_pid/comm" 2>/dev/null || true)"
+      current_start="$(awk '{print $22}' "/proc/$stale_pid/stat" 2>/dev/null || true)"
+      if [[ "$current_comm" == "xcompmgr" && "$current_start" == "$stale_start" ]]; then
+        kill -KILL "$stale_pid" 2>/dev/null || true
+      fi
+    fi
+  fi
+  rm -f -- "$pid_file"
+}
+
+recover_stale_sessions() {
+  local stale_env stale_name stale_id stale_socket unit stale_pid_file
+  shopt -s nullglob
+  for stale_env in "$runtime_dir"/ryoku-x11-session-*.env; do
+    stale_name="${stale_env##*/}"
+    stale_id="${stale_name#ryoku-x11-session-}"
+    stale_id="${stale_id%.env}"
+    [[ "$stale_id" == "$session_id" ]] && continue
+    [[ "$stale_id" =~ ^[A-Za-z0-9_.-]+$ ]] || {
+      echo "ryoku-x11-session: refusing an invalid stale session identifier." >&2
+      return 1
+    }
+    [[ -f "$stale_env" && ! -L "$stale_env" ]] || {
+      echo "ryoku-x11-session: refusing an unsafe stale EnvironmentFile: $stale_env" >&2
+      return 1
+    }
+    [[ "$(stat -c %h "$stale_env")" == "1" ]] || {
+      echo "ryoku-x11-session: refusing a hard-linked stale EnvironmentFile: $stale_env" >&2
+      return 1
+    }
+    stale_socket="$(sed -n 's/^I3SOCK="\(.*\)"$/\1/p' "$stale_env" | head -n1)"
+    [[ -n "$stale_socket" && "$stale_socket" == "$runtime_dir"/* ]] || {
+      echo "ryoku-x11-session: refusing a stale EnvironmentFile without a safe i3 socket path." >&2
+      return 1
+    }
+    if [[ -S "$stale_socket" ]]; then
+      echo "ryoku-x11-session: previous RXB session $stale_id still owns a live i3 socket; refusing a concurrent session." >&2
+      return 1
+    fi
+    for unit in "ryoku-shell-x11@$stale_id.service" "ryogami-x11@$stale_id.service"; do
+      if systemctl --user is-active --quiet "$unit"; then
+        systemctl --user stop "$unit" >/dev/null 2>&1 || {
+          echo "ryoku-x11-session: failed to stop stale service instance $unit." >&2
+          return 1
+        }
+      fi
+    done
+    stale_pid_file="$runtime_dir/ryoku-x11-compositor-$stale_id.pid"
+    stop_stale_compositor "$stale_pid_file"
+    rm -f -- "$stale_env" "$runtime_dir/ryoku-x11-i3-$stale_id.conf" "$runtime_dir/ryoku-x11-session-$stale_id.pid"
+  done
+  for stale_pid_file in "$runtime_dir"/ryoku-x11-compositor-*.pid; do
+    stale_name="${stale_pid_file##*/}"
+    stale_id="${stale_name#ryoku-x11-compositor-}"
+    stale_id="${stale_id%.pid}"
+    [[ "$stale_id" == "$session_id" ]] && continue
+    [[ -e "$runtime_dir/ryoku-x11-session-$stale_id.env" ]] && continue
+    stop_stale_compositor "$stale_pid_file"
+  done
+  for stale_pid_file in "$runtime_dir"/ryoku-x11-session-*.pid; do
+    stale_name="${stale_pid_file##*/}"
+    stale_id="${stale_name#ryoku-x11-session-}"
+    stale_id="${stale_id%.pid}"
+    [[ "$stale_id" == "$session_id" ]] && continue
+    [[ -e "$runtime_dir/ryoku-x11-session-$stale_id.env" ]] || rm -f -- "$stale_pid_file"
+  done
+  shopt -u nullglob
+}
+
+recover_stale_sessions || exit 1
+
 # Generate Ryoku's keybinding catalogue before i3 reads the config.
 # This writes only RXB's generated.conf; user.conf remains user-owned.
 ryoku-wm-i3 apply "$RYOKU_CONFIG_HOME/ryoku/desktop.json" >/dev/null
 
 env_file="$runtime_dir/ryoku-x11-session-$session_id.env"
+session_pid_file="$runtime_dir/ryoku-x11-session-$session_id.pid"
+compositor_pid_file="$runtime_dir/ryoku-x11-compositor-$session_id.pid"
 compositor_pid=""
 runtime_config=""
 cleanup() {
@@ -92,11 +185,17 @@ cleanup() {
     kill -TERM "$compositor_pid" 2>/dev/null || true
     wait "$compositor_pid" 2>/dev/null || true
   fi
-  rm -f "$env_file" || true
+  rm -f "$env_file" "$session_pid_file" "$compositor_pid_file" || true
   [[ -z "$runtime_config" ]] || rm -f "$runtime_config" || true
   exit "$status"
 }
 trap cleanup EXIT
+if [[ -L "$session_pid_file" ]]; then
+  echo "ryoku-x11-session: refusing a symlinked session PID file." >&2
+  exit 1
+fi
+rm -f -- "$session_pid_file" "$compositor_pid_file"
+(umask 077; printf '%s\\n' "$BASHPID" > "$session_pid_file")
 
 # RXB uses the XRender-only xcompmgr path, never Picom's GLX/NVIDIA backend.
 # This compositor belongs only to this i3 session and is stopped on exit.
@@ -104,10 +203,19 @@ trap cleanup EXIT
 # continue without compositing rather than disturbing another desktop.
 xcompmgr -n >"$runtime_dir/ryoku-x11-compositor-$session_id.log" 2>&1 &
 compositor_pid=$!
+for _ in $(seq 1 20); do
+  [[ -r "/proc/$compositor_pid/comm" && "$(cat "/proc/$compositor_pid/comm")" == "xcompmgr" ]] && break
+  sleep 0.01
+done
+compositor_start="$(awk '{print $22}' "/proc/$compositor_pid/stat" 2>/dev/null || true)"
+if [[ "$compositor_start" =~ ^[0-9]+$ ]]; then
+  (umask 077; printf '%s %s\\n' "$compositor_pid" "$compositor_start" > "$compositor_pid_file")
+fi
 sleep 0.2
 if ! kill -0 "$compositor_pid" 2>/dev/null; then
   wait "$compositor_pid" 2>/dev/null || true
   compositor_pid=""
+  rm -f -- "$compositor_pid_file"
   echo "ryoku-x11-session: xcompmgr unavailable; continuing without compositing" >&2
 fi
 
