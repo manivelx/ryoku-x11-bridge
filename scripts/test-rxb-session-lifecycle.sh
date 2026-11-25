@@ -300,7 +300,7 @@ bash "$repo_root/payload/bin/ryoku-x11-session"
 # have started. A live old i3 socket must block a new session; once it is gone,
 # the next login must stop old service instances and remove stale state.
 crash_hold_pid_file="$tmp/crash-i3.pid"
-FAKE_I3_CRASH_HOLD=1 FAKE_I3_HOLD_PID="$crash_hold_pid_file" \
+FAKE_I3_HOLD=0 FAKE_I3_CRASH_HOLD=1 FAKE_I3_HOLD_PID="$crash_hold_pid_file" \
   bash "$repo_root/payload/bin/ryoku-x11-session" >"$tmp/crash-session.log" 2>&1 &
 crash_wrapper_pid=$!
 for _ in $(seq 1 100); do
