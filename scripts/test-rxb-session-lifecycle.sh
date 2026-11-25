@@ -87,7 +87,7 @@ if [[ ${1:-} == -c ]]; then
     exit 1
   }
   if [[ ${FAKE_I3_CRASH_HOLD:-0} == 1 ]]; then
-    bash "$(command -v ryoku-x11-session-init)"
+    bash "$(command -v ryoku-x11-session-init)" || { echo "fake i3 session-init failed" >&2; exit 1; }
     printf '%s\n' "$BASHPID" > "$FAKE_I3_HOLD_PID"
     exec sleep 60
   fi
@@ -318,9 +318,18 @@ session_wrapper_pid="$(cat "$runtime/ryoku-x11-session-42.pid")"
 kill -KILL "$session_wrapper_pid" 2>/dev/null || true
 wait "$crash_wrapper_pid" 2>/dev/null || true
 
+grep -Fxq "I3SOCK=\"$TEST_I3_SOCKET\"" "$runtime/ryoku-x11-session-42.env" || {
+  echo "crash fixture did not leave the expected live i3 socket in the stale EnvironmentFile" >&2
+  cat "$tmp/crash-session.log" >&2
+  cat "$runtime/ryoku-x11-session-42.env" >&2
+  exit 1
+}
 export XDG_SESSION_ID=43
+[[ "$XDG_SESSION_ID" == "43" ]]
 if bash "$repo_root/payload/bin/ryoku-x11-session" >"$tmp/stale-live-session.log" 2>&1; then
   echo "a new RXB session was accepted while a stale session still owned a live i3 socket" >&2
+  cat "$tmp/stale-live-session.log" >&2
+  cat "$runtime/ryoku-x11-session-42.env" >&2
   exit 1
 fi
 grep -Fq "previous RXB session 42 still owns a live i3 socket" "$tmp/stale-live-session.log"
