@@ -1529,10 +1529,19 @@ func main() {""",
 		}
 	}
 	switch args[0] {
-	case "init", "pkgmgr", "inhibit", "app", "capabilities":
+	case "init", "pkgmgr", "inhibit", "capabilities":
 		// These operations are read-only or user-session scoped, not host administration.
 		// Preserve upstream argument validation.
 		return false
+	case "app":
+		// Only the explicit argv form launches a user application. Unknown
+		// app subcommands stay denied rather than becoming a mutation bypass.
+		for _, arg := range args[1:] {
+			if arg == "--" {
+				return false
+			}
+		}
+		return true
 	case "pkg":
 		switch args[1] {
 		case "installed", "installed-at", "available", "status", "why", "advice", "version", "owner", "count", "local":
@@ -1564,9 +1573,15 @@ func main() {""",
 			return true
 		}
 	case "snapshots":
-		// Only creation mutates the host. Let invalid arguments reach the
-		// upstream usage check instead of changing its documented exit code.
-		return args[1] == "create"
+		// Only the documented listing form is read-only. Creation and any
+		// rollback/restore/delete verb are denied before upstream host actions.
+		switch args[1] {
+		case "create", "rollback", "restore", "delete", "remove":
+			return true
+		default:
+			// Let invalid arguments reach the upstream usage check.
+			return false
+		}
 	case "svc":
 		if args[1] == "reconcile" {
 			return true
@@ -1695,7 +1710,6 @@ func TestRXBHostGuardBlocksSystemServiceMutationsAndPersistentActivation(t *test
 		{"users", "delete", "example", "--erase-files"},
 		{"users", "set-password", "example"},
 		{"auth", "fingerprint", "set", "sudo", "on"},
-		{"network", "wifi-backend", "get"},
 		{"network", "wifi-backend", "set", "iwd"},
 		{"time", "set-zone", "Etc/UTC"},
 		{"keymap", "set", "us"},
@@ -2205,6 +2219,11 @@ func TestRXBGpuTuningMutationBlocked(t *testing.T) {
                  '''connProc.command = ["sh", "-c",
                 'exec nmcli --ask dev wifi connect "$1"',
                 "sh", wifi.attemptSsid];''')
+    p = root / "ryoku/hub/quickshell/pages/PhoneConnectionTab.qml"
+    replace_once(p, '''                            Sw {
+                                enabled: pg.statusReady && pg.status.supported''',
+                 '''                            Sw {
+                                enabled: false // RXB leaves phone service installation and toggles disabled.''')
     p = root / "ryoku/hub/backend/rxb_privileged_actions_test.go"
     p.write_text("""package main
 
