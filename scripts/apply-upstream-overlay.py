@@ -2408,7 +2408,7 @@ func TestRXBHostGuardDefaultsToDenyUnknownAndUnapprovedMutations(t *testing.T) {
     text = p.read_text()
     text = text.replace(
         'if code := app.Execute([]string{"snapshots", "extra"}); code != ExitUsage {',
-        'if code := app.Execute([]string{"snapshots", "extra"}); code != ExitNotProvided {',
+        'if code := app.Execute([]string{"snapshots", "extra"}); code != ExitFalse {',
         1,
     )
     text = text.replace('if stdout.Len() != 0 || stderr.Len() != 0 {',
