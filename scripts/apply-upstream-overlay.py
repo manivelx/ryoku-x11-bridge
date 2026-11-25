@@ -2445,7 +2445,7 @@ esac
     p = root / "ryoku/hub/quickshell/pages/GlobalPage.qml"
     replace_once(p, "import QtQuick\n", "import QtQuick\nimport Quickshell\n")
     replace_once(p, "    property var hub\n", '    property var hub\n    readonly property bool hostTimezoneChangeAvailable: Quickshell.env("RYOKU_X11_BRIDGE") !== "1"\n')
-    replace_once(p, "            var r = GlobalSchema.rows[i];\n", "            var r = GlobalSchema.rows[i];\n            if (r.key === \\"timezone\\" && !pg.hostTimezoneChangeAvailable) continue;\n")
+    replace_once(p, "            var r = GlobalSchema.rows[i];\n", '            var r = GlobalSchema.rows[i];\n            if (r.key === "timezone" && !pg.hostTimezoneChangeAvailable) continue;\n')
     replace_once(p, "        if (!z) return;\n", "        if (!pg.hostTimezoneChangeAvailable || !z) return;\n")
 
     p = root / "ryoku/hub/quickshell/pages/ConnectionsPage.qml"
