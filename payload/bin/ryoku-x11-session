@@ -127,7 +127,7 @@ recover_stale_sessions() {
       echo "ryoku-x11-session: refusing a hard-linked stale EnvironmentFile: $stale_env" >&2
       return 1
     }
-    stale_socket="$(sed -n 's/^I3SOCK="\(.*\)"$/\1/p' "$stale_env" | head -n1)"
+    stale_socket="$(sed -n 's/^I3SOCK="\([^"]*\)"$/\1/p' "$stale_env" | head -n1)"
     [[ -n "$stale_socket" && "$stale_socket" == "$runtime_dir"/* ]] || {
       echo "ryoku-x11-session: refusing a stale EnvironmentFile without a safe i3 socket path." >&2
       return 1
@@ -195,7 +195,7 @@ if [[ -L "$session_pid_file" ]]; then
   exit 1
 fi
 rm -f -- "$session_pid_file" "$compositor_pid_file"
-(umask 077; printf '%s\\n' "$BASHPID" > "$session_pid_file")
+(umask 077; printf '%s\n' "$BASHPID" > "$session_pid_file")
 
 # RXB uses the XRender-only xcompmgr path, never Picom's GLX/NVIDIA backend.
 # This compositor belongs only to this i3 session and is stopped on exit.
@@ -209,7 +209,7 @@ for _ in $(seq 1 20); do
 done
 compositor_start="$(awk '{print $22}' "/proc/$compositor_pid/stat" 2>/dev/null || true)"
 if [[ "$compositor_start" =~ ^[0-9]+$ ]]; then
-  (umask 077; printf '%s %s\\n' "$compositor_pid" "$compositor_start" > "$compositor_pid_file")
+  (umask 077; printf '%s %s\n' "$compositor_pid" "$compositor_start" > "$compositor_pid_file")
 fi
 sleep 0.2
 if ! kill -0 "$compositor_pid" 2>/dev/null; then
