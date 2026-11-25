@@ -201,10 +201,6 @@ PY
   done
   [[ -S "$TEST_I3_SOCKET" ]]
 }
-start_i3_socket_server && break
-  sleep 0.02
-done
-[[ -S "$TEST_I3_SOCKET" ]]
 
 bash "$repo_root/payload/bin/ryoku-x11-session"
 
@@ -225,6 +221,7 @@ if kill -0 "$xcompmgr_pid" 2>/dev/null; then
   echo "RXB wrapper left its session-owned xcompmgr running after exit" >&2
   exit 1
 fi
+xcompmgr_pid=""
 ! grep -Fq 'import-environment' "$TEST_SYSTEMCTL_LOG"
 grep -Fqx 'show-session 42 --property=User --value' "$TEST_LOGINCTL_LOG"
 grep -Fqx 'show-session 42 --property=Type --value' "$TEST_LOGINCTL_LOG"
@@ -344,8 +341,11 @@ bash "$repo_root/payload/bin/ryoku-x11-session"
 grep -Fq -- '--user stop ryoku-shell-x11@42.service' "$TEST_SYSTEMCTL_LOG"
 grep -Fq -- '--user stop ryogami-x11@42.service' "$TEST_SYSTEMCTL_LOG"
 if kill -0 "$old_compositor_pid" 2>/dev/null; then
-  echo "stale-session recovery left the old xcompmgr process running" >&2
-  exit 1
+  old_compositor_state="$(ps -o stat= -p "$old_compositor_pid" 2>/dev/null || true)"
+  [[ "$old_compositor_state" == Z* ]] || {
+    echo "stale-session recovery left the old xcompmgr process running" >&2
+    exit 1
+  }
 fi
 xcompmgr_pid=""
 
