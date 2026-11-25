@@ -62,6 +62,29 @@ else
 fi
 export RYOKU_X11_SESSION_LOCKED=1
 
+# systemd/logind supports one graphical session per user. An RXB-only flock
+# does not protect a still-running BSPWM/Wayland login, so refuse before
+# creating RXB config, runtime files, or starting any user services.
+current_uid="$(id -u)"
+graphical_sessions="$(loginctl list-sessions --no-legend --no-pager 2>/dev/null)" || {
+  echo "ryoku-x11-session: cannot enumerate logind sessions; refusing to risk overlapping another desktop." >&2
+  exit 1
+}
+while read -r candidate_session candidate_uid _; do
+  [[ -n "${candidate_session:-}" && "$candidate_session" != "$session_id" ]] || continue
+  [[ "$candidate_uid" == "$current_uid" ]] || continue
+  [[ "$candidate_session" =~ ^[A-Za-z0-9_.-]+$ ]] || continue
+  candidate_type="$(loginctl show-session "$candidate_session" --property=Type --value 2>/dev/null || true)"
+  candidate_class="$(loginctl show-session "$candidate_session" --property=Class --value 2>/dev/null || true)"
+  candidate_state="$(loginctl show-session "$candidate_session" --property=State --value 2>/dev/null || true)"
+  if [[ "$candidate_class" == user &&
+        ( "$candidate_type" == x11 || "$candidate_type" == wayland ) &&
+        ( "$candidate_state" == active || "$candidate_state" == online ) ]]; then
+    echo "ryoku-x11-session: another graphical session $candidate_session ($candidate_type, $candidate_state) is still present for this user; log out of it before starting RXB." >&2
+    exit 1
+  fi
+done <<< "$graphical_sessions"
+
 # Do not let a stale socket from a previous i3/Sway session steer this one.
 unset SWAYSOCK I3SOCK
 
