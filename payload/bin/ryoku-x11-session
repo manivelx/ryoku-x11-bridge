@@ -38,7 +38,7 @@ command -v flock >/dev/null 2>&1 || { echo "ryoku-x11-session: flock is required
 if [[ ${1:-} == --rxb-lock-held ]]; then
   shift
 else
-  if ! (umask 077; flock -n "$lock_file" bash "$0" --rxb-lock-held); then
+  if ! (umask 077; flock -n -o "$lock_file" bash "$0" --rxb-lock-held); then
     # The lock is intentionally held for the lifetime of i3. If its wrapper
     # was killed but i3 survived, report the live socket rather than hiding
     # the actual conflict behind the generic per-user lock message.

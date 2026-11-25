@@ -54,7 +54,7 @@ for unit in ryoku-shell-x11@.service ryogami-x11@.service; do
     exit 1
   fi
 done
-if ! grep -Fq 'flock -n "$lock_file"' "$root/payload/bin/ryoku-x11-session"; then
+if ! grep -Fq 'flock -n -o "$lock_file"' "$root/payload/bin/ryoku-x11-session"; then
   echo "X11 session wrapper must prevent concurrent RXB graphical sessions." >&2
   exit 1
 fi
