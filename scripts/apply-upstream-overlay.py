@@ -1885,7 +1885,7 @@ func TestRXBBlocksServiceReconciliation(t *testing.T) {
         "TestSnapshotsUnavailableInSnapshotLookBoot",
     ):
         old = f"func {test_name}(t *testing.T) {{"
-        new = old + '\\n\\tt.Skip("RXB disables host snapshot creation")'
+        new = old + '\n\tt.Skip("RXB disables host snapshot creation")'
         replace_once(p, old, new)
 
 def patch_x11_privileged_hub_backends(root: pathlib.Path) -> None:
