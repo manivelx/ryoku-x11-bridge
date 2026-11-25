@@ -197,7 +197,8 @@ if [[ -L "$session_pid_file" ]]; then
   exit 1
 fi
 rm -f -- "$session_pid_file" "$compositor_pid_file"
-(umask 077; printf '%s\n' "$BASHPID" > "$session_pid_file")
+session_wrapper_pid="$BASHPID"
+(umask 077; printf '%s\n' "$session_wrapper_pid" > "$session_pid_file")
 
 # RXB uses the XRender-only xcompmgr path, never Picom's GLX/NVIDIA backend.
 # This compositor belongs only to this i3 session and is stopped on exit.
