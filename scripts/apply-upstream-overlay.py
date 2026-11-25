@@ -2428,7 +2428,7 @@ func TestRXBHostGuardDefaultsToDenyUnknownAndUnapprovedMutations(t *testing.T) {
         text = text.replace(old, old + '\n\tt.Skip("RXB X11 build intentionally disables host snapshot creation")', 1)
     p.write_text(text)
 
-
+    p = root / "system/hardware/network/ryoku-wifi-backend"
     replace_once(p, "set -u\n", """set -u
 
 if [[ "$#" -eq 0 ]]; then
