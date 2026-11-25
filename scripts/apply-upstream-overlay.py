@@ -1823,6 +1823,92 @@ func TestRXBBlocksServiceReconciliation(t *testing.T) {
 }
 """)
 
+def patch_x11_privileged_hub_backends(root: pathlib.Path) -> None:
+    # RXB is a session bridge, not a host administrator. Keep read-only GPU
+    # discovery and dry-run plans, but block every GPU operation that would
+    # escalate or write host configuration/sysfs.
+    p = root / "ryoku/hub/backend/gpuapply.go"
+    replace_once(p, '''\tfor _, a := range args[1:] {
+\t\tif a == "--dry-run" {
+\t\t\tdryRun = true
+\t\t}
+\t}
+\tif action == "enable" {''',
+                 '''\tfor _, a := range args[1:] {
+\t\tif a == "--dry-run" {
+\t\t\tdryRun = true
+\t\t}
+\t}
+\tif !dryRun {
+\t\treturn fmt.Errorf("GPU passthrough host changes are disabled in the RXB X11 build")
+\t}
+\tif action == "enable" {''')
+    p = root / "ryoku/hub/backend/gputune.go"
+    replace_once(p, '''\tif len(args) == 0 {
+\t\treturn fmt.Errorf("gpu tune needs caps|get|set|reset")
+\t}
+\tswitch args[0] {''',
+                 '''\tif len(args) == 0 {
+\t\treturn fmt.Errorf("gpu tune needs caps|get|set|reset")
+\t}
+\tif args[0] == "set" || args[0] == "reset" || args[0] == "preset" {
+\t\treturn fmt.Errorf("live GPU tuning is disabled in the RXB X11 build")
+\t}
+\tswitch args[0] {''')
+    # Hide the corresponding Hub controls as well as enforcing backend guards;
+    # no UI action should reach pkexec in an RXB session.
+    p = root / "ryoku/hub/quickshell/pages/GpuPage.qml"
+    replace_once(p, '''                SettingCard {
+                    width: gfxCol.colWidth
+                    title: I18n.tr("TUNING · THIS SESSION")''',
+                 '''                SettingCard {
+                    width: gfxCol.colWidth
+                    visible: false // RXB keeps host GPU tuning read-only.
+                    title: I18n.tr("TUNING · THIS SESSION")''')
+    replace_once(p, '''                SettingCard {
+                    width: gfxCol.colWidth
+                    title: I18n.tr("GPU PASSTHROUGH · ADVANCED")''',
+                 '''                SettingCard {
+                    width: gfxCol.colWidth
+                    visible: false // RXB never changes host passthrough or kernel configuration.
+                    title: I18n.tr("GPU PASSTHROUGH · ADVANCED")''')
+
+    p = root / "ryoku/hub/backend/gpuapply_rxb_test.go"
+    p.write_text("""package main
+
+import (
+    "strings"
+    "testing"
+)
+
+func TestRXBGpuPassthroughMutationBlockedBeforePrivilegeEscalation(t *testing.T) {
+    for _, args := range [][]string{{"enable"}, {"disable"}} {
+        err := runGpuApply(args)
+        if err == nil || !strings.Contains(err.Error(), "disabled in the RXB X11 build") {
+            t.Fatalf("runGpuApply(%v) = %v, want RXB fail-closed error", args, err)
+        }
+    }
+}
+
+func TestRXBGpuPassthroughDryRunRemainsAvailable(t *testing.T) {
+    // Dry-run may report a plan, but must never apply it. The test uses a
+    // temporary etc root and only asserts that no host files are created.
+    t.Setenv("RYOKU_ETC_ROOT", t.TempDir())
+    if err := applyPlan("disable", "rxb-test-user", "/usr/bin/ryoku-hub", true); err != nil {
+        t.Fatalf("read-only dry-run failed: %v", err)
+    }
+}
+
+func TestRXBGpuTuningMutationBlocked(t *testing.T) {
+    for _, args := range [][]string{{"set", "0000:01:00.0", "power_limit", "50"}, {"reset"}, {"preset", "performance"}} {
+        err := runGpuTune(args)
+        if err == nil || !strings.Contains(err.Error(), "disabled in the RXB X11 build") {
+            t.Fatalf("runGpuTune(%v) = %v, want RXB fail-closed error", args, err)
+        }
+    }
+}
+""")
+
 def patch_quickshell_config_isolation(root: pathlib.Path) -> None:
     # Keep all Ryoku-managed user configuration in a session-owned subtree.
     # Standard XDG_CONFIG_HOME remains unchanged for applications launched by
@@ -2485,6 +2571,7 @@ def main() -> int:
     patch_x11_login1_graphical_session(root)
     patch_ryogami_package(root)
     patch_x11_package_safety(root)
+    patch_x11_privileged_hub_backends(root)
     patch_quickshell_config_isolation(root)
     print(f"RXB overlay applied to pinned Ryoku {PIN}")
     print("Changed: provider/session discovery, QML i3 bridge, X11 panel/taskbar/capture/clipboard/lock adapters, and non-destructive package policy")
