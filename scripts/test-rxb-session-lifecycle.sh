@@ -4,8 +4,10 @@ set -euo pipefail
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 tmp="$(mktemp -d)"
 socket_pid=""
+xcompmgr_pid=""
 cleanup() {
   if [[ -n "$socket_pid" ]]; then kill "$socket_pid" >/dev/null 2>&1 || true; fi
+  if [[ -n "$xcompmgr_pid" ]]; then kill -TERM "$xcompmgr_pid" >/dev/null 2>&1 || true; fi
   rm -rf "$tmp"
 }
 trap cleanup EXIT
@@ -17,7 +19,7 @@ fakebin="$tmp/bin"
 seed="$tmp/seed"
 mkdir -p "$home" "$config_home/quickshell" "$runtime" "$fakebin" "$seed"
 chmod 700 "$runtime"
-printf "stale environment\n" > "$runtime/ryoku-x11-session-42.env"
+printf 'I3SOCK="%s"\n' "$runtime/stale-session-socket" > "$runtime/ryoku-x11-session-42.env"
 chmod 644 "$runtime/ryoku-x11-session-42.env"
 export HOME="$home"
 export XDG_CONFIG_HOME="$config_home"
@@ -50,12 +52,16 @@ cat > "$fakebin/loginctl" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 printf '%s\n' "$*" >> "$TEST_LOGINCTL_LOG"
-case "$*" in
-  "show-session 42 --property=User --value") printf '%s\n' "${FAKE_LOGINCTL_USER:-$(id -u)}" ;;
-  "show-session 42 --property=Type --value") printf '%s\n' "${FAKE_LOGINCTL_TYPE:-x11}" ;;
-  "show-session 42 --property=Class --value") printf '%s\n' "${FAKE_LOGINCTL_CLASS:-user}" ;;
-  *) echo "unexpected loginctl request: $*" >&2; exit 2 ;;
-esac
+if [[ "$*" == "show-session $XDG_SESSION_ID --property=User --value" ]]; then
+  printf '%s\n' "${FAKE_LOGINCTL_USER:-$(id -u)}"
+elif [[ "$*" == "show-session $XDG_SESSION_ID --property=Type --value" ]]; then
+  printf '%s\n' "${FAKE_LOGINCTL_TYPE:-x11}"
+elif [[ "$*" == "show-session $XDG_SESSION_ID --property=Class --value" ]]; then
+  printf '%s\n' "${FAKE_LOGINCTL_CLASS:-user}"
+else
+  echo "unexpected loginctl request: $*" >&2
+  exit 2
+fi
 SH
 chmod +x "$fakebin/loginctl"
 
@@ -76,10 +82,15 @@ if [[ ${1:-} == -c ]]; then
     printf '%s\n' "$BASHPID" > "$FAKE_I3_HOLD_PID"
     exec sleep 60
   fi
-  [[ ${2:-} == "$XDG_RUNTIME_DIR/ryoku-x11-i3-42.conf" ]] || {
+  [[ ${2:-} == "$XDG_RUNTIME_DIR/ryoku-x11-i3-$XDG_SESSION_ID.conf" ]] || {
     echo "i3 must use the session-only runtime config copy" >&2
     exit 1
   }
+  if [[ ${FAKE_I3_CRASH_HOLD:-0} == 1 ]]; then
+    bash "$(command -v ryoku-x11-session-init)"
+    printf '%s\n' "$BASHPID" > "$FAKE_I3_HOLD_PID"
+    exec sleep 60
+  fi
   grep -Fq "$XDG_CONFIG_HOME/ryoku-x11/generated.conf" "$2" || {
     echo "runtime i3 config did not resolve generated.conf through XDG_CONFIG_HOME" >&2
     exit 1
@@ -137,8 +148,8 @@ cat > "$fakebin/systemctl" <<'SH'
 set -euo pipefail
 printf '%s\n' "$*" >> "$TEST_SYSTEMCTL_LOG"
 case "$*" in
-  *"start ryoku-shell-x11@42.service ryogami-x11@42.service"*)
-    env_file="$XDG_RUNTIME_DIR/ryoku-x11-session-42.env"
+  *"start ryoku-shell-x11@${XDG_SESSION_ID}.service ryogami-x11@${XDG_SESSION_ID}.service"*)
+    env_file="$XDG_RUNTIME_DIR/ryoku-x11-session-${XDG_SESSION_ID}.env"
     [[ -f "$env_file" ]] || { echo "session EnvironmentFile missing" >&2; exit 1; }
     [[ "$(stat -c %a "$env_file")" == "600" ]] || {
       echo "session EnvironmentFile must be mode 0600" >&2
@@ -157,7 +168,7 @@ cat > "$fakebin/xcompmgr" <<'SH'
 set -euo pipefail
 printf 'started %s %s\n' "$BASHPID" "$*" >> "$TEST_XCOMPMGR_LOG"
 printf '%s\n' "$BASHPID" > "$TEST_XCOMPMGR_PID"
-exec sleep 60
+exec python3 -c 'import ctypes,time; ctypes.CDLL(None).prctl(15, b"xcompmgr", 0, 0, 0); time.sleep(60)'
 SH
 chmod +x "$fakebin/xcompmgr"
 
@@ -169,7 +180,8 @@ SH
 done
 chmod +x "$fakebin"/*
 
-python3 - "$TEST_I3_SOCKET" "$TEST_STALE_I3_SOCKET" <<'PY' &
+start_i3_socket_server() {
+  python3 - "$TEST_I3_SOCKET" "$TEST_STALE_I3_SOCKET" <<'PY' &
 import select, socket, sys
 servers = []
 for path in sys.argv[1:]:
@@ -182,9 +194,14 @@ while True:
         conn, _ = server.accept()
         conn.close()
 PY
-socket_pid=$!
-for _ in $(seq 1 50); do
-  [[ -S "$TEST_I3_SOCKET" ]] && break
+  socket_pid=$!
+  for _ in $(seq 1 50); do
+    [[ -S "$TEST_I3_SOCKET" ]] && break
+    sleep 0.02
+  done
+  [[ -S "$TEST_I3_SOCKET" ]]
+}
+start_i3_socket_server && break
   sleep 0.02
 done
 [[ -S "$TEST_I3_SOCKET" ]]
@@ -278,5 +295,58 @@ kill -TERM "$(cat "$hold_pid_file")" 2>/dev/null || true
 wait "$held_wrapper_pid" 2>/dev/null || true
 # The lock file may remain, but flock must release it after a killed session.
 bash "$repo_root/payload/bin/ryoku-x11-session"
+
+# Simulate a wrapper SIGKILL after the X11 session and per-session services
+# have started. A live old i3 socket must block a new session; once it is gone,
+# the next login must stop old service instances and remove stale state.
+crash_hold_pid_file="$tmp/crash-i3.pid"
+FAKE_I3_CRASH_HOLD=1 FAKE_I3_HOLD_PID="$crash_hold_pid_file" \
+  bash "$repo_root/payload/bin/ryoku-x11-session" >"$tmp/crash-session.log" 2>&1 &
+crash_wrapper_pid=$!
+for _ in $(seq 1 100); do
+  [[ -s "$crash_hold_pid_file" && -f "$runtime/ryoku-x11-session-42.env" ]] && break
+  kill -0 "$crash_wrapper_pid" 2>/dev/null || break
+  sleep 0.05
+done
+[[ -s "$crash_hold_pid_file" && -f "$runtime/ryoku-x11-session-42.env" ]] || {
+  cat "$tmp/crash-session.log" >&2
+  echo "crash simulation did not reach the running X11 session" >&2
+  exit 1
+}
+crash_i3_pid="$(cat "$crash_hold_pid_file")"
+old_compositor_pid="$(cat "$TEST_XCOMPMGR_PID")"
+xcompmgr_pid="$old_compositor_pid"
+session_wrapper_pid="$(cat "$runtime/ryoku-x11-session-42.pid")"
+kill -KILL "$session_wrapper_pid" 2>/dev/null || true
+wait "$crash_wrapper_pid" 2>/dev/null || true
+
+export XDG_SESSION_ID=43
+if bash "$repo_root/payload/bin/ryoku-x11-session" >"$tmp/stale-live-session.log" 2>&1; then
+  echo "a new RXB session was accepted while a stale session still owned a live i3 socket" >&2
+  exit 1
+fi
+grep -Fq "previous RXB session 42 still owns a live i3 socket" "$tmp/stale-live-session.log"
+
+kill -TERM "$crash_i3_pid" 2>/dev/null || true
+kill "$socket_pid" >/dev/null 2>&1 || true
+wait "$socket_pid" 2>/dev/null || true
+socket_pid=""
+rm -f -- "$TEST_I3_SOCKET" "$TEST_STALE_I3_SOCKET"
+TEST_I3_SOCKET="$runtime/i3-ipc-43.sock"
+TEST_STALE_I3_SOCKET="$runtime/stale-i3-ipc-43.sock"
+export TEST_I3_SOCKET TEST_STALE_I3_SOCKET
+start_i3_socket_server
+
+bash "$repo_root/payload/bin/ryoku-x11-session"
+[[ ! -e "$runtime/ryoku-x11-session-42.env" ]]
+[[ ! -e "$runtime/ryoku-x11-session-42.pid" ]]
+[[ ! -e "$runtime/ryoku-x11-compositor-42.pid" ]]
+grep -Fq -- '--user stop ryoku-shell-x11@42.service' "$TEST_SYSTEMCTL_LOG"
+grep -Fq -- '--user stop ryogami-x11@42.service' "$TEST_SYSTEMCTL_LOG"
+if kill -0 "$old_compositor_pid" 2>/dev/null; then
+  echo "stale-session recovery left the old xcompmgr process running" >&2
+  exit 1
+fi
+xcompmgr_pid=""
 
 echo "RXB X11 session lifecycle and logind isolation tests passed."
