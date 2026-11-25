@@ -201,6 +201,7 @@ PY
   done
   [[ -S "$TEST_I3_SOCKET" ]]
 }
+start_i3_socket_server
 
 bash "$repo_root/payload/bin/ryoku-x11-session"
 
