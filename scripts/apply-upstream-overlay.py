@@ -1541,7 +1541,8 @@ func main() {""",
 	case "phone":
 		return args[1] != "status"
 	case "power":
-		return args[1] != "capabilities" && args[1] != "reboot" && args[1] != "poweroff"
+		return args[1] != "capabilities" && args[1] != "reboot" && args[1] != "poweroff" &&
+			!(args[1] == "profile" && len(args) >= 3 && args[2] == "get")
 	case "snapshots":
 		return len(args) > 1 && args[1] == "create"
 	case "transient":
@@ -1659,6 +1660,7 @@ func TestRXBHostGuardBlocksSystemServiceMutationsAndPersistentActivation(t *test
 		{"keymap", "set", "us"},
 		{"phone", "enable"},
 		{"power", "profile", "performance"},
+		{"power", "profile", "set", "balanced"},
 		{"snapshots", "create", "before-test"},
 		{"transient", "start", "example"},
 	}
@@ -1676,6 +1678,7 @@ func TestRXBHostGuardKeepsReadOnlyAndSessionScopedActions(t *testing.T) {
 		{"svc", "--system", "is-active", "NetworkManager"},
 		{"power", "reboot"},
 		{"power", "capabilities"},
+		{"power", "profile", "get", "balanced"},
 		{"pkg", "installed", "quickshell"},
 		{"users", "list"},
 		{"users", "caps"},
@@ -1698,6 +1701,7 @@ func TestRXBHostMutationsAreBlockedBeforeHostRunner(t *testing.T) {
 		{"svc", "--user", "enable", "ryoku-shell"},
 		{"session", "start"},
 		{"power", "suspend"},
+		{"snapshots", "create", "before-test"},
 	}
 	for _, args := range blockedCases {
 		runner := &fakeRunner{}
@@ -1868,6 +1872,21 @@ func TestRXBBlocksServiceReconciliation(t *testing.T) {
 	}
 }
 """)
+
+    # Snapshot creation is a host-wide snapper mutation. Keep normal
+    # discovery/label tests, but skip tests whose premise is that RXB may invoke
+    # the privileged snapshot writer.
+    p = root / "ryoku/cli/internal/host/snapshots_test.go"
+    for test_name in (
+        "TestSnapshotCreateRunsNumberedSnapshotAndCleanup",
+        "TestSnapshotCreateStopsAfterSnapperFailure",
+        "TestSnapshotCreateRequiresToolAndRootConfig",
+        "TestSnapshotCreateKeepsUnsupportedReason",
+        "TestSnapshotsUnavailableInSnapshotLookBoot",
+    ):
+        old = f"func {test_name}(t *testing.T) {{"
+        new = old + '\\n\\tt.Skip("RXB disables host snapshot creation")'
+        replace_once(p, old, new)
 
 def patch_x11_privileged_hub_backends(root: pathlib.Path) -> None:
     # RXB is a session bridge, not a host administrator. Keep read-only GPU
