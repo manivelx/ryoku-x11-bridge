@@ -298,7 +298,6 @@ if grep -Eq 'systemctl (suspend|hibernate)|loginctl (suspend|hibernate)' "$root/
 fi
 
 echo "RXB package safety checks passed: no global environment, SDDM, lockscreen, boot, GPU policy, or unguarded suspend changes."
- <<<"$base_list" | head -n1)"
 [[ -n "$wifi_archive_path" ]] || { echo "RXB package safety: missing ryoku-wifi-backend helper." >&2; exit 1; }
 (
   wifi_script="$(mktemp)"
