@@ -1,6 +1,6 @@
 # RXB installation and rollback
 
-> **Controlled PC test candidate — explicit approval required.** This guide is for a one-time, supervised installation test on the stated CachyOS target only after the owner has reviewed the exact CI artifact and approved installation. It is not a daily-use or general release. Disposable Arch package, Xvfb/i3, real PAM/Xephyr and rollback tests have passed; physical input/VT/lock behavior, multi-monitor coverage, and GT 740 / NVIDIA 470 / Picom rendering remain unverified. Keep the existing BSPWM session, SDDM Orbital theme, Quickshell lockscreen, Picom, NVIDIA driver, kernel, EDID and boot configuration unchanged.
+> **Pre-release controlled-test procedure — current installation approval is pending.** Use this guide only after the pinned-upstream integration workflow passes on the current `development` head, a fresh bundle is built from that exact head, its SHA256SUMS verifies, and the owner explicitly approves the supervised test. Earlier disposable Arch/Xvfb/PAM/rollback results do not validate later commits. This is not a daily-use or general release. Physical input/VT/lock behavior, multi-monitor coverage, and GT 740 / NVIDIA 470 / Picom rendering remain unverified. Keep the existing BSPWM session, SDDM Orbital theme, Quickshell lockscreen, Picom, NVIDIA driver, kernel, EDID and boot configuration unchanged.
 
 RXB is distributed as an Arch package bundle built and tested against the pinned Ryoku source. The installer does not enable services globally or change the current desktop session.
 
