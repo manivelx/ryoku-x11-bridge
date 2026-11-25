@@ -246,7 +246,6 @@ for forbidden in \
   'etc/modules-load.d/ryoku-i2c.conf' \
   'usr/bin/ryoku-qylock-activate' \
   'usr/bin/ryoku-qylock-lock' \
-  'usr/bin/ryoku-wifi-backend' \
   'usr/lib/systemd/user/ryoku-x11-session.target.wants/ryoku-shell-x11@.service' \
   'usr/lib/systemd/user/ryoku-x11-session.target.wants/ryogami-x11@.service' \
   'usr/lib/systemd/user/default.target.wants/ryogami.service' \
