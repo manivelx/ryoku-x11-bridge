@@ -1920,6 +1920,119 @@ def patch_x11_privileged_hub_backends(root: pathlib.Path) -> None:
 \t\treturn fmt.Errorf("live GPU tuning is disabled in the RXB X11 build")
 \t}
 \tswitch args[0] {''')
+    # GPU mode and firmware MUX changes are separate host mutation paths
+    # from passthrough/tuning. Keep their status queries, deny all writes.
+    p = root / "ryoku/hub/backend/gpumode.go"
+    replace_once(p, '''\tcase "set":
+\t\tif len(args) < 2 {''',
+                 '''\tcase "set":
+\t\treturn fmt.Errorf("GPU render-mode changes are disabled in the RXB X11 build")
+\t\tif len(args) < 2 {''')
+    p = root / "ryoku/hub/backend/gpumux.go"
+    replace_once(p, '''\tcase "set":
+\t\tif len(args) < 2 || (args[1] != "hybrid" && args[1] != "discrete") {''',
+                 '''\tcase "set":
+\t\treturn fmt.Errorf("GPU display-routing MUX changes are disabled in the RXB X11 build")
+\t\tif len(args) < 2 || (args[1] != "hybrid" && args[1] != "discrete") {''')
+
+    # The upstream lock page can change PAM/keyring settings and install an
+    # SDDM greeter theme through pkexec. RXB must preserve the existing Orbital
+    # greeter and Quickshell X11 lockscreen, so deny both command entry points.
+    p = root / "ryoku/hub/backend/lock.go"
+    replace_once(p, '''\tcase "set":
+\t\tif len(args) < 2 {
+\t\t\treturn fmt.Errorf("lock set needs a slug")
+\t\t}
+\t\treturn setLockSkin(args[1])
+\tcase "apply-greeter":
+\t\tif len(args) < 3 {
+\t\t\treturn fmt.Errorf("lock apply-greeter needs a slug and true or false")
+\t\t}
+\t\tclock24h, err := strconv.ParseBool(args[2])
+\t\tif err != nil {
+\t\t\treturn fmt.Errorf("invalid clock format %q", args[2])
+\t\t}
+\t\treturn applyGreeter(args[1], clock24h)''',
+                 '''\tcase "set", "apply-greeter":
+\t\treturn fmt.Errorf("host lockscreen, PAM and SDDM changes are disabled in the RXB X11 build")''')
+
+    # Display-layout changes must not publish a new SDDM greeter primary-output
+    # hint into /var/lib/ryoku on the host.
+    p = root / "ryoku/hub/backend/outputs.go"
+    replace_once(p, '''func publishGreeterPrimary(layout []wm.OutputLayout) {
+\t// The page's''',
+                 '''func publishGreeterPrimary(layout []wm.OutputLayout) {
+\tif os.Getenv("RYOKU_X11_BRIDGE") == "1" {
+\t\treturn
+\t}
+\t// The page's''')
+
+    # Keep the settings visible but disable every control that can mutate
+    # GPU mode, CPU host profiles, PAM or SDDM in the RXB build.
+    p = root / "ryoku/hub/quickshell/pages/GpuPage.qml"
+    replace_once(p, '''                SettingCard {
+                    width: gfxCol.colWidth
+                    title: I18n.tr("RYOKU RENDERS ON")''',
+                 '''                SettingCard {
+                    width: gfxCol.colWidth
+                    visible: false // RXB keeps GPU mode and firmware MUX read-only.
+                    title: I18n.tr("RYOKU RENDERS ON")''')
+    replace_once(p, '''                SettingCard {
+                    width: gfxCol.colWidth
+                    title: I18n.tr("CPU POWER PROFILES")''',
+                 '''                SettingCard {
+                    width: gfxCol.colWidth
+                    visible: false // RXB does not apply host power profiles.
+                    title: I18n.tr("CPU POWER PROFILES")''')
+    p = root / "ryoku/hub/quickshell/pages/LockscreenPage.qml"
+    replace_once(p, '''Item {
+    id: pg''',
+                 '''Item {
+    id: pg
+    enabled: false // RXB preserves the existing SDDM Orbital and Quickshell X11 lockscreen.''')
+
+    p = root / "ryoku/hub/backend/rxb_privileged_host_test.go"
+    p.write_text("""package main
+
+import (
+    "os"
+    "path/filepath"
+    "testing"
+
+    wm "ryoku-wm"
+)
+
+func TestRXBBlocksGpuModeAndMuxWrites(t *testing.T) {
+    if err := runGpuMode([]string{"set", "performance"}); err == nil {
+        t.Fatal("GPU render-mode mutation unexpectedly allowed")
+    }
+    if err := runGpuMux([]string{"set", "discrete"}); err == nil {
+        t.Fatal("GPU firmware MUX mutation unexpectedly allowed")
+    }
+}
+
+func TestRXBBlocksLockscreenAndGreeterMutations(t *testing.T) {
+    for _, args := range [][]string{
+        {"set", "clockwork/orbital"},
+        {"apply-greeter", "clockwork/orbital", "true"},
+    } {
+        if err := runLock(args); err == nil {
+            t.Fatalf("runLock(%v) unexpectedly allowed a host lockscreen/SDDM mutation", args)
+        }
+    }
+}
+
+func TestRXBDoesNotPublishGreeterPrimaryOutput(t *testing.T) {
+    t.Setenv("RYOKU_X11_BRIDGE", "1")
+    path := filepath.Join(t.TempDir(), "greeter-primary")
+    t.Setenv("RYOKU_GREETER_PRIMARY_FILE", path)
+    publishGreeterPrimary([]wm.OutputLayout{{Name: "DP-1", Enabled: true, X: 0, Y: 0}})
+    if _, err := os.Stat(path); !os.IsNotExist(err) {
+        t.Fatalf("RXB wrote SDDM greeter primary-output state: stat err = %v", err)
+    }
+}
+""")
+
     # Hide the corresponding Hub controls as well as enforcing backend guards;
     # no UI action should reach pkexec in an RXB session.
     p = root / "ryoku/hub/quickshell/pages/GpuPage.qml"
