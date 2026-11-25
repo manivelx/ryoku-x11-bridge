@@ -154,8 +154,22 @@ for desktop in install-app.desktop compress-video.desktop ryoku-nvim.desktop ryo
   fi
 done
 
-wifi_archive_path="$(grep -E '(^|/)usr/bin/ryoku-wifi-backend
-
+wifi_archive_path="$(printf '%s\n' "$base_list" | grep -E '(^|/)usr/bin/ryoku-wifi-backend$' | head -n1)"
+[[ -n "$wifi_archive_path" ]] || { echo "RXB package safety: missing ryoku-wifi-backend helper." >&2; exit 1; }
+(
+  wifi_script="$(mktemp)"
+  trap 'rm -f "$wifi_script"' EXIT
+  bsdtar -xOf "$base_pkg" "$wifi_archive_path" > "$wifi_script"
+  chmod 0700 "$wifi_script"
+  set +e
+  RYOKU_X11_BRIDGE=1 bash "$wifi_script" set iwd >/dev/null 2>&1
+  wifi_status=$?
+  set -e
+  [[ "$wifi_status" -eq 64 ]] || {
+    echo "RXB package safety: Wi-Fi backend mutation did not fail closed with exit 64." >&2
+    exit 1
+  }
+)
 if grep -R -nF 'GSK_RENDERER=gl' "$root/payload" "$root/release/packages/ryoku-desktop-i3" 2>/dev/null; then
   echo "RXB package safety: forced GTK GL renderer is not allowed without GT740 hardware validation" >&2
   exit 1
