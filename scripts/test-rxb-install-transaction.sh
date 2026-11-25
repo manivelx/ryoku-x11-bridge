@@ -464,12 +464,24 @@ interrupt_pacman_dir="$manifest_attack_dir/interrupt-bin"
 mkdir -p "$interrupt_pacman_dir"
 interrupt_marker="$manifest_attack_dir/interrupt-at-local-transaction"
 interrupt_continue="$manifest_attack_dir/continue-interrupt-wrapper"
+interrupt_pacman_pid_file="$manifest_attack_dir/interrupted-pacman.pid"
+interrupt_package_file="$manifest_attack_dir/interrupted-package-path"
 cat > "$interrupt_pacman_dir/pacman" <<'INTERRUPT_PACMAN'
 #!/usr/bin/env bash
 for arg in "$@"; do
   [[ "$arg" == "-Qu" ]] && exit 0
 done
 if [[ "${3:-}" == "-U" ]]; then
+  local_package=""
+  for arg in "$@"; do
+    case "$arg" in
+      *.pkg.tar.*) local_package="$arg"; break ;;
+    esac
+  done
+  [[ -n "$local_package" ]] || { echo "local package transaction had no package paths" >&2; exit 98; }
+  /usr/bin/pacman --config "$PACMAN_CONFIG" -U --nodeps --noconfirm "$local_package"
+  printf '%s\n' "$BASHPID" > "$RXB_INTERRUPT_PACMAN_PID_FILE"
+  printf '%s\n' "$local_package" > "$RXB_INTERRUPT_PACKAGE_FILE"
   : > "$RXB_INTERRUPT_MARKER"
   while [[ ! -e "$RXB_INTERRUPT_CONTINUE" ]]; do sleep 0.1; done
   exit 99
@@ -481,6 +493,8 @@ rm -f "$interrupt_marker" "$interrupt_continue"
 PATH="$interrupt_pacman_dir:$PATH" \
   RXB_INTERRUPT_MARKER="$interrupt_marker" \
   RXB_INTERRUPT_CONTINUE="$interrupt_continue" \
+  RXB_INTERRUPT_PACMAN_PID_FILE="$interrupt_pacman_pid_file" \
+  RXB_INTERRUPT_PACKAGE_FILE="$interrupt_package_file" \
   PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
   bash "$repo_root/scripts/install-rxb-packages.sh" "$dist" \
   > "$manifest_attack_dir/interrupted-install.log" 2>&1 &
@@ -498,6 +512,23 @@ if [[ ! -e "$interrupt_marker" ]]; then
   cat "$manifest_attack_dir/interrupted-install.log" >&2
   exit 1
 fi
+partial_package_file="$(cat "$interrupt_package_file")"
+partial_package_name="$(bsdtar -xOf "$partial_package_file" .PKGINFO 2>/dev/null | awk -F ' = ' '$1 == "pkgname" { print $2; exit }')"
+[[ -n "$partial_package_name" ]] || {
+  kill -KILL "$interrupted_installer_pid" 2>/dev/null || true
+  touch "$interrupt_continue"
+  wait "$interrupted_installer_pid" 2>/dev/null || true
+  echo "Could not identify the package installed by the interrupted local transaction." >&2
+  exit 1
+}
+/usr/bin/pacman --config "$pacman_config" -Q "$partial_package_name" >/dev/null || {
+  kill -KILL "$interrupted_installer_pid" 2>/dev/null || true
+  touch "$interrupt_continue"
+  wait "$interrupted_installer_pid" 2>/dev/null || true
+  echo "The local transaction marker appeared without installing a real package." >&2
+  exit 1
+}
+partial_pacman_pid="$(cat "$interrupt_pacman_pid_file")"
 for name in "${package_names[@]}"; do
   grep -Fxq "$name" /var/lib/rxb/installed-packages || {
     kill -KILL "$interrupted_installer_pid" 2>/dev/null || true
@@ -514,11 +545,24 @@ if wait "$interrupted_installer_pid" 2>/dev/null; then
   exit 1
 fi
 touch "$interrupt_continue"
-sleep 0.2
+for attempt in {1..100}; do
+  partial_pacman_state="$(ps -o stat= -p "$partial_pacman_pid" 2>/dev/null || true)"
+  [[ -z "$partial_pacman_state" || "$partial_pacman_state" == Z* ]] && break
+  sleep 0.05
+done
+if [[ -n "$partial_pacman_state" && "$partial_pacman_state" != Z* ]]; then
+  kill -KILL "$partial_pacman_pid" 2>/dev/null || true
+  echo "Intercepted pacman wrapper did not finish after the interrupted installer was killed." >&2
+  exit 1
+fi
 PACMAN_CONFIG="$pacman_config" RXB_PACMAN_NOCONFIRM=1 \
   bash "$repo_root/scripts/remove-rxb-packages.sh"
 [[ ! -e /var/lib/rxb/installed-packages ]] || {
   echo "Interrupted-install recovery left an RXB ownership manifest." >&2
+  exit 1
+}
+/usr/bin/pacman --config "$pacman_config" -Q "$partial_package_name" >/dev/null 2>&1 && {
+  echo "Interrupted-install recovery did not remove the package installed before SIGKILL: $partial_package_name" >&2
   exit 1
 }
 for name in "${package_names[@]}"; do
