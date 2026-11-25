@@ -71,8 +71,13 @@ if ! grep -Fq 'systemctl --user start ryoku-x11-session.target' "$root/payload/b
   echo "X11 session initializer must start its dedicated target." >&2
   exit 1
 fi
-if grep -R -nE '(/etc/xprofile|/\\.xprofile|\\.xprofile)' "$root/payload" "$root/scripts/install-rxb-packages.sh" "$root/scripts/remove-rxb-packages.sh"; then
+if grep -R -nE '(/etc/xprofile|/\.xprofile|\.xprofile)' "$root/payload" "$root/scripts/install-rxb-packages.sh" "$root/scripts/remove-rxb-packages.sh"; then
   echo "RXB must never write global or per-user xprofile files." >&2
+  exit 1
+fi
+if ! grep -Fq 'payload/systemd/ryoku-shell-x11@.service' "$root/release/packages/ryoku-desktop-i3/payload.sh" ||
+   ! grep -Fq 'payload/systemd/ryogami-x11@.service' "$root/release/packages/ryoku-desktop-i3/payload.sh"; then
+  echo "RXB package must install both session-specific service templates." >&2
   exit 1
 fi
 if grep -R -q '10-rxb-x11.conf' "$root/payload/systemd"; then
