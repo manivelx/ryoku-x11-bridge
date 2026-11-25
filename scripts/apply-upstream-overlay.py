@@ -2279,7 +2279,7 @@ func TestRXBBlocksCPUAndIdlePolicyMutations(t *testing.T) {
     case "snapshots":
         return len(args) == 1
     case "repo":
-        return len(args) == 2 && (args[1] == "channel" || args[1] == "channels" || args[1] == "list" || args[1] == "status")
+        return len(args) == 2 && args[1] == "channel"
     case "svc":
         index, scope, seenScope := 1, "--user", false
         for index < len(args) && (args[index] == "--user" || args[index] == "--system") {
@@ -2322,7 +2322,7 @@ func TestRXBBlocksCPUAndIdlePolicyMutations(t *testing.T) {
         }
     case "power":
         if len(args) == 2 && (args[1] == "capabilities" || args[1] == "reboot" || args[1] == "poweroff") { return true }
-        return len(args) == 3 && args[1] == "profile" && args[2] == "get"
+        return len(args) >= 3 && args[1] == "profile" && args[2] == "get"
     case "time":
         return len(args) == 2 && (args[1] == "zone" || args[1] == "zones")
     case "auth":
@@ -2453,7 +2453,10 @@ esac
     replace_once(p, "    function toggleKillSwitch() {\n        killBusy = true;", "    function toggleKillSwitch() {\n        if (!pg.hostNetworkChangesAvailable) return;\n        killBusy = true;")
     replace_once(p, "        function setBackend(choice) {\n            if (wifi.backendBusy || choice === wifi.wifiBackend)", "        function setBackend(choice) {\n            if (!pg.hostNetworkChangesAvailable || wifi.backendBusy || choice === wifi.wifiBackend)")
     replace_once(p, "        function startService() {\n            if (svcProc.running)", '        function startService() {\n            if (!pg.hostNetworkChangesAvailable) {\n                bt.serviceError = I18n.tr("Bluetooth service repair is disabled in RXB X11.");\n                svcErrTimer.restart();\n                return;\n            }\n            if (svcProc.running)')
-    replace_once(p, "armed: !wifi.backendBusy", "armed: pg.hostNetworkChangesAvailable && !wifi.backendBusy")
+    text = p.read_text()
+    if text.count("armed: !wifi.backendBusy") != 2:
+        raise RuntimeError("expected exactly two Wi-Fi backend controls to be gated in RXB")
+    p.write_text(text.replace("armed: !wifi.backendBusy", "armed: pg.hostNetworkChangesAvailable && !wifi.backendBusy"))
     replace_once(p, 'armed: !pg.killBusy && pg.killState !== "checking"', 'armed: pg.hostNetworkChangesAvailable && !pg.killBusy && pg.killState !== "checking"')
     replace_once(p, "armed: !svcProc.running", "armed: pg.hostNetworkChangesAvailable && !svcProc.running")
 
