@@ -2274,8 +2274,10 @@ func TestRXBBlocksCPUAndIdlePolicyMutations(t *testing.T) {
     guard = """func rxbHostCommandAllowed(args []string) bool {
     if len(args) == 0 { return false }
     switch args[0] {
-    case "init", "pkgmgr", "capabilities":
+    case "init", "pkgmgr":
         return len(args) == 1
+    case "capabilities":
+        return true
     case "snapshots":
         return len(args) == 1
     case "repo":
@@ -2399,6 +2401,34 @@ func TestRXBHostGuardDefaultsToDenyUnknownAndUnapprovedMutations(t *testing.T) {
 """)
 
     p = root / "system/hardware/network/ryoku-wifi-backend"
+    # Snapshot creation is a host mutation in RXB. Keep the listing/read-only
+    # test, but align the upstream CLI tests with the deliberately blocked
+    # create/cleanup actions.
+    p = root / "ryoku/cli/internal/host/snapshots_test.go"
+    text = p.read_text()
+    text = text.replace(
+        'if code := app.Execute([]string{"snapshots", "extra"}); code != ExitUsage {',
+        'if code := app.Execute([]string{"snapshots", "extra"}); code != ExitNotProvided {',
+        1,
+    )
+    text = text.replace(
+        'if stdout.Len() != 0 || stderr.Len() != 0 {\n\t\t\tt.Fatalf("usage-only rejection wrote stdout=%q stderr=%q", stdout.String(), stderr.String())',
+        'if stdout.Len() != 0 || stderr.Len() == 0 {\n\t\t\tt.Fatalf("RXB host guard did not reject snapshots arguments: stdout=%q stderr=%q", stdout.String(), stderr.String())',
+        1,
+    )
+    for name in (
+        "TestSnapshotCreateRunsNumberedSnapshotAndCleanup",
+        "TestSnapshotCreateStopsAfterSnapperFailure",
+        "TestSnapshotCreateRequiresToolAndRootConfig",
+        "TestSnapshotCreateKeepsUnsupportedReason",
+    ):
+        old = f"func {name}(t *testing.T) {{"
+        if old not in text:
+            raise RuntimeError(f"snapshot mutation test anchor missing: {name}")
+        text = text.replace(old, old + '\n\tt.Skip("RXB X11 build intentionally disables host snapshot creation")', 1)
+    p.write_text(text)
+
+
     replace_once(p, "set -u\n", """set -u
 
 if [[ "$#" -eq 0 ]]; then
