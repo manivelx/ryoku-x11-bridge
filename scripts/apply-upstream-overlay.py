@@ -1804,7 +1804,7 @@ func TestRXBBlocksServiceReconciliation(t *testing.T) {
 		{"svc", "--system", "is-active", "NetworkManager"},
 		{"repo", "channel"},
 		{"pkg", "installed", "quickshell"},
-		{"power", "profile"},
+		{"power", "capabilities"},
 	} {
 		if rxbHostCommandBlocked(args) {
 			t.Errorf("read-only command should not be blocked: %#v", args)
