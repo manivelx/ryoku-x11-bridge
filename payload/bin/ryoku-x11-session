@@ -38,7 +38,7 @@ command -v flock >/dev/null 2>&1 || { echo "ryoku-x11-session: flock is required
 if [[ ${1:-} == --rxb-lock-held ]]; then
   shift
 else
-  (umask 077; flock -n "$lock_file" "$0" --rxb-lock-held) || { echo "ryoku-x11-session: another RXB graphical session is already active for this user." >&2; exit 1; }
+  (umask 077; flock -n "$lock_file" bash "$0" --rxb-lock-held) || { echo "ryoku-x11-session: another RXB graphical session is already active for this user." >&2; exit 1; }
   exit 0
 fi
 export RYOKU_X11_SESSION_LOCKED=1
