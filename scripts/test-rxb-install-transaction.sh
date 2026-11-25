@@ -728,10 +728,8 @@ required_files=(
   /usr/bin/ryoku-wm-i3
   /usr/lib/systemd/user/ryoku-shell.service
   /usr/lib/systemd/user/ryoku-x11-session.target
-  /usr/lib/systemd/user/ryoku-shell-x11.service
-  /usr/lib/systemd/user/ryogami-x11.service
-  /usr/lib/systemd/user/ryoku-x11-session.target.wants/ryoku-shell-x11.service
-  /usr/lib/systemd/user/ryoku-x11-session.target.wants/ryogami-x11.service
+  /usr/lib/systemd/user/ryoku-shell-x11@.service
+  /usr/lib/systemd/user/ryogami-x11@.service
   /usr/share/ryoku/config/quickshell/shell/shell.qml
 )
 for path in "${required_files[@]}"; do
@@ -746,8 +744,8 @@ grep -q '^TryExec=i3$' /usr/share/xsessions/ryoku-x11.desktop
 # outside the explicit RXB X11 session.
 [[ ! -e /usr/lib/systemd/user/default.target.wants/ryoku-shell.service ]]
 [[ ! -e /usr/lib/systemd/user/default.target.wants/ryogami.service ]]
-[[ ! -e /usr/lib/systemd/user/default.target.wants/ryoku-shell-x11.service ]]
-[[ ! -e /usr/lib/systemd/user/default.target.wants/ryogami-x11.service ]]
+[[ ! -e /usr/lib/systemd/user/default.target.wants/ryoku-shell-x11@.service ]]
+[[ ! -e /usr/lib/systemd/user/default.target.wants/ryogami-x11@.service ]]
 [[ ! -e /usr/lib/systemd/user/ryoku-shell.service.d/10-rxb-x11.conf ]]
 [[ ! -e /usr/lib/systemd/user/ryogami.service.d/10-rxb-x11.conf ]]
 [[ ! -e /usr/lib/systemd/user/ryoku-session.target.wants/ryoku-shell.service ]]
@@ -776,7 +774,7 @@ for executable in ryoku-shell ryogami; do
   : > "$verify_root/usr/bin/$executable"
   chmod 0755 "$verify_root/usr/bin/$executable"
 done
-for unit in ryoku-x11-session.target ryoku-shell-x11.service ryogami-x11.service; do
+for unit in ryoku-x11-session.target ryoku-shell-x11@.service ryogami-x11@.service; do
   install -m 0644 "/usr/lib/systemd/user/$unit" \
     "$verify_root/usr/lib/systemd/system/$unit"
 done
@@ -784,13 +782,13 @@ done
 # and unsafe Picom autostart/shared configuration path.
 ! grep -Eq '^(After|Before|Wants|Requires|BindsTo|PartOf)=.*graphical-session' \
   /usr/lib/systemd/user/ryoku-x11-session.target
-grep -Fxq 'PartOf=ryoku-x11-session.target' /usr/lib/systemd/user/ryoku-shell-x11.service
-! grep -Fxq 'After=ryoku-x11-session.target' /usr/lib/systemd/user/ryoku-shell-x11.service
-grep -Fxq 'PartOf=ryoku-x11-session.target' /usr/lib/systemd/user/ryogami-x11.service
-grep -Fxq 'After=ryoku-shell-x11.service' /usr/lib/systemd/user/ryogami-x11.service
+grep -Fxq 'PartOf=ryoku-x11-session.target' /usr/lib/systemd/user/ryoku-shell-x11@.service
+! grep -Fxq 'After=ryoku-x11-session.target' /usr/lib/systemd/user/ryoku-shell-x11@.service
+grep -Fxq 'PartOf=ryoku-x11-session.target' /usr/lib/systemd/user/ryogami-x11@.service
+grep -Fxq 'After=ryoku-shell-x11@%i.service' /usr/lib/systemd/user/ryogami-x11@.service
 # Both services own their full process trees. The previous physical logout
 # left dbus-monitor alive because KillMode=process only signalled the main PID.
-for unit in ryoku-shell-x11.service ryogami-x11.service; do
+for unit in ryoku-shell-x11@.service ryogami-x11@.service; do
   grep -Fxq 'KillMode=control-group' "/usr/lib/systemd/user/$unit"
   grep -Fxq 'TimeoutStopSec=15s' "/usr/lib/systemd/user/$unit"
 done
@@ -799,8 +797,8 @@ done
 
 systemd-analyze verify --root="$verify_root" --man=no \
   "$verify_root/usr/lib/systemd/system/ryoku-x11-session.target" \
-  "$verify_root/usr/lib/systemd/system/ryoku-shell-x11.service" \
-  "$verify_root/usr/lib/systemd/system/ryogami-x11.service"
+  "$verify_root/usr/lib/systemd/system/ryoku-shell-x11@.service" \
+  "$verify_root/usr/lib/systemd/system/ryogami-x11@.service"
 rm -rf "$verify_root"
 verify_root=""
 
