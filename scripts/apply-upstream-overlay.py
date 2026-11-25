@@ -1517,8 +1517,11 @@ func main() {""",
         """func (a *App) Execute(args []string) int {
 	if len(args) == 0 {""",
         """func rxbHostCommandBlocked(args []string) bool {
-	if len(args) < 2 {
+	if len(args) == 0 {
 		return false
+	}
+	if len(args) == 1 {
+		return args[0] != "snapshots"
 	}
 	switch args[0] {
 	case "pkg":
@@ -1532,20 +1535,24 @@ func main() {""",
 		return args[1] != "list" && args[1] != "caps"
 	case "auth":
 		return !(args[1] == "fingerprint" && len(args) == 3 && args[2] == "status")
-	case "network":
+	case "network", "keymap", "transient", "initramfs":
 		return true
 	case "time":
 		return args[1] != "zone" && args[1] != "zones"
-	case "keymap":
-		return true
 	case "phone":
 		return args[1] != "status"
 	case "power":
-		return args[1] != "capabilities" && args[1] != "reboot" && args[1] != "poweroff" &&
-			!(args[1] == "profile" && len(args) >= 3 && args[2] == "get")
+		switch args[1] {
+		case "capabilities", "reboot", "poweroff":
+			return false
+		case "profile":
+			return len(args) < 3 || args[2] != "get"
+		default:
+			return true
+		}
 	case "snapshots":
-		return len(args) > 1 && args[1] == "create"
-	case "transient":
+		// Bare snapshots is the read-only listing command. All subcommands
+		// are denied because creation/rollback mutate host-managed state.
 		return true
 	case "svc":
 		if args[1] == "reconcile" {
@@ -1558,33 +1565,45 @@ func main() {""",
 			verbIndex++
 		}
 		if verbIndex >= len(args) {
-			return false
+			return true
 		}
 		verb := args[verbIndex]
 		switch verb {
-		case "enable", "disable":
-			// Persistent activation changes can leak upstream Ryoku units into
-			// BSPWM or other sessions. RXB owns only its dedicated session target.
+		case "status", "list", "show", "is-active", "is-enabled", "cat", "logs":
+			return false
+		case "enable", "disable", "mask", "unmask", "preset", "link", "add-wants", "add-requires", "edit":
 			return true
 		case "start", "stop", "restart", "try-restart", "reload", "kill", "reset-failed", "daemon-reload":
 			if scope == "--system" {
 				return true
 			}
 			for _, name := range args[verbIndex+1:] {
-				switch name {
-				case "ryoku-boot-guard", "ryoku-boot-guard.service", "ryoku-shell", "ryoku-shell.service", "ryogami", "ryogami.service":
+				if name == "ryoku-boot-guard" || name == "ryoku-boot-guard.service" ||
+					name == "ryoku-shell" || name == "ryoku-shell.service" ||
+					name == "ryogami" || name == "ryogami.service" ||
+					(len(name) >= 6 && name[:6] == "ryoku-") ||
+					(len(name) >= 6 && name[:6] == "ryogami") {
 					return true
 				}
 			}
+			return false
+		default:
+			return true
 		}
 	case "session":
-		return args[1] == "start" || args[1] == "ensure" || args[1] == "fix-wrappers"
+		return args[1] != "check"
 	case "repo":
-		return args[1] == "set-channel" || args[1] == "sync"
-	case "initramfs":
-		return args[1] == "rebuild"
+		switch args[1] {
+		case "channel", "channels", "list", "status":
+			return false
+		default:
+			return true
+		}
+	default:
+		// Unknown host commands are denied by default. Add an explicit
+		// read-only allowlist entry before exposing any new upstream command.
+		return true
 	}
-	return false
 }
 
 func (a *App) Execute(args []string) int {
@@ -1646,6 +1665,15 @@ func TestRXBHostGuardBlocksSystemServiceMutationsAndPersistentActivation(t *test
 		{"svc", "--user", "enable", "ryoku-shell"},
 		{"svc", "--user", "disable", "ryogami"},
 		{"svc", "--user", "start", "ryoku-shell"},
+		{"svc", "--user", "mask", "pipewire"},
+		{"svc", "--user", "nonsense", "pipewire"},
+		{"svc", "--user", "start", "ryoku-x11-session.target"},
+		{"repo", "add", "example"},
+		{"snapshots", "rollback", "1"},
+		{"initramfs", "status"},
+		{"system", "restart", "NetworkManager"},
+		{"app", "install", "example"},
+		{"update"},
 		{"power", "suspend"},
 		{"power", "hibernate"},
 		{"session", "start"},
@@ -1687,6 +1715,9 @@ func TestRXBHostGuardKeepsReadOnlyAndSessionScopedActions(t *testing.T) {
 		{"time", "zones"},
 		{"phone", "status"},
 		{"session", "check"},
+		{"repo", "channel"},
+		{"snapshots"},
+		{"svc", "--user", "status", "pipewire"},
 	}
 	for _, args := range allowedCases {
 		if rxbHostCommandBlocked(args) {
@@ -1702,6 +1733,12 @@ func TestRXBHostMutationsAreBlockedBeforeHostRunner(t *testing.T) {
 		{"session", "start"},
 		{"power", "suspend"},
 		{"snapshots", "create", "before-test"},
+		{"snapshots", "rollback", "1"},
+		{"svc", "--user", "mask", "pipewire"},
+		{"repo", "add", "example"},
+		{"system", "restart", "NetworkManager"},
+		{"unknown", "mutate"},
+		{"update"},
 	}
 	for _, args := range blockedCases {
 		runner := &fakeRunner{}
@@ -1888,6 +1925,16 @@ func TestRXBBlocksServiceReconciliation(t *testing.T) {
         new = old + '\n\tt.Skip("RXB disables host snapshot creation")'
         replace_once(p, old, new)
 
+def patch_x11_desktop_entry_visibility(root: pathlib.Path) -> None:
+    for desktop_path, category_line in (
+        ("ryoku/hub/ryoku-hub.desktop", "Categories=Settings;DesktopSettings;"),
+        ("ryoku/apps/ryostore/ryostore.desktop", "Categories=Utility;Settings;"),
+        ("ryoku/apps/tools/install-app.desktop", "Categories=System;"),
+    ):
+        p = root / desktop_path
+        replace_once(p, category_line, category_line + "\\nOnlyShowIn=Ryoku;")
+
+
 def patch_x11_privileged_hub_backends(root: pathlib.Path) -> None:
     # RXB is a session bridge, not a host administrator. Keep read-only GPU
     # discovery and dry-run plans, but block every GPU operation that would
@@ -1980,6 +2027,14 @@ def patch_x11_privileged_hub_backends(root: pathlib.Path) -> None:
                  '''Item {
     id: pg
     enabled: false // RXB preserves the existing SDDM Orbital and Quickshell X11 lockscreen.''')
+
+    p = root / "ryoku/hub/quickshell/pages/GpuPage.qml"
+    replace_once(p, '''                    visible: pg.idleGeneral.length > 0''',
+                 '''                    visible: false // RXB X11 has no validated automatic idle/lock path.''')
+    replace_once(p, '''                    visible: pg.idleOn && pg.idleBattery.length > 0''',
+                 '''                    visible: false // RXB X11 has no validated automatic idle/lock path.''')
+    replace_once(p, '''                    visible: pg.idleOn && pg.idlePlugged.length > 0''',
+                 '''                    visible: false // RXB X11 has no validated automatic idle/lock path.''')
 
     p = root / "ryoku/hub/backend/rxb_privileged_host_test.go"
     p.write_text("""package main
@@ -2739,6 +2794,7 @@ def main() -> int:
     patch_x11_login1_graphical_session(root)
     patch_ryogami_package(root)
     patch_x11_package_safety(root)
+    patch_x11_desktop_entry_visibility(root)
     patch_x11_privileged_hub_backends(root)
     patch_quickshell_config_isolation(root)
     print(f"RXB overlay applied to pinned Ryoku {PIN}")
