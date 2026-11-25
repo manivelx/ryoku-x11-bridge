@@ -142,7 +142,7 @@ if [[ "$idle_guard_count" != "3" ]]; then
   exit 1
 fi
 
-for desktop in install-app.desktop ryoku-hub.desktop ryostore.desktop; do
+for desktop in install-app.desktop compress-video.desktop ryoku-nvim.desktop ryoku-hub.desktop ryostore.desktop ryovm.desktop; do
   desktop_content="$(bsdtar -xOf "$base_pkg" "./usr/share/applications/$desktop" 2>/dev/null || bsdtar -xOf "$base_pkg" "usr/share/applications/$desktop" 2>/dev/null || true)"
   if [[ -z "$desktop_content" ]] || ! grep -Fxq 'OnlyShowIn=Ryoku;' <<<"$desktop_content"; then
     echo "RXB package safety: $desktop is not restricted to the Ryoku desktop" >&2
