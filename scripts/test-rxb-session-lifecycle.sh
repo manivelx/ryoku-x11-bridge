@@ -55,7 +55,18 @@ cat > "$fakebin/loginctl" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 printf '%s\n' "$*" >> "$TEST_LOGINCTL_LOG"
-if [[ "$*" == "show-session $XDG_SESSION_ID --property=User --value" ]]; then
+if [[ "$*" == "list-sessions --no-legend --no-pager" ]]; then
+  printf '%s %s testuser seat0 tty2\n' "$XDG_SESSION_ID" "$(id -u)"
+  if [[ ${FAKE_OTHER_GRAPHICAL_SESSION:-0} == 1 ]]; then
+    printf '41 %s testuser seat0 tty1\n' "$(id -u)"
+  fi
+elif [[ "$*" == "show-session 41 --property=Type --value" ]]; then
+  printf '%s\n' x11
+elif [[ "$*" == "show-session 41 --property=Class --value" ]]; then
+  printf '%s\n' user
+elif [[ "$*" == "show-session 41 --property=State --value" ]]; then
+  printf '%s\n' online
+elif [[ "$*" == "show-session $XDG_SESSION_ID --property=User --value" ]]; then
   printf '%s\n' "${FAKE_LOGINCTL_USER:-$(id -u)}"
 elif [[ "$*" == "show-session $XDG_SESSION_ID --property=Type --value" ]]; then
   printf '%s\n' "${FAKE_LOGINCTL_TYPE:-x11}"
@@ -276,7 +287,22 @@ if env -u DISPLAY bash "$repo_root/payload/bin/ryoku-x11-session" >/dev/null 2>&
   exit 1
 fi
 
-# A second graphical session must be rejected while the first holds the per-user lock.
+# A still-online BSPWM/Wayland login for the same UID must be rejected
+# before RXB writes its EnvironmentFile or starts any RXB-owned user service.
+stale_env_before="$(sha256sum "$runtime/ryoku-x11-session-42.env")"
+if FAKE_OTHER_GRAPHICAL_SESSION=1 bash "$repo_root/payload/bin/ryoku-x11-session" >"$tmp/other-graphical-session.log" 2>&1; then
+  echo "RXB accepted a second graphical logind session for the same user" >&2
+  exit 1
+fi
+grep -Fq "another graphical session 41 (x11, online) is still present" "$tmp/other-graphical-session.log" || {
+  cat "$tmp/other-graphical-session.log" >&2
+  echo "RXB did not explain why the existing graphical session blocks startup" >&2
+  exit 1
+}
+[[ "$(sha256sum "$runtime/ryoku-x11-session-42.env")" == "$stale_env_before" ]]
+[[ ! -e "$TEST_SYSTEMCTL_LOG" ]]
+
+# A second RXB session must also be rejected while the first holds the per-user lock.
 hold_pid_file="$tmp/held-i3.pid"
 FAKE_I3_HOLD=1 FAKE_I3_HOLD_PID="$hold_pid_file" \
   bash "$repo_root/payload/bin/ryoku-x11-session" >"$tmp/held-session.log" 2>&1 &
