@@ -99,6 +99,6 @@ A report from the read-only collector is inventory evidence only. It does not pr
 
 - The automatic idle/auto-lock controls are intentionally hidden on X11. Test the manual RXB lock wrapper only; suspend, hibernate and automatic suspend remain disabled until physical lock, VT-switching and multi-monitor acceptance is complete.
 - The RXB session wrapper must refuse a second session while a previous session still owns a live i3 socket. After a simulated wrapper SIGKILL and removal of the old socket, the next login must stop stale per-session services, terminate the stale RXB-owned xcompmgr process and remove the old EnvironmentFile/runtime config.
-- The install transaction test must install one real local package into its disposable pacman root, simulate SIGKILL during the local package transaction, and prove the remover removes that partial package using the pre-recorded ownership manifest.
+- The install transaction test must install one real local package into its disposable Arch CI container, simulate SIGKILL during the local package transaction, and prove the remover removes that partial package using the pre-recorded ownership manifest.
 - Ryoku Hub, Store and app-installer launchers must be visible only in the Ryoku desktop session. Generic utilities and the user's BSPWM launchers remain unchanged.
 - No GTK renderer is forced. The GT740 with NVIDIA 470.256.02 has not yet passed physical RXB hardware acceptance; do not treat GitHub Actions/Xvfb success as hardware validation.

@@ -136,6 +136,12 @@ base_list="$(bsdtar -tf "$base_pkg")"
 variant_list="$(bsdtar -tf "$variant_pkg")"
 all_list="$(for pkg in "${packages[@]}"; do bsdtar -tf "$pkg"; done)"
 
+idle_guard_count="$(grep -F -c 'visible: false // RXB X11 has no validated automatic idle/lock path.' "$root/scripts/apply-upstream-overlay.py" || true)"
+if [[ "$idle_guard_count" != "3" ]]; then
+  echo "RXB package safety: all three automatic idle/lock cards must remain hidden on X11" >&2
+  exit 1
+fi
+
 for desktop in install-app.desktop ryoku-hub.desktop ryostore.desktop; do
   desktop_content="$(bsdtar -xOf "$base_pkg" "./usr/share/applications/$desktop" 2>/dev/null || bsdtar -xOf "$base_pkg" "usr/share/applications/$desktop" 2>/dev/null || true)"
   if [[ -z "$desktop_content" ]] || ! grep -Fxq 'OnlyShowIn=Ryoku;' <<<"$desktop_content"; then
