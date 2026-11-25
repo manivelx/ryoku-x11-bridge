@@ -17,8 +17,8 @@ fakebin="$tmp/bin"
 seed="$tmp/seed"
 mkdir -p "$home" "$config_home/quickshell" "$runtime" "$fakebin" "$seed"
 chmod 700 "$runtime"
-printf "stale environment\n" > "$runtime/ryoku-x11-session.env"
-chmod 644 "$runtime/ryoku-x11-session.env"
+printf "stale environment\n" > "$runtime/ryoku-x11-session-42.env"
+chmod 644 "$runtime/ryoku-x11-session-42.env"
 export HOME="$home"
 export XDG_CONFIG_HOME="$config_home"
 export XDG_RUNTIME_DIR="$runtime"
@@ -72,7 +72,11 @@ if [[ ${1:-} == -c ]]; then
     exit 1
   }
   [[ -f ${2:-} ]] || { echo "i3 config missing" >&2; exit 1; }
-  [[ ${2:-} == "$XDG_RUNTIME_DIR/ryoku-x11-i3.conf" ]] || {
+  if [[ ${FAKE_I3_HOLD:-0} == 1 ]]; then
+    printf '%s\\n' "$BASHPID" > "$FAKE_I3_HOLD_PID"
+    exec sleep 60
+  fi
+  [[ ${2:-} == "$XDG_RUNTIME_DIR/ryoku-x11-i3-42.conf" ]] || {
     echo "i3 must use the session-only runtime config copy" >&2
     exit 1
   }
@@ -133,8 +137,8 @@ cat > "$fakebin/systemctl" <<'SH'
 set -euo pipefail
 printf '%s\n' "$*" >> "$TEST_SYSTEMCTL_LOG"
 case "$*" in
-  *"start ryoku-x11-session.target"*)
-    env_file="$XDG_RUNTIME_DIR/ryoku-x11-session.env"
+  *"start ryoku-shell-x11@42.service ryogami-x11@42.service"*)
+    env_file="$XDG_RUNTIME_DIR/ryoku-x11-session-42.env"
     [[ -f "$env_file" ]] || { echo "session EnvironmentFile missing" >&2; exit 1; }
     [[ "$(stat -c %a "$env_file")" == "600" ]] || {
       echo "session EnvironmentFile must be mode 0600" >&2
@@ -187,10 +191,11 @@ done
 
 bash "$repo_root/payload/bin/ryoku-x11-session"
 
-[[ ! -e "$runtime/ryoku-x11-session.env" ]]
+[[ ! -e "$runtime/ryoku-x11-session-42.env" ]]
+grep -Fq -- '--user start ryoku-shell-x11@42.service ryogami-x11@42.service' "$TEST_SYSTEMCTL_LOG"
 grep -Fqx 'include ~/.config/ryoku-x11/generated.conf' "$config_home/ryoku-x11/config"
 grep -Fqx 'include ~/.config/ryoku-x11/user.conf' "$config_home/ryoku-x11/config"
-[[ ! -e "$runtime/ryoku-x11-i3.conf" ]]
+[[ ! -e "$runtime/ryoku-x11-i3-42.conf" ]]
 grep -Fqx 'generated seed' "$config_home/ryoku-x11/generated.conf"
 grep -Fqx 'my own keybinds' "$config_home/ryoku-x11/user.conf"
 grep -Fqx 'preserve this desktop config' "$config_home/quickshell/keep.qml"
@@ -230,18 +235,18 @@ fi
 
 # A stale symlink at the predictable EnvironmentFile path must not be followed.
 printf "do not overwrite this target\\n" > "$runtime/keep-me"
-ln -s "$runtime/keep-me" "$runtime/ryoku-x11-session.env"
+ln -s "$runtime/keep-me" "$runtime/ryoku-x11-session-42.env"
 if bash "$repo_root/payload/bin/ryoku-x11-session" >/dev/null 2>&1; then
   echo "session initializer accepted a symlinked EnvironmentFile" >&2
   exit 1
 fi
-[[ ! -L "$runtime/ryoku-x11-session.env" ]]
+[[ ! -L "$runtime/ryoku-x11-session-42.env" ]]
 grep -Fqx "do not overwrite this target" "$runtime/keep-me"
 
 # Replacing a stale hard link must not truncate the file it points to.
-ln "$runtime/keep-me" "$runtime/ryoku-x11-session.env"
+ln "$runtime/keep-me" "$runtime/ryoku-x11-session-42.env"
 bash "$repo_root/payload/bin/ryoku-x11-session"
-[[ ! -e "$runtime/ryoku-x11-session.env" ]]
+[[ ! -e "$runtime/ryoku-x11-session-42.env" ]]
 grep -Fqx "do not overwrite this target" "$runtime/keep-me"
 
 if DISPLAY=:99 WAYLAND_DISPLAY=wayland-0 bash "$repo_root/payload/bin/ryoku-x11-session" >/dev/null 2>&1; then
@@ -252,5 +257,26 @@ if env -u DISPLAY bash "$repo_root/payload/bin/ryoku-x11-session" >/dev/null 2>&
   echo "session wrapper accepted a missing DISPLAY" >&2
   exit 1
 fi
+
+# A second graphical session must be rejected while the first holds the per-user lock.
+hold_pid_file="$tmp/held-i3.pid"
+FAKE_I3_HOLD=1 FAKE_I3_HOLD_PID="$hold_pid_file" \
+  bash "$repo_root/payload/bin/ryoku-x11-session" >"$tmp/held-session.log" 2>&1 &
+held_wrapper_pid=$!
+for _ in $(seq 1 100); do
+  [[ -s "$hold_pid_file" ]] && break
+  kill -0 "$held_wrapper_pid" 2>/dev/null || break
+  sleep 0.05
+done
+[[ -s "$hold_pid_file" ]] || { cat "$tmp/held-session.log" >&2; echo "first RXB session did not acquire its lock" >&2; exit 1; }
+if bash "$repo_root/payload/bin/ryoku-x11-session" >"$tmp/second-session.log" 2>&1; then
+  echo "a concurrent RXB graphical session was accepted" >&2
+  exit 1
+fi
+grep -Fq "another RXB graphical session is already active" "$tmp/second-session.log"
+kill -TERM "$(cat "$hold_pid_file")" 2>/dev/null || true
+wait "$held_wrapper_pid" 2>/dev/null || true
+# The lock file may remain, but flock must release it after a killed session.
+bash "$repo_root/payload/bin/ryoku-x11-session"
 
 echo "RXB X11 session lifecycle and logind isolation tests passed."

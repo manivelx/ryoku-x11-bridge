@@ -30,18 +30,18 @@ if grep -Eq '^(After|Before|Wants|Requires|BindsTo|PartOf)=.*graphical-session' 
   echo "RXB X11 target must not depend on graphical-session.target; X11 DM sessions do not reliably start it." >&2
   exit 1
 fi
-if grep -Fxq 'After=ryoku-x11-session.target' "$root/payload/systemd/ryoku-shell-x11.service"; then
+if grep -Fxq 'After=ryoku-x11-session.target' "$root/payload/systemd/ryoku-shell-x11@.service"; then
   echo "RXB shell must not be ordered after a target that Wants it (would create a target ordering cycle)." >&2
   exit 1
 fi
-if ! grep -Fq 'After=ryoku-shell-x11.service' "$root/payload/systemd/ryogami-x11.service"; then
+if ! grep -Fq 'After=ryoku-shell-x11@%i.service' "$root/payload/systemd/ryogami-x11@.service"; then
   echo "Ryogami must start after the RXB shell daemon." >&2
   exit 1
 fi
-for unit in ryoku-shell-x11.service ryogami-x11.service; do
+for unit in ryoku-shell-x11@.service ryogami-x11@.service; do
   unit_file="$root/payload/systemd/$unit"
-  if ! grep -Fq 'EnvironmentFile=%t/ryoku-x11-session.env' "$unit_file" ||
-     ! grep -Fq 'ConditionPathExists=%t/ryoku-x11-session.env' "$unit_file"; then
+  if ! grep -Fq 'EnvironmentFile=%t/ryoku-x11-session-%i.env' "$unit_file" ||
+     ! grep -Fq 'ConditionPathExists=%t/ryoku-x11-session-%i.env' "$unit_file"; then
     echo "$unit must consume the session-scoped RXB environment." >&2
     exit 1
   fi
@@ -54,12 +54,25 @@ for unit in ryoku-shell-x11.service ryogami-x11.service; do
     exit 1
   fi
 done
+if ! grep -Fq 'flock -n "$lock_file"' "$root/payload/bin/ryoku-x11-session"; then
+  echo "X11 session wrapper must prevent concurrent RXB graphical sessions." >&2
+  exit 1
+fi
+if ! grep -Fq 'systemctl --user start "ryoku-shell-x11@${session_id}.service"' "$root/payload/bin/ryoku-x11-session-init" ||
+   ! grep -Fq '"ryogami-x11@${session_id}.service"' "$root/payload/bin/ryoku-x11-session-init"; then
+  echo "X11 session initializer must start matching session-specific service instances." >&2
+  exit 1
+fi
 if ! grep -Fq 'systemctl --user stop ryoku-x11-session.target' "$root/payload/bin/ryoku-x11-session"; then
   echo "X11 session wrapper must stop its dedicated target on exit." >&2
   exit 1
 fi
 if ! grep -Fq 'systemctl --user start ryoku-x11-session.target' "$root/payload/bin/ryoku-x11-session-init"; then
   echo "X11 session initializer must start its dedicated target." >&2
+  exit 1
+fi
+if grep -R -nE '(/etc/xprofile|/\\.xprofile|\\.xprofile)' "$root/payload" "$root/scripts/install-rxb-packages.sh" "$root/scripts/remove-rxb-packages.sh"; then
+  echo "RXB must never write global or per-user xprofile files." >&2
   exit 1
 fi
 if grep -R -q '10-rxb-x11.conf' "$root/payload/systemd"; then
@@ -183,8 +196,8 @@ for forbidden in \
   'usr/bin/ryoku-qylock-activate' \
   'usr/bin/ryoku-qylock-lock' \
   'usr/lib/systemd/user/default.target.wants/ryogami.service' \
-  'usr/lib/systemd/user/default.target.wants/ryoku-shell-x11.service' \
-  'usr/lib/systemd/user/default.target.wants/ryogami-x11.service' \
+  'usr/lib/systemd/user/default.target.wants/ryoku-shell-x11@.service' \
+  'usr/lib/systemd/user/default.target.wants/ryogami-x11@.service' \
   'usr/lib/systemd/user/ryoku-shell.service.d/10-rxb-x11.conf' \
   'usr/lib/systemd/user/ryogami.service.d/10-rxb-x11.conf' \
   'usr/lib/systemd/user/ryoku-session.target.wants/ryoku-shell.service' \
@@ -206,11 +219,11 @@ done
 
 for required in \
   'usr/share/xsessions/ryoku-x11.desktop' \
-  'usr/lib/systemd/user/ryoku-shell-x11.service' \
-  'usr/lib/systemd/user/ryogami-x11.service' \
+  'usr/lib/systemd/user/ryoku-shell-x11@.service' \
+  'usr/lib/systemd/user/ryogami-x11@.service' \
   'usr/lib/systemd/user/ryoku-x11-session.target' \
-  'usr/lib/systemd/user/ryoku-x11-session.target.wants/ryoku-shell-x11.service' \
-  'usr/lib/systemd/user/ryoku-x11-session.target.wants/ryogami-x11.service' \
+  'usr/lib/systemd/user/ryoku-x11-session.target.wants/ryoku-shell-x11@.service' \
+  'usr/lib/systemd/user/ryoku-x11-session.target.wants/ryogami-x11@.service' \
   'usr/bin/ryoku-x11-session' \
   'usr/bin/ryoku-x11-session-init' \
   'usr/bin/ryoku-x11-lock' \

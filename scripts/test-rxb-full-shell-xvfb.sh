@@ -10,11 +10,29 @@ done
 
 tmp="$(mktemp -d)"
 home="$tmp/home"
+decoy_home="$tmp/decoy-real-home"
 runtime="$tmp/runtime"
-mkdir -p "$home" "$runtime"
-chmod 700 "$runtime"
+mkdir -p "$home" "$decoy_home" "$runtime"
+chmod 700 "$runtime" "$decoy_home"
+printf 'RXB decoy home sentinel\\n' > "$decoy_home/.rxb-home-sentinel"
 
-export HOME="$home"
+assert_decoy_home_untouched() {
+  local candidate="$1" unexpected
+  [[ -f "$candidate/.rxb-home-sentinel" ]] || return 1
+  [[ "$(cat "$candidate/.rxb-home-sentinel")" == "RXB decoy home sentinel" ]] || return 1
+  unexpected="$(find "$candidate" -mindepth 1 ! -name .rxb-home-sentinel -print -quit)"
+  [[ -z "$unexpected" ]]
+}
+mutation_probe="$tmp/decoy-mutation-probe"
+mkdir -p "$mutation_probe"
+printf 'RXB decoy home sentinel\\n' > "$mutation_probe/.rxb-home-sentinel"
+touch "$mutation_probe/unexpected-write"
+if assert_decoy_home_untouched "$mutation_probe"; then
+  echo "decoy-home assertion failed to detect an injected mutation" >&2
+  exit 1
+fi
+
+export HOME="$decoy_home"
 export XDG_CONFIG_HOME="$home/.config"
 export XDG_CACHE_HOME="$home/.cache"
 export XDG_DATA_HOME="$home/.local/share"
@@ -323,8 +341,8 @@ dbus-run-session -- bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HO
   # session target ordering cycle. Start the real pinned Ryogami daemon against
   # the live RXB i3 provider and paint a high-entropy fixture so the captured
   # desktop must contain an actual wallpaper, not merely a black Xvfb root.
-  mkdir -p "$HOME/Pictures/Wallpapers"
-  wallpaper_fixture="$HOME/Pictures/Wallpapers/00-rxb-xvfb-fixture.png"
+  mkdir -p "$home/Pictures/Wallpapers"
+  wallpaper_fixture="$home/Pictures/Wallpapers/00-rxb-xvfb-fixture.png"
   python3 - "$wallpaper_fixture" <<'PY'
 import struct
 import sys
@@ -616,4 +634,10 @@ PY
   echo "RXB full upstream Ryoku shell daemon stayed healthy under Xvfb + i3."
 RXB_XVFB_TEST
 
+assert_decoy_home_untouched "$decoy_home" || {
+  find "$decoy_home" -mindepth 1 -maxdepth 3 -print >&2
+  echo "RXB Xvfb session modified the decoy real home directory." >&2
+  exit 1
+}
+echo "RXB decoy real-home isolation and mutation-detection checks passed."
 echo "RXB full upstream Ryoku daemon/Xvfb acceptance passed."
