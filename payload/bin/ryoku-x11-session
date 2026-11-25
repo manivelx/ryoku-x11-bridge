@@ -29,6 +29,20 @@ if ! loginctl show-session "$XDG_SESSION_ID" --property=Class --value 2>/dev/nul
   exit 1
 fi
 
+session_id="$XDG_SESSION_ID"
+[[ "$session_id" =~ ^[A-Za-z0-9_.-]+$ ]] || { echo "ryoku-x11-session: invalid logind session ID." >&2; exit 1; }
+runtime_dir=${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required for a systemd user session}
+lock_file="$runtime_dir/ryoku-x11-session.lock"
+if [[ -L "$lock_file" ]]; then echo "ryoku-x11-session: refusing a symlinked session lock." >&2; exit 1; fi
+command -v flock >/dev/null 2>&1 || { echo "ryoku-x11-session: flock is required to prevent concurrent RXB sessions." >&2; exit 1; }
+if [[ ${1:-} == --rxb-lock-held ]]; then
+  shift
+else
+  (umask 077; flock -n "$lock_file" "$0" --rxb-lock-held) || { echo "ryoku-x11-session: another RXB graphical session is already active for this user." >&2; exit 1; }
+  exit 0
+fi
+export RYOKU_X11_SESSION_LOCKED=1
+
 # Do not let a stale socket from a previous i3/Sway session steer this one.
 unset SWAYSOCK I3SOCK
 
@@ -56,7 +70,7 @@ for name in config generated.conf user.conf; do
   fi
 done
 
-for cmd in i3 ryoku-wm-i3 qs ryoku-shell loginctl xcompmgr; do
+for cmd in i3 ryoku-wm-i3 qs ryoku-shell loginctl xcompmgr flock; do
   command -v "$cmd" >/dev/null 2>&1 || {
     echo "ryoku-x11-session: required command not found: $cmd" >&2
     exit 1
@@ -67,8 +81,7 @@ done
 # This writes only RXB's generated.conf; user.conf remains user-owned.
 ryoku-wm-i3 apply "$RYOKU_CONFIG_HOME/ryoku/desktop.json" >/dev/null
 
-runtime_dir=${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required for a systemd user session}
-env_file="$runtime_dir/ryoku-x11-session.env"
+env_file="$runtime_dir/ryoku-x11-session-$session_id.env"
 compositor_pid=""
 runtime_config=""
 cleanup() {
@@ -89,7 +102,7 @@ trap cleanup EXIT
 # This compositor belongs only to this i3 session and is stopped on exit.
 # If another compositor already owns the X selection or xcompmgr cannot start,
 # continue without compositing rather than disturbing another desktop.
-xcompmgr -n >"$runtime_dir/ryoku-x11-compositor.log" 2>&1 &
+xcompmgr -n >"$runtime_dir/ryoku-x11-compositor-$session_id.log" 2>&1 &
 compositor_pid=$!
 sleep 0.2
 if ! kill -0 "$compositor_pid" 2>/dev/null; then
@@ -99,7 +112,7 @@ if ! kill -0 "$compositor_pid" 2>/dev/null; then
 fi
 
 # Resolve only the two RXB-owned includes into a session-only runtime copy.
-runtime_config="$runtime_dir/ryoku-x11-i3.conf"
+runtime_config="$runtime_dir/ryoku-x11-i3-$session_id.conf"
 if [[ -L "$runtime_config" ]]; then
   echo "ryoku-x11-session: refusing a symlinked runtime i3 config." >&2
   exit 1

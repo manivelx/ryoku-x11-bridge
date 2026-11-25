@@ -21,6 +21,15 @@ if ! loginctl show-session "$XDG_SESSION_ID" --property=Class --value 2>/dev/nul
   echo "ryoku-x11-session-init: logind session is not a graphical user session" >&2
   exit 1
 fi
+[[ ${RYOKU_X11_SESSION_LOCKED:-} == 1 ]] || { echo "ryoku-x11-session-init: refusing to initialize outside the locked RXB session wrapper" >&2; exit 1; }
+session_id="$XDG_SESSION_ID"
+[[ "$session_id" =~ ^[A-Za-z0-9_.-]+$ ]] || { echo "ryoku-x11-session-init: invalid logind session ID" >&2; exit 1; }
+runtime_dir=${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required for a systemd user session}
+lock_file="$runtime_dir/ryoku-x11-session.lock"
+if [[ -L "$lock_file" ]] || [[ ! -f "$lock_file" ]] || flock -n "$lock_file" -c true; then
+  echo "ryoku-x11-session-init: RXB session lock is not held by the session wrapper" >&2
+  exit 1
+fi
 
 # Never trust an inherited I3SOCK: it may belong to a previous i3/Sway session.
 socket=""
@@ -61,8 +70,7 @@ ryoku materialize || {
 
 # Keep X11 session variables local to the Ryoku shell unit; never import them
 # into the shared systemd user manager where they would leak into BSPWM.
-runtime_dir=${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required for a systemd user session}
-env_file="$runtime_dir/ryoku-x11-session.env"
+env_file="$runtime_dir/ryoku-x11-session-$session_id.env"
 if [[ -L "$env_file" ]]; then
   echo "ryoku-x11-session-init: refusing a symlinked session EnvironmentFile" >&2
   exit 1
@@ -96,5 +104,15 @@ umask 077
   [[ -z ${XAUTHORITY:-} ]] || write_env XAUTHORITY "$XAUTHORITY"
 } > "$env_file"
 
+init_cleanup() {
+  local status=$?
+  trap - EXIT
+  if (( status != 0 )); then rm -f -- "$env_file"; fi
+  exit "$status"
+}
+trap init_cleanup EXIT
+
 systemctl --user daemon-reload
 systemctl --user start ryoku-x11-session.target
+systemctl --user start "ryoku-shell-x11@${session_id}.service" "ryogami-x11@${session_id}.service"
+trap - EXIT

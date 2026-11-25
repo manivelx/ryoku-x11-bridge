@@ -52,16 +52,13 @@ case "$mode" in
     # Ryoku Wayland services: those units remain byte-for-byte untouched.
     install -Dm644 "$RYOKU_SRC/payload/systemd/ryoku-x11-session.target" \
       "$pkgdir/usr/lib/systemd/user/ryoku-x11-session.target"
-    install -Dm644 "$RYOKU_SRC/payload/systemd/ryoku-shell-x11.service" \
-      "$pkgdir/usr/lib/systemd/user/ryoku-shell-x11.service"
-    install -Dm644 "$RYOKU_SRC/payload/systemd/ryogami-x11.service" \
-      "$pkgdir/usr/lib/systemd/user/ryogami-x11.service"
+    install -Dm644 "$RYOKU_SRC/payload/systemd/ryoku-shell-x11@.service" \
+      "$pkgdir/usr/lib/systemd/user/ryoku-shell-x11@.service"
+    install -Dm644 "$RYOKU_SRC/payload/systemd/ryogami-x11@.service" \
+      "$pkgdir/usr/lib/systemd/user/ryogami-x11@.service"
 
-    # Only the dedicated RXB target owns these services; no default or upstream
-    # Ryoku target is enabled or modified.
-    install -d "$pkgdir/usr/lib/systemd/user/ryoku-x11-session.target.wants"
-    ln -sfn ../ryoku-shell-x11.service "$pkgdir/usr/lib/systemd/user/ryoku-x11-session.target.wants/ryoku-shell-x11.service"
-    ln -sfn ../ryogami-x11.service "$pkgdir/usr/lib/systemd/user/ryoku-x11-session.target.wants/ryogami-x11.service"
+    # The initializer starts only instances with a validated, session-specific
+    # EnvironmentFile. PartOf ties their lifecycle to the RXB session target.
     install -Dm644 /dev/stdin "$pkgdir/usr/share/xsessions/ryoku-x11.desktop" <<'EOF'
 [Desktop Entry]
 Name=Ryoku (X11 / i3)

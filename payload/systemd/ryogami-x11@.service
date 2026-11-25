@@ -1,14 +1,14 @@
 [Unit]
-Description=Ryogami wallpaper daemon (RXB X11)
+Description=Ryogami wallpaper daemon (RXB X11, session %i)
 ConditionUser=!@system
 PartOf=ryoku-x11-session.target
-After=ryoku-shell-x11.service
-ConditionPathExists=%t/ryoku-x11-session.env
+After=ryoku-shell-x11@%i.service
+ConditionPathExists=%t/ryoku-x11-session-%i.env
 StartLimitIntervalSec=60
 StartLimitBurst=5
 
 [Service]
-EnvironmentFile=%t/ryoku-x11-session.env
+EnvironmentFile=%t/ryoku-x11-session-%i.env
 UnsetEnvironment=WAYLAND_DISPLAY SWAYSOCK
 ExecStart=/usr/bin/ryogami
 Restart=always
