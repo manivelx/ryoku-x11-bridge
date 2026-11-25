@@ -49,7 +49,7 @@ else
       active_id="${active_id%.env}"
       [[ "$active_id" != "$session_id" && "$active_id" =~ ^[A-Za-z0-9_.-]+$ ]] || continue
       [[ -f "$active_env" && ! -L "$active_env" && "$(stat -c %h "$active_env" 2>/dev/null || true)" == "1" ]] || continue
-      active_socket="$(sed -n 's/^I3SOCK="\\([^"]*\\)"$/\\1/p' "$active_env" | head -n1)"
+      active_socket="$(sed -n 's/^I3SOCK="\([^"]*\)"$/\1/p' "$active_env" | head -n1)"
       if [[ -n "$active_socket" && "$active_socket" == "$runtime_dir"/* && -S "$active_socket" ]]; then
         echo "ryoku-x11-session: previous RXB session $active_id still owns a live i3 socket; refusing a concurrent session." >&2
         exit 1
