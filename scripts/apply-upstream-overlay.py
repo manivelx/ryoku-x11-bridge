@@ -2472,7 +2472,7 @@ esac
         ("    function removeVoxtype() {\n        if (!pg.installAvailable)", "    function removeVoxtype() {\n        if (pg.rxbUnavailable || !pg.installAvailable)"),
         ("    Component.onCompleted: pg.reload()", '    Component.onCompleted: {\n        pg.reload();\n        if (pg.rxbUnavailable) pg.notice = I18n.tr("Dictation is disabled in RXB X11 to keep Voxtype configuration and services isolated from BSPWM.");\n    }'),
     ):
-        replace_once(p, old, new, "DictationPage guard")
+        replace_once(p, old, new)
 
 def patch_quickshell_config_isolation(root: pathlib.Path) -> None:
     # Keep all Ryoku-managed user configuration in a session-owned subtree.
