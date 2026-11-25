@@ -73,7 +73,7 @@ if [[ ${1:-} == -c ]]; then
   }
   [[ -f ${2:-} ]] || { echo "i3 config missing" >&2; exit 1; }
   if [[ ${FAKE_I3_HOLD:-0} == 1 ]]; then
-    printf '%s\\n' "$BASHPID" > "$FAKE_I3_HOLD_PID"
+    printf '%s\n' "$BASHPID" > "$FAKE_I3_HOLD_PID"
     exec sleep 60
   fi
   [[ ${2:-} == "$XDG_RUNTIME_DIR/ryoku-x11-i3-42.conf" ]] || {
