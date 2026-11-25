@@ -2411,11 +2411,10 @@ func TestRXBHostGuardDefaultsToDenyUnknownAndUnapprovedMutations(t *testing.T) {
         'if code := app.Execute([]string{"snapshots", "extra"}); code != ExitNotProvided {',
         1,
     )
-    text = text.replace(
-        'if stdout.Len() != 0 || stderr.Len() != 0 {\n\t\t\tt.Fatalf("usage-only rejection wrote stdout=%q stderr=%q", stdout.String(), stderr.String())',
-        'if stdout.Len() != 0 || stderr.Len() == 0 {\n\t\t\tt.Fatalf("RXB host guard did not reject snapshots arguments: stdout=%q stderr=%q", stdout.String(), stderr.String())',
-        1,
-    )
+    text = text.replace('if stdout.Len() != 0 || stderr.Len() != 0 {',
+                        'if stdout.Len() != 0 || stderr.Len() == 0 {', 1)
+    text = text.replace('usage-only rejection wrote stdout=%q stderr=%q',
+                        'RXB host guard did not reject snapshots arguments: stdout=%q stderr=%q', 1)
     for name in (
         "TestSnapshotCreateRunsNumberedSnapshotAndCleanup",
         "TestSnapshotCreateStopsAfterSnapperFailure",
