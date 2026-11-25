@@ -1965,6 +1965,7 @@ def patch_x11_desktop_entry_visibility(root: pathlib.Path) -> None:
         ("ryoku/hub/ryoku-hub.desktop", "Categories=Settings;DesktopSettings;"),
         ("ryoku/apps/ryostore/ryostore.desktop", "Categories=Utility;Settings;"),
         ("ryoku/apps/tools/install-app.desktop", "Categories=System;"),
+        ("ryoku/apps/ryovm/ryovm.desktop", "Categories=System;Utility;"),
     ):
         p = root / desktop_path
         replace_once(p, category_line, category_line + "\nOnlyShowIn=Ryoku;")
@@ -2262,6 +2263,209 @@ func TestRXBBlocksCPUAndIdlePolicyMutations(t *testing.T) {
     }
 }
 """)
+
+    # RXB is not a host administrator. Replace the historical deny-list
+    # with a positive allowlist; unknown upstream verbs remain denied.
+    p = root / "ryoku/cli/internal/host/command.go"
+    text = p.read_text()
+    start = text.index("func rxbHostCommandBlocked(args []string) bool {")
+    end_marker = "\n}\n\nfunc (a *App) Execute(args []string) int {"
+    end = text.index(end_marker, start) + 2
+    guard = """func rxbHostCommandAllowed(args []string) bool {
+    if len(args) == 0 { return false }
+    switch args[0] {
+    case "init", "pkgmgr", "capabilities":
+        return len(args) == 1
+    case "snapshots":
+        return len(args) == 1
+    case "repo":
+        return len(args) == 2 && (args[1] == "channel" || args[1] == "channels" || args[1] == "list" || args[1] == "status")
+    case "svc":
+        index, scope, seenScope := 1, "--user", false
+        for index < len(args) && (args[index] == "--user" || args[index] == "--system") {
+            if seenScope && scope != args[index] { return false }
+            scope, seenScope = args[index], true
+            index++
+        }
+        if index >= len(args) { return false }
+        switch args[index] {
+        case "status", "list", "show", "is-active", "is-enabled", "cat", "logs", "failed":
+            return true
+        case "start", "stop", "restart", "try-restart", "reload":
+            if scope != "--user" || index+1 >= len(args) { return false }
+            for _, name := range args[index+1:] {
+                switch name {
+                case "pipewire", "pipewire.service", "wireplumber", "wireplumber.service", "pipewire-pulse", "pipewire-pulse.service":
+                default: return false
+                }
+            }
+            return true
+        default: return false
+        }
+    case "app":
+        for index := 1; index < len(args); index++ {
+            if args[index] == "--" { return index+1 < len(args) }
+        }
+        return false
+    case "inhibit":
+        return len(args) > 1
+    case "transient":
+        return len(args) == 3 && args[1] == "is-active"
+    case "session":
+        return len(args) == 2 && args[1] == "check"
+    case "pkg":
+        if len(args) < 2 { return false }
+        switch args[1] {
+        case "installed", "installed-at", "available", "status", "why", "advice", "version", "owner", "count", "local":
+            return true
+        default: return false
+        }
+    case "power":
+        if len(args) == 2 && (args[1] == "capabilities" || args[1] == "reboot" || args[1] == "poweroff") { return true }
+        return len(args) == 3 && args[1] == "profile" && args[2] == "get"
+    case "time":
+        return len(args) == 2 && (args[1] == "zone" || args[1] == "zones")
+    case "auth":
+        return len(args) == 3 && args[1] == "fingerprint" && args[2] == "status"
+    case "network":
+        return len(args) == 3 && ((args[1] == "wifi-backend" && args[2] == "get") || (args[1] == "kill" && args[2] == "status"))
+    case "phone":
+        return len(args) == 2 && args[1] == "status"
+    case "users":
+        return len(args) == 2 && (args[1] == "list" || args[1] == "caps")
+    default:
+        return false
+    }
+}"""
+    text = text[:start] + guard + text[end:]
+    if "if rxbHostCommandBlocked(args) {" not in text:
+        raise RuntimeError("RXB host command guard call anchor missing")
+    text = text.replace("if rxbHostCommandBlocked(args) {", "if !rxbHostCommandAllowed(args) {", 1)
+    old_message = 'fmt.Fprintln(a.cfg.Stderr, "ryoku-host: this host-wide mutation is disabled in the RXB X11 build; RXB does not own system service, session bootstrap, repository, initramfs or suspend/hibernate policy.")'
+    new_message = 'fmt.Fprintln(a.cfg.Stderr, "ryoku-host: this command is not allowed in RXB X11; only explicitly approved read-only and session-safe operations are available.")'
+    if old_message not in text:
+        raise RuntimeError("RXB host command error message anchor missing")
+    text = text.replace(old_message, new_message, 1)
+    p.write_text(text)
+
+    p = root / "ryoku/cli/internal/host/command_rxb_guard_test.go"
+    text = p.read_text()
+    text = text.replace("if !rxbHostCommandBlocked(args) {", "if rxbHostCommandAllowed(args) {")
+    text = text.replace("if rxbHostCommandBlocked(args) {", "if !rxbHostCommandAllowed(args) {")
+    p.write_text(text)
+
+    p = root / "ryoku/cli/internal/host/command_rxb_usage_test.go"
+    p.write_text("""package host
+
+import (
+    "strings"
+    "testing"
+)
+
+func TestRXBHostUsageVerbsAreExplicitlyClassified(t *testing.T) {
+    classified := map[string]bool{
+        "init": true, "pkgmgr": true, "snapshots": true, "capabilities": true,
+        "repo": true, "svc": true, "app": true, "inhibit": true,
+        "transient": true, "session": true, "pkg": true, "power": true,
+        "time": true, "keymap": true, "initramfs": true, "auth": true,
+        "network": true, "phone": true, "users": true,
+    }
+    for lineNumber, line := range strings.Split(Usage, "\\n") {
+        indent := len(line) - len(strings.TrimLeft(line, " "))
+        if indent != 2 { continue }
+        fields := strings.Fields(line)
+        if len(fields) > 0 && !classified[fields[0]] {
+            t.Errorf("usage line %d adds unclassified host verb %q; review the RXB allowlist", lineNumber+1, fields[0])
+        }
+    }
+}
+
+func TestRXBHostGuardDefaultsToDenyUnknownAndUnapprovedMutations(t *testing.T) {
+    for _, args := range [][]string{
+        {"future-admin-command"}, {"snapshots", "unexpected"},
+        {"repo", "set-channel", "testing"}, {"pkg", "install", "example"},
+        {"svc", "--user", "start", "unknown-user-service"},
+        {"svc", "--system", "enable", "bluetooth"},
+    } {
+        if rxbHostCommandAllowed(args) {
+            t.Errorf("%v unexpectedly passed the RXB host allowlist", args)
+        }
+    }
+}
+""")
+
+    p = root / "system/hardware/network/ryoku-wifi-backend"
+    replace_once(p, "set -u\n", """set -u
+
+if [[ "$#" -eq 0 ]]; then
+  action=get
+else
+  action="$1"
+fi
+case "$action" in
+  get) ;;
+  *)
+    echo "ryoku-wifi-backend: host Wi-Fi backend changes are disabled in RXB X11." >&2
+    exit 64
+    ;;
+esac
+""")
+
+    p = root / "ryoku/hub/quickshell/pages/users/UsersTab.qml"
+    replace_once(p, """Column {
+    id: root
+
+    spacing: Tokens.s5""", """Column {
+    id: root
+
+    readonly property bool hostAccountChangesAvailable: Quickshell.env("RYOKU_X11_BRIDGE") !== "1"
+    enabled: hostAccountChangesAvailable
+
+    spacing: Tokens.s5
+
+    Text {
+        visible: !root.hostAccountChangesAvailable
+        width: root.width
+        wrapMode: Text.WordWrap
+        color: Tokens.inkMuted
+        text: I18n.tr("User management is disabled in RXB X11 to protect host accounts.")
+    }""")
+    replace_once(p, 'readonly property bool canManage: root.selfAccount !== null && root.selfAccount.role === "admin"', 'readonly property bool canManage: root.hostAccountChangesAvailable && root.selfAccount !== null && root.selfAccount.role === "admin"')
+
+    p = root / "ryoku/hub/quickshell/pages/InputPage.qml"
+    replace_once(p, "    property var hub\n", '    property var hub\n\n    readonly property bool hostWideKeymapApplyAvailable: Quickshell.env("RYOKU_X11_BRIDGE") !== "1"\n')
+    replace_once(p, 'desc: I18n.tr("Match the login screen, TTYs, and boot prompt too.")', 'desc: pg.hostWideKeymapApplyAvailable ? I18n.tr("Match the login screen, TTYs, and boot prompt too.") : I18n.tr("Unavailable in RXB X11; host login, TTY, and boot keymaps are left unchanged.")')
+    replace_once(p, "armed: pg.kbClean && !sysApplyProc.running", "armed: pg.hostWideKeymapApplyAvailable && pg.kbClean && !sysApplyProc.running")
+    replace_once(p, "onAct: sysApplyProc.running = true", "onAct: if (pg.hostWideKeymapApplyAvailable) sysApplyProc.running = true")
+
+    p = root / "ryoku/hub/quickshell/pages/GlobalPage.qml"
+    replace_once(p, "import QtQuick\n", "import QtQuick\nimport Quickshell\n")
+    replace_once(p, "    property var hub\n", '    property var hub\n    readonly property bool hostTimezoneChangeAvailable: Quickshell.env("RYOKU_X11_BRIDGE") !== "1"\n')
+    replace_once(p, "            var r = GlobalSchema.rows[i];\n", "            var r = GlobalSchema.rows[i];\n            if (r.key === \\"timezone\\" && !pg.hostTimezoneChangeAvailable) continue;\n")
+    replace_once(p, "        if (!z) return;\n", "        if (!pg.hostTimezoneChangeAvailable || !z) return;\n")
+
+    p = root / "ryoku/hub/quickshell/pages/ConnectionsPage.qml"
+    replace_once(p, "    property var hub\n", '    property var hub\n    readonly property bool hostNetworkChangesAvailable: Quickshell.env("RYOKU_X11_BRIDGE") !== "1"\n')
+    replace_once(p, "    function toggleKillSwitch() {\n        killBusy = true;", "    function toggleKillSwitch() {\n        if (!pg.hostNetworkChangesAvailable) return;\n        killBusy = true;")
+    replace_once(p, "        function setBackend(choice) {\n            if (wifi.backendBusy || choice === wifi.wifiBackend)", "        function setBackend(choice) {\n            if (!pg.hostNetworkChangesAvailable || wifi.backendBusy || choice === wifi.wifiBackend)")
+    replace_once(p, "        function startService() {\n            if (svcProc.running)", '        function startService() {\n            if (!pg.hostNetworkChangesAvailable) {\n                bt.serviceError = I18n.tr("Bluetooth service repair is disabled in RXB X11.");\n                svcErrTimer.restart();\n                return;\n            }\n            if (svcProc.running)')
+    replace_once(p, "armed: !wifi.backendBusy", "armed: pg.hostNetworkChangesAvailable && !wifi.backendBusy")
+    replace_once(p, 'armed: !pg.killBusy && pg.killState !== "checking"', 'armed: pg.hostNetworkChangesAvailable && !pg.killBusy && pg.killState !== "checking"')
+    replace_once(p, "armed: !svcProc.running", "armed: pg.hostNetworkChangesAvailable && !svcProc.running")
+
+    p = root / "ryoku/hub/quickshell/pages/DictationPage.qml"
+    replace_once(p, "Item {\n    id: pg\n", 'Item {\n    id: pg\n\n    readonly property bool rxbUnavailable: Quickshell.env("RYOKU_X11_BRIDGE") === "1"\n    enabled: !rxbUnavailable\n')
+    for old, new in (
+        ("    function apply(extra) {\n", "    function apply(extra) {\n        if (pg.rxbUnavailable) return;\n"),
+        ("    function choose(key) {\n", "    function choose(key) {\n        if (pg.rxbUnavailable) return;\n"),
+        ("    function requestDownload(key) {\n", "    function requestDownload(key) {\n        if (pg.rxbUnavailable) return;\n"),
+        ("    function download(key) {\n", "    function download(key) {\n        if (pg.rxbUnavailable) return;\n"),
+        ("    function removeModel(key) {\n", "    function removeModel(key) {\n        if (pg.rxbUnavailable) return;\n"),
+        ("    function installVoxtype() {\n        if (!pg.installAvailable)", "    function installVoxtype() {\n        if (pg.rxbUnavailable || !pg.installAvailable)"),
+        ("    function removeVoxtype() {\n        if (!pg.installAvailable)", "    function removeVoxtype() {\n        if (pg.rxbUnavailable || !pg.installAvailable)"),
+        ("    Component.onCompleted: pg.reload()", '    Component.onCompleted: {\n        pg.reload();\n        if (pg.rxbUnavailable) pg.notice = I18n.tr("Dictation is disabled in RXB X11 to keep Voxtype configuration and services isolated from BSPWM.");\n    }'),
+    ):
+        replace_once(p, old, new, "DictationPage guard")
 
 def patch_quickshell_config_isolation(root: pathlib.Path) -> None:
     # Keep all Ryoku-managed user configuration in a session-owned subtree.
