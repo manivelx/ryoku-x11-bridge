@@ -469,7 +469,18 @@ interrupt_package_file="$manifest_attack_dir/interrupted-package-path"
 cat > "$interrupt_pacman_dir/pacman" <<'INTERRUPT_PACMAN'
 #!/usr/bin/env bash
 for arg in "$@"; do
-  [[ "$arg" == "-Qu" ]] && exit 0
+  case "$arg" in
+    -Qu)
+      exit 0
+      ;;
+    # This test is specifically about interruption of the local RXB package
+    # transaction. Pretend external runtime dependencies are already
+    # satisfied so the fixture cannot spend its timeout downloading/installing
+    # the entire desktop dependency graph before reaching the intercepted -U.
+    -T)
+      exit 0
+      ;;
+  esac
 done
 if [[ "${3:-}" == "-U" ]]; then
   local_package=""
