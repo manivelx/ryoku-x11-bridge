@@ -1531,7 +1531,7 @@ func main() {""",
 	switch args[0] {
 	case "init", "pkgmgr", "inhibit", "app", "capabilities":
 		// These operations are read-only or user-session scoped, not host administration.
-		// host administration. Preserve upstream argument validation.
+		// Preserve upstream argument validation.
 		return false
 	case "pkg":
 		switch args[1] {
@@ -1544,7 +1544,11 @@ func main() {""",
 		return args[1] != "list" && args[1] != "caps"
 	case "auth":
 		return !(args[1] == "fingerprint" && len(args) == 3 && args[2] == "status")
-	case "network", "keymap", "transient", "initramfs":
+	case "network":
+		return !(len(args) == 3 && ((args[1] == "wifi-backend" && args[2] == "get") || (args[1] == "kill" && args[2] == "status")))
+	case "transient":
+		return !(len(args) == 3 && args[1] == "is-active")
+	case "keymap", "initramfs":
 		return true
 	case "time":
 		return args[1] != "zone" && args[1] != "zones"
@@ -1613,7 +1617,7 @@ func main() {""",
 		// read-only allowlist entry before exposing any new upstream command.
 		return true
 	}
-}""",
+}
 
 func (a *App) Execute(args []string) int {
 	if len(args) == 0 {""",
@@ -1713,6 +1717,9 @@ func TestRXBHostGuardKeepsReadOnlyAndSessionScopedActions(t *testing.T) {
 		{"init"},
 		{"pkgmgr"},
 		{"inhibit", "--what=sleep:idle", "--mode=block", "true"},
+		{"network", "wifi-backend", "get"},
+		{"network", "kill", "status"},
+		{"transient", "is-active", "ryoku-caffeine"},
 		{"capabilities"},
 		{"app", "--", "true"},
 		{"svc", "--user", "is-active", "ryoku-shell"},
@@ -2217,7 +2224,7 @@ func TestRXBBlocksRashinPackageAndPhoneServiceChangesBeforePkexec(t *testing.T) 
         {"phone off", func() error { return runPhone([]string{"off"}) }},
     } {
         err := action.run()
-        if err == nil || !strings.Contains(err.Error(), "disabled in the RXB X11 build") && !strings.Contains(err.Error(), "disabled in the RXB X11 build") {
+        if err == nil || !strings.Contains(err.Error(), "disabled in the RXB X11 build") {
             t.Fatalf("%s returned %v, want RXB fail-closed error", action.name, err)
         }
     }
