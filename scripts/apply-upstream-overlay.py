@@ -1516,14 +1516,23 @@ func main() {""",
         p,
         """func (a *App) Execute(args []string) int {
 	if len(args) == 0 {""",
-        """func rxbHostCommandBlocked(args []string) bool {
+"""func rxbHostCommandBlocked(args []string) bool {
 	if len(args) == 0 {
 		return false
 	}
 	if len(args) == 1 {
-		return args[0] != "snapshots"
+		switch args[0] {
+		case "app", "capabilities", "snapshots":
+			return false
+		default:
+			return true
+		}
 	}
 	switch args[0] {
+	case "app", "capabilities":
+		// Launching a user application and reporting capabilities are not
+		// host administration. Preserve upstream argument validation.
+		return false
 	case "pkg":
 		switch args[1] {
 		case "installed", "installed-at", "available", "status", "why", "advice", "version", "owner", "count", "local":
@@ -1551,9 +1560,9 @@ func main() {""",
 			return true
 		}
 	case "snapshots":
-		// Bare snapshots is the read-only listing command. All subcommands
-		// are denied because creation/rollback mutate host-managed state.
-		return true
+		// Only creation mutates the host. Let invalid arguments reach the
+		// upstream usage check instead of changing its documented exit code.
+		return args[1] == "create"
 	case "svc":
 		if args[1] == "reconcile" {
 			return true
@@ -1604,7 +1613,7 @@ func main() {""",
 		// read-only allowlist entry before exposing any new upstream command.
 		return true
 	}
-}
+}"""
 
 func (a *App) Execute(args []string) int {
 	if len(args) == 0 {""",
