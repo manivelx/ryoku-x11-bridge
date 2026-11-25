@@ -60,6 +60,10 @@ jobs:
             archlinux:base-devel \
             bash -lc '
               set -euxo pipefail
+              # Package hooks run in an ephemeral container, not a booted host.
+              # Tell systemd-aware hooks to perform their supported offline
+              # behavior instead of trying to contact a nonexistent PID 1.
+              export SYSTEMD_OFFLINE=1
               exec > >(tee /workspace/dist/arch-ci.log) 2>&1
               echo "[ci] Updating the disposable Arch build environment."
               pacman -Syu --noconfirm --needed \

@@ -38,7 +38,26 @@ command -v flock >/dev/null 2>&1 || { echo "ryoku-x11-session: flock is required
 if [[ ${1:-} == --rxb-lock-held ]]; then
   shift
 else
-  (umask 077; flock -n "$lock_file" bash "$0" --rxb-lock-held) || { echo "ryoku-x11-session: another RXB graphical session is already active for this user." >&2; exit 1; }
+  if ! (umask 077; flock -n "$lock_file" bash "$0" --rxb-lock-held); then
+    # The lock is intentionally held for the lifetime of i3. If its wrapper
+    # was killed but i3 survived, report the live socket rather than hiding
+    # the actual conflict behind the generic per-user lock message.
+    shopt -s nullglob
+    for active_env in "$runtime_dir"/ryoku-x11-session-*.env; do
+      active_name="${active_env##*/}"
+      active_id="${active_name#ryoku-x11-session-}"
+      active_id="${active_id%.env}"
+      [[ "$active_id" != "$session_id" && "$active_id" =~ ^[A-Za-z0-9_.-]+$ ]] || continue
+      [[ -f "$active_env" && ! -L "$active_env" && "$(stat -c %h "$active_env" 2>/dev/null || true)" == "1" ]] || continue
+      active_socket="$(sed -n 's/^I3SOCK="\\([^"]*\\)"$/\\1/p' "$active_env" | head -n1)"
+      if [[ -n "$active_socket" && "$active_socket" == "$runtime_dir"/* && -S "$active_socket" ]]; then
+        echo "ryoku-x11-session: previous RXB session $active_id still owns a live i3 socket; refusing a concurrent session." >&2
+        exit 1
+      fi
+    done
+    echo "ryoku-x11-session: another RXB graphical session is already active for this user." >&2
+    exit 1
+  fi
   exit 0
 fi
 export RYOKU_X11_SESSION_LOCKED=1
