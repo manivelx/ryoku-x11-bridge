@@ -2348,11 +2348,15 @@ func TestRXBBlocksCPUAndIdlePolicyMutations(t *testing.T) {
     text = text.replace(old_message, new_message, 1)
     p.write_text(text)
 
-    p = root / "ryoku/cli/internal/host/command_rxb_guard_test.go"
-    text = p.read_text()
-    text = text.replace("if !rxbHostCommandBlocked(args) {", "if rxbHostCommandAllowed(args) {")
-    text = text.replace("if rxbHostCommandBlocked(args) {", "if !rxbHostCommandAllowed(args) {")
-    p.write_text(text)
+    host_test_dir = root / "ryoku/cli/internal/host"
+    for p in host_test_dir.glob("*_test.go"):
+        text = p.read_text()
+        text = text.replace("if !rxbHostCommandBlocked(args) {", "if rxbHostCommandAllowed(args) {")
+        text = text.replace("if rxbHostCommandBlocked(args) {", "if !rxbHostCommandAllowed(args) {")
+        if p.name == "rxb_guard_test.go":
+            text = text.replace('strings.Contains(stderr.String(), "disabled in the RXB X11 build")',
+                                'strings.Contains(stderr.String(), "not allowed in RXB X11")')
+        p.write_text(text)
 
     p = root / "ryoku/cli/internal/host/command_rxb_usage_test.go"
     p.write_text("""package host
