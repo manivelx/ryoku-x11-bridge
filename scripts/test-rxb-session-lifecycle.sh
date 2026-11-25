@@ -289,7 +289,12 @@ fi
 
 # A still-online BSPWM/Wayland login for the same UID must be rejected
 # before RXB writes its EnvironmentFile or starts any RXB-owned user service.
+# Recreate a sentinel EnvironmentFile after the successful-session test
+# above removed its own file. The overlap guard must not rewrite or delete it.
+printf 'I3SOCK="%s"\n' "$runtime/stale-session-socket" > "$runtime/ryoku-x11-session-42.env"
+chmod 600 "$runtime/ryoku-x11-session-42.env"
 stale_env_before="$(sha256sum "$runtime/ryoku-x11-session-42.env")"
+systemctl_log_before="$(sha256sum "$TEST_SYSTEMCTL_LOG")"
 if FAKE_OTHER_GRAPHICAL_SESSION=1 bash "$repo_root/payload/bin/ryoku-x11-session" >"$tmp/other-graphical-session.log" 2>&1; then
   echo "RXB accepted a second graphical logind session for the same user" >&2
   exit 1
@@ -300,7 +305,7 @@ grep -Fq "another graphical session 41 (x11, online) is still present" "$tmp/oth
   exit 1
 }
 [[ "$(sha256sum "$runtime/ryoku-x11-session-42.env")" == "$stale_env_before" ]]
-[[ ! -e "$TEST_SYSTEMCTL_LOG" ]]
+[[ "$(sha256sum "$TEST_SYSTEMCTL_LOG")" == "$systemctl_log_before" ]]
 
 # A second RXB session must also be rejected while the first holds the per-user lock.
 hold_pid_file="$tmp/held-i3.pid"
