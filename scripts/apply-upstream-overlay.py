@@ -2033,7 +2033,7 @@ def patch_x11_privileged_hub_backends(root: pathlib.Path) -> None:
                  '''                    visible: false // RXB X11 has no validated automatic idle/lock path.''')
     replace_once(p, '''                    visible: pg.idleOn && pg.idleBattery.length > 0''',
                  '''                    visible: false // RXB X11 has no validated automatic idle/lock path.''')
-    replace_once(p, '''                    visible: pg.idleOn && pg.idlePlugged.length > 0''',
+    replace_once(p, '''                    visible: pg.idleAc.length > 0''',
                  '''                    visible: false // RXB X11 has no validated automatic idle/lock path.''')
 
     p = root / "ryoku/hub/backend/rxb_privileged_host_test.go"

@@ -70,7 +70,7 @@ for name in config generated.conf user.conf; do
   fi
 done
 
-for cmd in i3 ryoku-wm-i3 qs ryoku-shell loginctl systemctl xcompmgr flock stat sed head awk; do
+for cmd in i3 ryoku-wm-i3 qs ryoku-shell loginctl systemctl xcompmgr flock stat sed head awk seq; do
   command -v "$cmd" >/dev/null 2>&1 || {
     echo "ryoku-x11-session: required command not found: $cmd" >&2
     exit 1
@@ -94,12 +94,14 @@ stop_stale_compositor() {
         [[ -r "/proc/$stale_pid/stat" ]] || break
         current_comm="$(cat "/proc/$stale_pid/comm" 2>/dev/null || true)"
         current_start="$(awk '{print $22}' "/proc/$stale_pid/stat" 2>/dev/null || true)"
-        [[ "$current_comm" != "xcompmgr" || "$current_start" != "$stale_start" ]] && break
+        current_state="$(awk '{print $3}' "/proc/$stale_pid/stat" 2>/dev/null || true)"
+        [[ "$current_comm" != "xcompmgr" || "$current_start" != "$stale_start" || "$current_state" == "Z" ]] && break
         sleep 0.05
       done
       current_comm="$(cat "/proc/$stale_pid/comm" 2>/dev/null || true)"
       current_start="$(awk '{print $22}' "/proc/$stale_pid/stat" 2>/dev/null || true)"
-      if [[ "$current_comm" == "xcompmgr" && "$current_start" == "$stale_start" ]]; then
+      current_state="$(awk '{print $3}' "/proc/$stale_pid/stat" 2>/dev/null || true)"
+      if [[ "$current_comm" == "xcompmgr" && "$current_start" == "$stale_start" && "$current_state" != "Z" ]]; then
         kill -KILL "$stale_pid" 2>/dev/null || true
       fi
     fi

@@ -137,7 +137,7 @@ variant_list="$(bsdtar -tf "$variant_pkg")"
 all_list="$(for pkg in "${packages[@]}"; do bsdtar -tf "$pkg"; done)"
 
 for desktop in install-app.desktop ryoku-hub.desktop ryostore.desktop; do
-  desktop_content="$(bsdtar -xOf "$base_pkg" "usr/share/applications/$desktop" 2>/dev/null || true)"
+  desktop_content="$(bsdtar -xOf "$base_pkg" "./usr/share/applications/$desktop" 2>/dev/null || bsdtar -xOf "$base_pkg" "usr/share/applications/$desktop" 2>/dev/null || true)"
   if [[ -z "$desktop_content" ]] || ! grep -Fxq 'OnlyShowIn=Ryoku;' <<<"$desktop_content"; then
     echo "RXB package safety: $desktop is not restricted to the Ryoku desktop" >&2
     exit 1

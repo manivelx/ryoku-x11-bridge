@@ -21,3 +21,7 @@
 | R17 | User service enablement or Wayland-only services leak into non-RXB sessions | High | Use dedicated RXB target and service units; never drop in to upstream Wayland units; do not enable globally or mutate the shared user-manager environment; use a session-scoped EnvironmentFile; omit qylock power hooks |
 
 Stop ship if secure lock is not proven, capabilities are overstated, protected files change, active session services must be killed, or regression tests fail.
+
+R18 | Upstream host CLI and Hub backends can mutate host GPU, package, user, network, authentication, keymap, time, service, initramfs and greeter state. | Critical | Apply a default-deny host-command allowlist; block privileged Hub backends and hide unsupported controls before they can invoke pkexec; keep read-only queries and explicit safe power actions only. |
+R19 | GTK renderer and NVIDIA 470/GT740 compatibility are not physically validated. | High | Do not force GSK_RENDERER=gl or change the NVIDIA driver/kernel; keep GTK defaults and require controlled GT740 hardware acceptance before claiming rendering compatibility. |
+R20 | Ryoku-specific desktop launchers can appear in the preserved BSPWM session. | Medium | Restrict Hub, Store and app-installer desktop entries to XDG_CURRENT_DESKTOP=Ryoku; leave generic utilities and BSPWM configuration untouched. |
