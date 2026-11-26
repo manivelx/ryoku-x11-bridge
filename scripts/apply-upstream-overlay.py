@@ -3176,6 +3176,13 @@ def patch_x11_account_seed_isolation(root: pathlib.Path) -> None:
 \t\t}
 \t}''')
  
+    # Do not queue the upstream default rice during an RXB login. It is a
+    # host-wide account customization workflow; RXB keeps the user's existing
+    # look and only materializes the session-scoped shell tree.
+    replace_once(p, 'p.QueueRice = s.defaultRice && !s.shellStore && !s.activeRice && !s.ricePending',
+                 'p.QueueRice = os.Getenv("RYOKU_X11_BRIDGE") != "1" && s.defaultRice && !s.shellStore && !s.activeRice && !s.ricePending')
+
+
 def patch_nightlight_watcher_initialization(root: pathlib.Path) -> None:
     # Install the inotify watch before taking/publishing the initial state.
     # The old order published the startup frame first, allowing a quick marker
