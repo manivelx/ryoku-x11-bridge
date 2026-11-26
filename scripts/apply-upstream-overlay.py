@@ -3158,6 +3158,24 @@ func TestPicturesDirStillUsesStandardXDGConfig(t *testing.T) {
 }
 """)
 
+def patch_x11_account_seed_isolation(root: pathlib.Path) -> None:
+    # RXB must not seed dotfiles or application assets into the user's real
+    # home. Put brand assets under XDG_DATA_HOME and leave the global npmrc
+    # alone; decor assets continue to use the session's XDG_PICTURES_DIR.
+    p = root / "ryoku/cli/internal/updater/account_seed.go"
+    replace_once(p, 'home := sys.Home()\n\ts := accountSeedState{root: os.Geteuid() == 0, present: map[string]bool{}}',
+                 'home := sys.Home()\n\tdataHome := sys.Xdg("XDG_DATA_HOME", ".local/share")\n\ts := accountSeedState{root: os.Geteuid() == 0, present: map[string]bool{}}')
+    replace_once(p, 'filepath.Join(home, ".local", "share", "ryoku", "assets", "brand")',
+                 'filepath.Join(dataHome, "ryoku", "assets", "brand")')
+    replace_once(p, '''\tif src := accountSeedSource("ryoku/apps/npm/npmrc", "npmrc"); src != "" {
+\t\ts.files = append(s.files, AccountSeedCopy{src, filepath.Join(home, ".npmrc")})
+\t}''',
+                 '''\tif os.Getenv("RYOKU_X11_BRIDGE") != "1" {
+\t\tif src := accountSeedSource("ryoku/apps/npm/npmrc", "npmrc"); src != "" {
+\t\t\ts.files = append(s.files, AccountSeedCopy{src, filepath.Join(home, ".npmrc")})
+\t\t}
+\t}''')
+ 
 def patch_nightlight_watcher_initialization(root: pathlib.Path) -> None:
     # Install the inotify watch before taking/publishing the initial state.
     # The old order published the startup frame first, allowing a quick marker
@@ -3242,6 +3260,7 @@ def main() -> int:
     patch_x11_desktop_entry_visibility(root)
     patch_x11_privileged_hub_backends(root)
     patch_quickshell_config_isolation(root)
+    patch_x11_account_seed_isolation(root)
     patch_nightlight_watcher_initialization(root)
     print(f"RXB overlay applied to pinned Ryoku {PIN}")
     print("Changed: provider/session discovery, QML i3 bridge, X11 panel/taskbar/capture/clipboard/lock adapters, and non-destructive package policy")
