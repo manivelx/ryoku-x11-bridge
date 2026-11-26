@@ -154,31 +154,9 @@ for desktop in install-app.desktop compress-video.desktop ryoku-nvim.desktop ryo
   fi
 done
 
-wifi_archive_pkg=""
-wifi_archive_path=""
-for pkg in "${packages[@]}"; do
-  candidate="$(bsdtar -tf "$pkg" | grep -E "usr/bin/ryoku-wifi-backend$" | head -n1 || true)"
-  if [[ -n "$candidate" ]]; then
-    wifi_archive_pkg="$pkg"
-    wifi_archive_path="$candidate"
-    break
-  fi
-done
-[[ -n "$wifi_archive_path" ]] || { echo "RXB package safety: missing ryoku-wifi-backend helper from all RXB packages." >&2; exit 1; }
-(
-  wifi_script="$(mktemp)"
-  trap 'rm -f "$wifi_script"' EXIT
-  bsdtar -xOf "$wifi_archive_pkg" "$wifi_archive_path" > "$wifi_script"
-  chmod 0700 "$wifi_script"
-  set +e
-  RYOKU_X11_BRIDGE=1 bash "$wifi_script" set iwd >/dev/null 2>&1
-  wifi_status=$?
-  set -e
-  [[ "$wifi_status" -eq 64 ]] || {
-    echo "RXB package safety: Wi-Fi backend mutation did not fail closed with exit 64." >&2
-    exit 1
-  }
-)
+# The upstream Wi-Fi backend helper is source-only and is not shipped in
+# the split runtime package set. Its RXB guard is validated immediately after
+# applying the pinned-source overlay in the integration workflow.
 if grep -R -nF 'GSK_RENDERER=gl' "$root/payload" "$root/release/packages/ryoku-desktop-i3" 2>/dev/null; then
   echo "RXB package safety: forced GTK GL renderer is not allowed without GT740 hardware validation" >&2
   exit 1
