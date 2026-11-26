@@ -642,7 +642,7 @@ PY
 RXB_XVFB_TEST
 
 assert_decoy_home_untouched "$decoy_home" || {
-  find "$decoy_home" -mindepth 1 -maxdepth 3 -print >&2
+  find "$decoy_home" -mindepth 1 -print >&2
   echo "RXB Xvfb session modified the decoy real home directory." >&2
   exit 1
 }
