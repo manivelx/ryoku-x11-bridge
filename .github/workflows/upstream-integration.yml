@@ -236,6 +236,11 @@ jobs:
         run: python3 scripts/apply-upstream-overlay.py upstream
       - name: Test X11 terminal fallback and preserve Wayland behavior
         run: bash scripts/test-rxb-terminal-launcher.sh upstream
+      - name: Validate source-only Wi-Fi backend guard
+        run: |
+          bash -n upstream/system/hardware/network/ryoku-wifi-backend
+          grep -Fq 'host Wi-Fi backend changes are disabled in RXB X11' upstream/system/hardware/network/ryoku-wifi-backend
+          grep -Fq 'exit 64' upstream/system/hardware/network/ryoku-wifi-backend
       - name: Validate patched helper scripts
         run: |
           bash -n upstream/ryoku/shell/scripts/ryoku-cmd-grim
