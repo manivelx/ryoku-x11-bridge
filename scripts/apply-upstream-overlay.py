@@ -3158,14 +3158,60 @@ func TestPicturesDirStillUsesStandardXDGConfig(t *testing.T) {
 }
 """)
 
-def patch_nightlight_test_timeout(root: pathlib.Path) -> None:
-    # The watcher is event-driven but has a deliberately slow reconciliation
-    # fallback. Allow CI runners enough time for the inotify/process settle path
-    # without weakening the state assertion or skipping the integration test.
-    p = root / "ryoku/shell/ipc/nightlight_watch_test.go"
-    replace_once(p, "deadline := time.After(8 * time.Second)",
-                 "deadline := time.After(20 * time.Second)")
-    replace_once(p, 'within 8s", desc)', 'within 20s", desc)')
+def patch_nightlight_watcher_initialization(root: pathlib.Path) -> None:
+    # Install the inotify watch before taking/publishing the initial state.
+    # The old order published the startup frame first, allowing a quick marker
+    # write to land before InotifyAddWatch; the watcher then slept until its
+    # 30-second fallback and missed the user's state change. Watching first and
+    # scanning second closes that lost-wakeup window without weakening tests.
+    p = root / "ryoku/shell/ipc/nightlight.go"
+    old = """func (n *nightlightState) watch() {
+\ton, pid := n.runningPID()
+\ttemp := n.savedTemp()
+\tn.publish(on)
+
+\tfd, err := unix.InotifyInit1(unix.IN_CLOEXEC | unix.IN_NONBLOCK)
+\tif err != nil {
+\t\tn.loopNoWatch(on, temp)
+\t\treturn
+\t}
+\tdefer unix.Close(fd)
+\tif _, err := unix.InotifyAddWatch(fd, n.stateDir,
+\t\tunix.IN_CLOSE_WRITE|unix.IN_CREATE|unix.IN_DELETE|unix.IN_MOVED_TO); err != nil {
+\t\tlog.Printf("ryoku-shell: nightlight watch failed, using slow reconciliation: %v", err)
+\t\tn.loopNoWatch(on, temp)
+\t\treturn
+\t}
+
+\tbuf := make([]byte, 4096)"""
+    new = """func (n *nightlightState) watch() {
+\tfd, err := unix.InotifyInit1(unix.IN_CLOEXEC | unix.IN_NONBLOCK)
+\tif err != nil {
+\t\ton, _ := n.runningPID()
+\t\ttemp := n.savedTemp()
+\t\tn.publish(on)
+\t\tn.loopNoWatch(on, temp)
+\t\treturn
+\t}
+\tdefer unix.Close(fd)
+\tif _, err := unix.InotifyAddWatch(fd, n.stateDir,
+\t\tunix.IN_CLOSE_WRITE|unix.IN_CREATE|unix.IN_DELETE|unix.IN_MOVED_TO); err != nil {
+\t\tlog.Printf("ryoku-shell: nightlight watch failed, using slow reconciliation: %v", err)
+\t\ton, _ := n.runningPID()
+\t\ttemp := n.savedTemp()
+\t\tn.publish(on)
+\t\tn.loopNoWatch(on, temp)
+\t\treturn
+\t}
+
+\t// The watch is live before the first scan, so changes racing with startup
+\t// are either reflected in this snapshot or remain queued for the poll loop.
+\ton, pid := n.runningPID()
+\ttemp := n.savedTemp()
+\tn.publish(on)
+
+\tbuf := make([]byte, 4096)"""
+    replace_once(p, old, new)
 
 
 def main() -> int:
@@ -3196,7 +3242,7 @@ def main() -> int:
     patch_x11_desktop_entry_visibility(root)
     patch_x11_privileged_hub_backends(root)
     patch_quickshell_config_isolation(root)
-    patch_nightlight_test_timeout(root)
+    patch_nightlight_watcher_initialization(root)
     print(f"RXB overlay applied to pinned Ryoku {PIN}")
     print("Changed: provider/session discovery, QML i3 bridge, X11 panel/taskbar/capture/clipboard/lock adapters, and non-destructive package policy")
     print("Note: this is a source overlay, not a completed/validated desktop build.")
