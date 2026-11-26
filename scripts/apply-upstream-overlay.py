@@ -3183,6 +3183,34 @@ def patch_x11_account_seed_isolation(root: pathlib.Path) -> None:
                  'p.QueueRice = os.Getenv("RYOKU_X11_BRIDGE") != "1" && s.defaultRice && !s.shellStore && !s.activeRice && !s.ricePending')
 
 
+def patch_x11_state_isolation(root: pathlib.Path) -> None:
+    # Keep state owned by the RXB session under its private config root when a
+    # user manager or helper does not propagate XDG_STATE_HOME.
+    p = root / "ryoku/cli/internal/sys/paths.go"
+    replace_once(p, '''func StateDir() string {
+\treturn filepath.Join(Xdg("XDG_STATE_HOME", ".local/state"), "ryoku")
+}''',
+                 '''func StateDir() string {
+\tif os.Getenv("RYOKU_X11_BRIDGE") == "1" {
+\t\tif config := os.Getenv("RYOKU_CONFIG_HOME"); config != "" {
+\t\t\treturn filepath.Join(config, ".state", "ryoku")
+\t\t}
+\t}
+\treturn filepath.Join(Xdg("XDG_STATE_HOME", ".local/state"), "ryoku")
+}''')
+    p = root / "ryoku/shell/ipc/nightlight.go"
+    replace_once(p, '''\tbase := os.Getenv("XDG_STATE_HOME")
+\tif base == "" {
+\t\thome, err := os.UserHomeDir()''',
+                 '''\tbase := os.Getenv("XDG_STATE_HOME")
+\tif base == "" && os.Getenv("RYOKU_X11_BRIDGE") == "1" {
+\t\tif config := os.Getenv("RYOKU_CONFIG_HOME"); config != "" {
+\t\t\tbase = filepath.Join(config, ".state")
+\t\t}
+\t}
+\tif base == "" {
+\t\thome, err := os.UserHomeDir()''')
+
 def patch_nightlight_watcher_initialization(root: pathlib.Path) -> None:
     # Install the inotify watch before taking/publishing the initial state.
     # The old order published the startup frame first, allowing a quick marker
@@ -3268,6 +3296,7 @@ def main() -> int:
     patch_x11_privileged_hub_backends(root)
     patch_quickshell_config_isolation(root)
     patch_x11_account_seed_isolation(root)
+    patch_x11_state_isolation(root)
     patch_nightlight_watcher_initialization(root)
     print(f"RXB overlay applied to pinned Ryoku {PIN}")
     print("Changed: provider/session discovery, QML i3 bridge, X11 panel/taskbar/capture/clipboard/lock adapters, and non-destructive package policy")
