@@ -37,6 +37,10 @@ export XDG_CONFIG_HOME="$home/.config"
 export XDG_CACHE_HOME="$home/.cache"
 export XDG_DATA_HOME="$home/.local/share"
 export XDG_STATE_HOME="$home/.local/state"
+# User media directories are also isolated; the shell's wallpaper and Stash
+# surfaces must not create folders in the decoy real home.
+export XDG_PICTURES_DIR="$home/Pictures"
+export XDG_DOWNLOAD_DIR="$home/Downloads"
 export XDG_RUNTIME_DIR="$runtime"
 export RYOKU_X11_BRIDGE=1
 export XDG_SESSION_TYPE=x11
