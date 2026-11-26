@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
-set -x
 
 dist="${1:-dist}"
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -155,12 +154,149 @@ for desktop in install-app.desktop compress-video.desktop ryoku-nvim.desktop ryo
   fi
 done
 
-wifi_archive_path="$(printf '%s\n' "$base_list" | grep -E '(^|/)usr/bin/ryoku-wifi-backend$' | head -n1)"
-[[ -n "$wifi_archive_path" ]] || { echo "RXB package safety: missing ryoku-wifi-backend helper." >&2; exit 1; }
+wifi_archive_pkg=""
+wifi_archive_path=""
+for pkg in "${packages[@]}"; do
+  candidate="$(bsdtar -tf "$pkg" | grep -E '(^|/)usr/bin/ryoku-wifi-backend
+if grep -R -nF 'GSK_RENDERER=gl' "$root/payload" "$root/release/packages/ryoku-desktop-i3" 2>/dev/null; then
+  echo "RXB package safety: forced GTK GL renderer is not allowed without GT740 hardware validation" >&2
+  exit 1
+fi
+
+for script in "$root/scripts/install-rxb-packages.sh" "$root/scripts/remove-rxb-packages.sh"; do
+  if grep -nE '^[[:space:]]*(loginctl[[:space:]]+terminate-(session|user)|systemctl[[:space:]]+(poweroff|reboot|suspend|hibernate)|shutdown|reboot|poweroff)([[:space:]]|$)' "$script"; then
+    echo "RXB package safety: install/remove scripts must not force logout or power actions" >&2
+    exit 1
+  fi
+done
+
+# No RXB package may modify pacman's global trust database. The upstream
+# ryoku-keyring .INSTALL runs pacman-key --populate ryoku; RXB uses local
+# package artifacts and has the upstream updater disabled.
+for pkg in "${packages[@]}"; do
+  install_script="$(bsdtar -xOf "$pkg" .INSTALL 2>/dev/null || true)"
+  if grep -Eq 'pacman-key[[:space:]]+--populate|pacman-key[[:space:]]+-a' <<<"$install_script"; then
+    echo "RXB package contains a pacman trust-store mutation: $pkg" >&2
+    exit 1
+  fi
+  if grep -Eiq '(^|[;&|[:space:]])(systemctl|loginctl|systemd-run|ryoku-host|mkinitcpio|dracut|efibootmgr|bootctl|limine|udevadm|modprobe|tmpfiles)([[:space:]]|$)' <<<"$install_script"; then
+    echo "RXB package contains a host service, boot, kernel, or tmpfiles scriptlet mutation: $pkg" >&2
+    exit 1
+  fi
+done
+
+# The RXB package must carry the project license and the complete pinned
+# upstream notice tree, including iNiR's additional terms and font licenses.
+for required_notice in \
+  'usr/share/licenses/ryoku-desktop-i3/LICENSE' \
+  'usr/share/licenses/ryoku-desktop-i3/NOTICE' \
+  'usr/share/licenses/ryoku-desktop-i3/upstream/NOTICE' \
+  'usr/share/licenses/ryoku-desktop-i3/upstream/ryoku/shell/quickshell/inir/NOTICE' \
+  'usr/share/licenses/ryoku-desktop-i3/upstream/ryoku/shell/quickshell/inir/LICENSE' \
+  'usr/share/licenses/ryoku-desktop-i3/upstream/ryoku/shell/quickshell/inir/assets/fonts/inter/OFL.txt' \
+  'usr/share/doc/ryoku-desktop-i3/THIRD_PARTY_NOTICES.md'; do
+  grep -Fq "$required_notice" <<<"$variant_list" || {
+    echo "RXB package is missing required license/notice: $required_notice" >&2
+    exit 1
+  }
+done
+bsdtar -xOf "$variant_pkg" ./usr/share/licenses/ryoku-desktop-i3/upstream/ryoku/shell/quickshell/inir/NOTICE | grep -Fq "Additional terms (GNU GPL version 3, section 7)" || {
+  echo "RXB package did not preserve the iNiR section 7 terms." >&2
+  exit 1
+}
+
+for forbidden in \
+  'usr/share/ryoku/services.tsv' \
+  'usr/share/ryoku/lockscreen/' \
+  'usr/share/sddm/' \
+  'usr/share/wayland-sessions/' \
+  'usr/share/xsessions/bspwm.desktop' \
+  'etc/sddm.conf' \
+  'etc/sddm.conf.d/' \
+  'etc/kernel/cmdline' \
+  'etc/default/grub' \
+  'boot/grub/' \
+  'etc/X11/xorg.conf.d/' \
+  'etc/modprobe.d/' \
+  'usr/lib/systemd/system-sleep/' \
+  'usr/lib/environment.d/99-ryoku-session.conf' \
+  'usr/lib/environment.d/98-ryoku-dbus.conf' \
+  'usr/lib/systemd/user-environment-generators/60-ryoku-xdg-dirs' \
+  'usr/share/nautilus-python/extensions/ryoku-stash-menu.py' \
+  'usr/lib/udev/rules.d/90-ryoku-gpu.rules' \
+  'usr/lib/udev/rules.d/90-ryoku-backlight.rules' \
+  'usr/lib/udev/rules.d/60-ryoku-i2c.rules' \
+  'usr/lib/systemd/system/ryoku-greeter-guard.service' \
+  'usr/lib/systemd/system/ryoku-boot-guard.service' \
+  'usr/lib/tmpfiles.d/ryoku.conf' \
+  'usr/share/pacman/keyrings/' \
+  'usr/lib/sysusers.d/ryoku-i2c.conf' \
+  'etc/modules-load.d/ryoku-i2c.conf' \
+  'usr/bin/ryoku-qylock-activate' \
+  'usr/bin/ryoku-qylock-lock' \
+  'usr/lib/systemd/user/ryoku-x11-session.target.wants/ryoku-shell-x11@.service' \
+  'usr/lib/systemd/user/ryoku-x11-session.target.wants/ryogami-x11@.service' \
+  'usr/lib/systemd/user/default.target.wants/ryogami.service' \
+  'usr/lib/systemd/user/default.target.wants/ryoku-shell-x11@.service' \
+  'usr/lib/systemd/user/default.target.wants/ryogami-x11@.service' \
+  'usr/lib/systemd/user/ryoku-shell.service.d/10-rxb-x11.conf' \
+  'usr/lib/systemd/user/ryogami.service.d/10-rxb-x11.conf' \
+  'usr/lib/systemd/user/ryoku-session.target.wants/ryoku-shell.service' \
+  'usr/lib/systemd/user/ryoku-session.target.wants/ryogami.service'; do
+  if grep -Fq "$forbidden" <<<"$all_list"; then
+    echo "Forbidden host integration in RXB package set: $forbidden" >&2
+    exit 1
+  fi
+done
+
+for required in \
+  'usr/lib/systemd/user/ryoku-shell.service' \
+  'usr/share/ryoku/config/quickshell/shell/shell.qml'; do
+  grep -Fq "$required" <<<"$base_list" || {
+    echo "Missing expected Ryoku runtime file in base package: $required" >&2
+    exit 1
+  }
+done
+
+for required in \
+  'usr/share/xsessions/ryoku-x11.desktop' \
+  'usr/lib/systemd/user/ryoku-shell-x11@.service' \
+  'usr/lib/systemd/user/ryogami-x11@.service' \
+  'usr/lib/systemd/user/ryoku-x11-session.target' \
+  'usr/bin/ryoku-x11-session' \
+  'usr/bin/ryoku-x11-session-init' \
+  'usr/bin/ryoku-x11-lock' \
+  'usr/bin/ryoku-x11-suspend' \
+  'usr/bin/ryoku-wm-i3' \
+  'usr/share/ryoku/config/ryoku-x11/config'; do
+  grep -Fq "$required" <<<"$variant_list" || {
+    echo "Missing expected RXB i3 integration file: $required" >&2
+    exit 1
+  }
+done
+
+if ! grep -Fq 'Suspend and hibernate are disabled on X11' "$root/payload/bin/ryoku-x11-suspend"; then
+  echo "X11 suspend wrapper must fail closed with an explicit user-facing explanation." >&2
+  exit 1
+fi
+if grep -Eq 'systemctl (suspend|hibernate)|loginctl (suspend|hibernate)' "$root/payload/bin/ryoku-x11-suspend"; then
+  echo "X11 suspend wrapper must not issue a direct sleep command." >&2
+  exit 1
+fi
+
+echo "RXB package safety checks passed: no global environment, SDDM, lockscreen, boot, GPU policy, or unguarded suspend changes."
+ | head -n1 || true)"
+  if [[ -n "$candidate" ]]; then
+    wifi_archive_pkg="$pkg"
+    wifi_archive_path="$candidate"
+    break
+  fi
+done
+[[ -n "$wifi_archive_path" ]] || { echo "RXB package safety: missing ryoku-wifi-backend helper from all RXB packages." >&2; exit 1; }
 (
   wifi_script="$(mktemp)"
   trap 'rm -f "$wifi_script"' EXIT
-  bsdtar -xOf "$base_pkg" "$wifi_archive_path" > "$wifi_script"
+  bsdtar -xOf "$wifi_archive_pkg" "$wifi_archive_path" > "$wifi_script"
   chmod 0700 "$wifi_script"
   set +e
   RYOKU_X11_BRIDGE=1 bash "$wifi_script" set iwd >/dev/null 2>&1
