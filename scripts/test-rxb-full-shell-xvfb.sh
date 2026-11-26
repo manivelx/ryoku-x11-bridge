@@ -211,12 +211,14 @@ shell_root="$RYOKU_QUICKSHELL_CONFIG_HOME/shell"
 # Exercise the real upstream daemon, not a direct Quickshell invocation. The
 # daemon performs setupQmlImportPath(), selects the isolated RXB shell tree,
 # supervises Quickshell and owns the session IPC socket just as it does after login.
-dbus-run-session -- bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HOME" "$home" <<'RXB_XVFB_TEST'
+dbus-run-session -- env XDG_STATE_HOME="$XDG_STATE_HOME" bash -s -- "$shell_root" "$tmp" "$RYOKU_QUICKSHELL_CONFIG_HOME" "$home" "$XDG_STATE_HOME" <<'RXB_XVFB_TEST'
   set -euo pipefail
   shell_root="$1"
   tmp="$2"
   quickshell_root="$3"
   home="$4"
+  export XDG_STATE_HOME="$5"
+  printf '[shell-smoke] HOME=%s XDG_STATE_HOME=%s\\n' "$HOME" "$XDG_STATE_HOME"
 
   # The visualizer's CavaFeed uses PipeWire. A bare Xvfb container has no
   # audio server, so opening the visualizer placement surface can terminate
